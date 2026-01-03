@@ -1,1 +1,1 @@
-# digestify-api
+# Digestify API
