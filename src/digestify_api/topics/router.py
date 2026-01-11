@@ -3,20 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
+import digestify_api.billing.router as billing
+import digestify_api.following.router as following
 from digestify_api.auth import Auth, get_auth
-from digestify_api.billing.router import (
-    create_topic as create_billing_topic,
-)
-from digestify_api.billing.router import (
-    delete_topic as delete_billing_topic,
-)
 from digestify_api.db import AsyncSession, get_session
-from digestify_api.following.router import (
-    create_topic as create_following_topic,
-)
-from digestify_api.following.router import (
-    delete_topic as delete_following_topic,
-)
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -30,31 +20,31 @@ async def create_topic(
     session: Annotated[AsyncSession, Depends(get_session)],
     topic_id: UUID,
 ) -> None:
-    await create_billing_topic(
+    await billing.create_topic(
         session=session,
-        user_id=auth.id,
+        auth=auth,
         topic_id=topic_id,
     )
-    await create_following_topic(
+    await following.create_topic(
         session=session,
-        user_id=auth.id,
+        auth=auth,
         topic_id=topic_id,
     )
 
 
 @topics_router.delete("/topic")
-async def delete_topic(
+async def discard_topic(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
     topic_id: UUID,
 ) -> None:
-    await delete_billing_topic(
+    await billing.discard_topic(
         session=session,
-        user_id=auth.id,
+        auth=auth,
         topic_id=topic_id,
     )
-    await delete_following_topic(
+    await following.discard_topic(
         session=session,
-        user_id=auth.id,
+        auth=auth,
         topic_id=topic_id,
     )

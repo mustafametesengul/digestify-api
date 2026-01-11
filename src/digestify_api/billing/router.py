@@ -23,64 +23,64 @@ billing_router = APIRouter(
 
 
 async def create_user(
-    session: AsyncSession,
-    user_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
 ) -> None:
-    user_result = await session.exec(
-        select(User).where(User.id == user_id).with_for_update()
-    )
+    user_result = await session.exec(select(User).where(User.id == auth.id))
     user = user_result.one_or_none()
     if user is not None:
         raise UserAlreadyExists()
 
     if user is None:
-        user = User(id=user_id)
+        user = User(id=auth.id)
         session.add(user)
 
 
-async def delete_user(
-    session: AsyncSession,
-    user_id: UUID,
+async def discard_user(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
 ) -> None:
     user_result = await session.exec(
-        select(User).where(User.id == user_id).with_for_update()
+        select(User).where(User.id == auth.id).with_for_update()
     )
     user = user_result.one_or_none()
-    if user is None or user.discarded:
+    if user is None:
         raise UserNotFound()
+
+    if user.discarded:
+        return
 
     user.discarded = True
 
 
 @billing_router.get("/user")
 async def get_user(
-    auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
 ) -> UserRead:
     user_result = await session.exec(select(User).where(User.id == auth.id))
     user = user_result.one_or_none()
     if user is None:
         raise UserNotFound()
+
     return UserRead.model_validate(user.model_dump())
 
 
 async def create_topic(
-    session: AsyncSession,
-    user_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
     topic_id: UUID,
 ) -> None:
     user_result = await session.exec(
-        select(User).where(User.id == user_id).with_for_update()
+        select(User).where(User.id == auth.id).with_for_update()
     )
     user = user_result.one_or_none()
-
     if user is None:
         raise UserNotFound()
 
     topic_result = await session.exec(
-        select(Topic).where(Topic.id == topic_id, Topic.user_id == user_id)
+        select(Topic).where(Topic.id == topic_id, Topic.user_id == auth.id)
     )
-
     topic = topic_result.one_or_none()
     if topic is not None:
         raise TopicAlreadyExists()
@@ -99,32 +99,33 @@ async def create_topic(
 
     user.created_topics_count += 1
 
-    topic = Topic(id=topic_id, user_id=user_id)
+    topic = Topic(id=topic_id, user_id=auth.id)
     session.add(topic)
 
 
-async def delete_topic(
-    session: AsyncSession,
-    user_id: UUID,
+async def discard_topic(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
     topic_id: UUID,
 ) -> None:
     user_result = await session.exec(
-        select(User).where(User.id == user_id).with_for_update()
+        select(User).where(User.id == auth.id).with_for_update()
     )
     user = user_result.one_or_none()
-
-    if user is None or user.discarded:
+    if user is None:
         raise UserNotFound()
 
     topic_result = await session.exec(
         select(Topic)
-        .where(Topic.id == topic_id, Topic.user_id == user_id)
+        .where(Topic.id == topic_id, Topic.user_id == auth.id)
         .with_for_update()
     )
-
     topic = topic_result.one_or_none()
-    if topic is None or topic.discarded:
+    if topic is None:
         raise TopicNotFound()
+
+    if topic.discarded:
+        return
 
     topic.discarded = True
     user.created_topics_count -= 1

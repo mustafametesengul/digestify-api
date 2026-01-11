@@ -2,20 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+import digestify_api.billing.router as billing
+import digestify_api.following.router as following
 from digestify_api.auth import Auth, get_auth
-from digestify_api.billing.router import (
-    create_user as create_billing_user,
-)
-from digestify_api.billing.router import (
-    delete_user as delete_billing_user,
-)
 from digestify_api.db import AsyncSession, get_session
-from digestify_api.following.router import (
-    create_user as create_following_user,
-)
-from digestify_api.following.router import (
-    delete_user as delete_following_user,
-)
 
 users_router = APIRouter(
     prefix="/users",
@@ -25,17 +15,17 @@ users_router = APIRouter(
 
 @users_router.post("/user")
 async def create_user(
-    auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
 ) -> None:
-    await create_billing_user(session=session, user_id=auth.id)
-    await create_following_user(session=session, user_id=auth.id)
+    await billing.create_user(session=session, auth=auth)
+    await following.create_user(session=session, auth=auth)
 
 
 @users_router.delete("/user")
-async def delete_user(
-    auth: Annotated[Auth, Depends(get_auth)],
+async def discard_user(
     session: Annotated[AsyncSession, Depends(get_session)],
+    auth: Annotated[Auth, Depends(get_auth)],
 ) -> None:
-    await delete_billing_user(session=session, user_id=auth.id)
-    await delete_following_user(session=session, user_id=auth.id)
+    await billing.discard_user(session=session, auth=auth)
+    await following.discard_user(session=session, auth=auth)
