@@ -7,16 +7,20 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 class DBSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="POSTGRES_",
+    )
 
-    postgres_host: str = Field(default=...)
-    postgres_port: int = Field(default=...)
-    postgres_user: str = Field(default=...)
-    postgres_password: str = Field(default=...)
-    postgres_db: str = Field(default=...)
+    host: str = Field(default=...)
+    port: int = Field(default=...)
+    user: str = Field(default=...)
+    password: str = Field(default=...)
+    db: str = Field(default=...)
 
 
-engine: AsyncEngine | None = None
+_engine: AsyncEngine | None = None
 
 
 def create_database_url(
@@ -31,35 +35,34 @@ def create_database_url(
     return url
 
 
-def init_engine(settings: DBSettings | None = None) -> None:
-    global engine
-    if engine is not None:
+def create_engine(settings: DBSettings | None = None) -> None:
+    global _engine
+    if _engine is not None:
         raise ValueError("Engine has already been initialized.")
-    if settings is None:
-        settings = DBSettings()
+    settings = settings or DBSettings()
     url = create_database_url(
         driver="postgresql+asyncpg",
-        user=settings.postgres_user,
-        password=settings.postgres_password,
-        host=settings.postgres_host,
-        port=settings.postgres_port,
-        db=settings.postgres_db,
+        user=settings.user,
+        password=settings.password,
+        host=settings.host,
+        port=settings.port,
+        db=settings.db,
     )
-    engine = create_async_engine(url)
+    _engine = create_async_engine(url)
 
 
 def get_engine() -> AsyncEngine:
-    global engine
-    if engine is None:
+    global _engine
+    if _engine is None:
         raise ValueError("Engine has not been initialized.")
-    return engine
+    return _engine
 
 
 async def dispose_engine() -> None:
-    global engine
-    engine = get_engine()
-    await engine.dispose()
-    engine = None
+    global _engine
+    _engine = get_engine()
+    await _engine.dispose()
+    _engine = None
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

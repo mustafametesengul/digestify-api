@@ -10,11 +10,11 @@ def run_migrations(settings: DBSettings | None = None) -> None:
     settings = settings or DBSettings()
     db_url = create_database_url(
         driver="postgresql+asyncpg",
-        user=settings.postgres_user,
-        password=settings.postgres_password,
-        host=settings.postgres_host,
-        port=settings.postgres_port,
-        db=settings.postgres_db,
+        user=settings.user,
+        password=settings.password,
+        host=settings.host,
+        port=settings.port,
+        db=settings.db,
     )
     script_location = Path(__file__).parent.as_posix()
 

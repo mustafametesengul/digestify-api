@@ -12,15 +12,18 @@ from jwt import InvalidTokenError
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
-
-public_keys: dict[str, ec.EllipticCurvePublicKey] = {}
-security = HTTPBearer()
+_public_keys: dict[str, ec.EllipticCurvePublicKey] = {}
+_security = HTTPBearer()
 
 
 class AuthSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="DIGESTIFY_API_",
+    )
 
     jwks_url: str = Field(default=...)
 
@@ -50,7 +53,7 @@ def jwk_to_public_key(jwk: dict[str, str]) -> ec.EllipticCurvePublicKey:
 
 async def fetch_jwks(settings: AuthSettings | None = None) -> None:
     """Fetch JWKS on startup."""
-    global public_keys
+    global _public_keys
     if settings is None:
         settings = AuthSettings()
     async with httpx.AsyncClient() as client:
@@ -59,8 +62,8 @@ async def fetch_jwks(settings: AuthSettings | None = None) -> None:
         jwks = resp.json()
         for jwk in jwks["keys"]:
             kid = jwk["kid"]
-            public_keys[kid] = jwk_to_public_key(jwk)
-    logger.info(f"Loaded {len(public_keys)} public keys.")
+            _public_keys[kid] = jwk_to_public_key(jwk)
+    _logger.info(f"Loaded {len(_public_keys)} public keys.")
 
 
 def verify_jwt_token(token: str) -> dict[str, Any]:
@@ -73,10 +76,10 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
     kid = unverified_header["kid"]
     if not isinstance(kid, str):
         raise HTTPException(status_code=401, detail="Invalid key ID in token header")
-    if kid not in public_keys:
+    if kid not in _public_keys:
         raise HTTPException(status_code=401, detail="Unknown key ID")
 
-    public_key = public_keys[kid]
+    public_key = _public_keys[kid]
 
     try:
         payload = jwt.decode(
@@ -91,7 +94,7 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
 
 
 def get_auth(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_security)],
 ) -> Auth:
     token = credentials.credentials
     decoded_token = verify_jwt_token(token)

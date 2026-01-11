@@ -7,19 +7,24 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from digestify_api.auth import AuthSettings, fetch_jwks, get_auth, mock_get_auth
-from digestify_api.db import DBSettings, dispose_engine, init_engine
-from digestify_api.following.router import router as following_router
-from digestify_api.topics.router import router as topics_router
-from digestify_api.users.router import router as users_router
+from digestify_api.db import DBSettings, create_engine, dispose_engine
+from digestify_api.following.router import following_router
+from digestify_api.topics.router import topics_router
+from digestify_api.users.router import users_router
 
 
 class AppSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="DIGESTIFY_API_",
+    )
 
-    debug: bool = Field(default=...)
-    auth_settings: AuthSettings | None = Field(default=None)
-    db_settings: DBSettings = Field(default_factory=DBSettings)
-    openai_api_key: str = Field(default=...)
+    debug: bool = Field(default=False)
+    host: str = Field(default="localhost")
+    port: int = Field(default=8000)
+    auth: AuthSettings | None = Field(default=None)
+    db: DBSettings = Field(default_factory=DBSettings)
 
 
 _settings: AppSettings | None = None
@@ -30,11 +35,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _settings
     if _settings is None:
         raise ValueError("AppSettings have not been initialized.")
-    init_engine(_settings.db_settings)
+    create_engine(_settings.db)
     if not _settings.debug:
-        if _settings.auth_settings is None:
+        if _settings.auth is None:
             raise ValueError("AuthSettings must be provided in non-debug mode.")
-        await fetch_jwks(_settings.auth_settings)
+        await fetch_jwks(_settings.auth)
     try:
         yield
     finally:
@@ -56,7 +61,7 @@ def run_app(settings: AppSettings | None = None) -> None:
     if _settings.debug:
         app.dependency_overrides[get_auth] = mock_get_auth
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=_settings.host, port=_settings.port)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ from digestify_api.billing.models import Topic, User
 from digestify_api.billing.schemas import SubscriptionTier, UserRead
 from digestify_api.db import AsyncSession, get_session
 
-router = APIRouter(
+billing_router = APIRouter(
     prefix="/billing",
     tags=["billing"],
 )
@@ -52,7 +52,7 @@ async def delete_user(
     user.discarded = True
 
 
-@router.get("/user")
+@billing_router.get("/user")
 async def get_user(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],

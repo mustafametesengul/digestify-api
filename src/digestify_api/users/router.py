@@ -17,13 +17,13 @@ from digestify_api.following.router import (
     delete_user as delete_following_user,
 )
 
-router = APIRouter(
+users_router = APIRouter(
     prefix="/users",
     tags=["users"],
 )
 
 
-@router.post("/user")
+@users_router.post("/user")
 async def create_user(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -32,7 +32,7 @@ async def create_user(
     await create_following_user(session=session, user_id=auth.id)
 
 
-@router.delete("/user")
+@users_router.delete("/user")
 async def delete_user(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],

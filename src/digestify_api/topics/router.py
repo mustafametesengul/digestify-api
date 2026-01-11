@@ -18,13 +18,13 @@ from digestify_api.following.router import (
     delete_topic as delete_following_topic,
 )
 
-router = APIRouter(
+topics_router = APIRouter(
     prefix="/topics",
     tags=["topics"],
 )
 
 
-@router.post("/topic")
+@topics_router.post("/topic")
 async def create_topic(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -42,7 +42,7 @@ async def create_topic(
     )
 
 
-@router.delete("/topic")
+@topics_router.delete("/topic")
 async def delete_topic(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],

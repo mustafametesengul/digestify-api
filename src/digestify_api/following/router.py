@@ -15,7 +15,7 @@ from digestify_api.following.exceptions import (
 )
 from digestify_api.following.models import Follow, Topic, User
 
-router = APIRouter(
+following_router = APIRouter(
     prefix="/following",
     tags=["following"],
 )
@@ -48,7 +48,7 @@ async def delete_user(
     if user is None or user.discarded:
         raise UserNotFound()
 
-    await session.delete(user)
+    user.discarded = True
 
 
 async def create_topic(
@@ -92,10 +92,10 @@ async def delete_topic(
     if topic is None or topic.discarded:
         raise TopicNotFound()
 
-    await session.delete(topic)
+    topic.discarded = True
 
 
-@router.post("/follow")
+@following_router.post("/follow")
 async def follow(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -136,7 +136,7 @@ async def follow(
     topic.followers_count += 1
 
 
-@router.post("/unfollow")
+@following_router.post("/unfollow")
 async def unfollow(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
