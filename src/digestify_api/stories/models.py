@@ -1,20 +1,20 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field
+
+from digestify_api.models import Entity
 
 SCHEMA = "stories"
 
 
-class User(SQLModel, table=True):
+class User(Entity, table=True):
     __table_args__ = {"schema": SCHEMA}
     __tablename__ = "users"
-    id: UUID = Field(primary_key=True, default_factory=uuid4)
 
 
-class Topic(SQLModel, table=True):
+class Topic(Entity, table=True):
     __table_args__ = {"schema": SCHEMA}
     __tablename__ = "topics"
-    id: UUID = Field(primary_key=True, default_factory=uuid4)
     user_id: UUID = Field(foreign_key="users.id", nullable=False, index=True)
     name: str = Field(nullable=False)
     description: str = Field(nullable=False)
@@ -23,10 +23,9 @@ class Topic(SQLModel, table=True):
     image_url: str | None = Field(nullable=True, default=None)
 
 
-class Story(SQLModel, table=True):
+class Story(Entity, table=True):
     __table_args__ = {"schema": SCHEMA}
     __tablename__ = "stories"
-    id: UUID = Field(primary_key=True, default_factory=uuid4)
     topic_id: UUID = Field(foreign_key="topics.id", nullable=False, index=True)
     title: str = Field(nullable=False)
     image_url: str | None = Field(nullable=True, default=None)

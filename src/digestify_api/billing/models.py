@@ -1,30 +1,26 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field
 
 from digestify_api.billing.schemas import SubscriptionTier
+from digestify_api.models import Entity
 
 SCHEMA = "billing"
 
 
-class User(SQLModel, table=True):
+class User(Entity, table=True):
     __table_args__ = {"schema": SCHEMA}
     __tablename__ = "users"
-    id: UUID = Field(primary_key=True, default_factory=uuid4)
     created_topics_count: int = Field(nullable=False, index=True, default=0)
     subscription_tier: SubscriptionTier = Field(
         nullable=False,
         index=True,
         default=SubscriptionTier.FREE,
     )
+    discarded: bool = Field(nullable=False, index=True, default=False)
 
 
-class Topic(SQLModel, table=True):
+class Topic(Entity, table=True):
     __table_args__ = {"schema": SCHEMA}
     __tablename__ = "topics"
-    id: UUID = Field(primary_key=True)
-    user_id: UUID = Field(
-        foreign_key="billing.users.id",
-        primary_key=True,
-        ondelete="CASCADE",
-    )
+    user_id: UUID = Field(foreign_key=f"{SCHEMA}.users.id", primary_key=True)

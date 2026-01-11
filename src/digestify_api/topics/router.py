@@ -4,17 +4,17 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from digestify_api.auth import Auth, get_auth
-from digestify_api.billing.admin import (
+from digestify_api.billing.router import (
     create_topic as create_billing_topic,
 )
-from digestify_api.billing.admin import (
+from digestify_api.billing.router import (
     delete_topic as delete_billing_topic,
 )
 from digestify_api.db import AsyncSession, get_session
-from digestify_api.following.admin import (
+from digestify_api.following.router import (
     create_topic as create_following_topic,
 )
-from digestify_api.following.admin import (
+from digestify_api.following.router import (
     delete_topic as delete_following_topic,
 )
 
@@ -24,7 +24,7 @@ router = APIRouter(
 )
 
 
-@router.get("/topic")
+@router.post("/topic")
 async def create_topic(
     auth: Annotated[Auth, Depends(get_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],

@@ -8,7 +8,9 @@ from digestify_api.auth import Auth, get_auth
 from digestify_api.db import AsyncSession, get_session
 from digestify_api.following.exceptions import (
     FollowLimitReached,
+    TopicAlreadyExists,
     TopicNotFound,
+    UserAlreadyExists,
     UserNotFound,
 )
 from digestify_api.following.models import Follow, Topic, User
@@ -17,6 +19,80 @@ router = APIRouter(
     prefix="/following",
     tags=["following"],
 )
+
+
+async def create_user(
+    session: AsyncSession,
+    user_id: UUID,
+) -> None:
+    user_result = await session.exec(
+        select(User).where(User.id == user_id).with_for_update()
+    )
+    user = user_result.one_or_none()
+    if user is not None:
+        raise UserAlreadyExists()
+
+    if user is None:
+        user = User(id=user_id)
+        session.add(user)
+
+
+async def delete_user(
+    session: AsyncSession,
+    user_id: UUID,
+) -> None:
+    user_result = await session.exec(
+        select(User).where(User.id == user_id).with_for_update()
+    )
+    user = user_result.one_or_none()
+    if user is None or user.discarded:
+        raise UserNotFound()
+
+    await session.delete(user)
+
+
+async def create_topic(
+    session: AsyncSession,
+    user_id: UUID,
+    topic_id: UUID,
+) -> None:
+    user_result = await session.exec(
+        select(User).where(User.id == user_id).with_for_update()
+    )
+    user = user_result.one_or_none()
+
+    if user is None or user.discarded:
+        raise UserNotFound()
+
+    session.add(user)
+
+    topic_result = await session.exec(
+        select(Topic).where(Topic.id == topic_id, Topic.user_id == user_id)
+    )
+
+    topic = topic_result.one_or_none()
+    if topic is not None:
+        raise TopicAlreadyExists()
+
+    topic = Topic(id=topic_id, user_id=user_id)
+    session.add(topic)
+
+
+async def delete_topic(
+    session: AsyncSession,
+    user_id: UUID,
+    topic_id: UUID,
+) -> None:
+    topic_result = await session.exec(
+        select(Topic)
+        .where(Topic.id == topic_id, Topic.user_id == user_id)
+        .with_for_update()
+    )
+    topic = topic_result.one_or_none()
+    if topic is None or topic.discarded:
+        raise TopicNotFound()
+
+    await session.delete(topic)
 
 
 @router.post("/follow")
@@ -29,7 +105,7 @@ async def follow(
         select(User).where(User.id == auth.id).with_for_update()
     )
     user = user_result.one_or_none()
-    if user is None:
+    if user is None or user.discarded:
         raise UserNotFound()
 
     if user.followed_topics_count >= 100:
@@ -39,7 +115,7 @@ async def follow(
         select(Topic).where(Topic.id == topic_id).with_for_update()
     )
     topic = topic_result.one_or_none()
-    if topic is None:
+    if topic is None or topic.discarded:
         raise TopicNotFound()
 
     follow_result = await session.exec(
@@ -70,14 +146,14 @@ async def unfollow(
         select(User).where(User.id == auth.id).with_for_update()
     )
     user = user_result.one_or_none()
-    if user is None:
+    if user is None or user.discarded:
         raise UserNotFound()
 
     topic_result = await session.exec(
         select(Topic).where(Topic.id == topic_id).with_for_update()
     )
     topic = topic_result.one_or_none()
-    if topic is None:
+    if topic is None or topic.discarded:
         raise TopicNotFound()
 
     follow_result = await session.exec(

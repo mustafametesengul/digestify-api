@@ -1,8 +1,7 @@
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-ARG UV_NO_DEV=1
-ENV UV_NO_DEV=$UV_NO_DEV
+ENV UV_NO_DEV=1
 
 ENV UV_PYTHON_DOWNLOADS=0
 
@@ -28,3 +27,5 @@ ENV PATH="/app/.venv/bin:$PATH"
 USER nonroot
 
 WORKDIR /app
+
+ENTRYPOINT [ "digestify-api" ]

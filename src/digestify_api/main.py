@@ -1,18 +1,23 @@
-import uvicorn
+from pydantic import Field
+from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand
 
-from digestify_api.settings import get_settings, init_settings
+from digestify_api.app import AppSettings, run_app
+from digestify_api.db import DBSettings
+from digestify_api.migrations.run import run_migrations
 
 
-def main() -> None:
-    init_settings()
-    settings = get_settings()
+class Settings(BaseSettings, cli_parse_args=True):
+    run: CliSubCommand[AppSettings] = Field(default=...)
+    migrate: CliSubCommand[DBSettings] = Field(default=...)
 
-    uvicorn.run(
-        "digestify_api.app:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug,
-    )
+
+def main(settings: Settings | None = None) -> None:
+    settings = settings or Settings()
+    subcommand = get_subcommand(settings)
+    if isinstance(subcommand, AppSettings):
+        run_app(subcommand)
+    if isinstance(subcommand, DBSettings):
+        run_migrations(subcommand)
 
 
 if __name__ == "__main__":

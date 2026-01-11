@@ -1,20 +1,66 @@
 services:
   db:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg18
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-db}
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=db
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1" ]
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 5s
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - PGWEB_DATABASE_URL=postgres://user:password@db:5432/db?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  alembic:
+    build:
+      context: .
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=db
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: alembic
+    command: upgrade head
+
+  web:
+    build:
+      context: .
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=db
+      - JWKS_URL
+      - OPENAI_API_KEY
+      - DEBUG=False
+    depends_on:
+      db:
+        condition: service_healthy
+      alembic:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    command: uvicorn src.digestify_topics.app:app --host 0.0.0.0 --port 8000 --reload
 
   mcp:
     image: mustafametesengul/webquest-mcp:latest
@@ -26,23 +72,16 @@ services:
       - WEBQUEST_MCP_PORT=8000
       - HYPERBROWSER_API_KEY
       - OPENAI_API_KEY
-    develop:
-      watch:
-        - action: sync
-          path: .
-          target: /app
-          initial_sync: true
-          ignore:
-            - .venv/
-        - action: rebuild
-          path: ./uv.lock
+
   ngrok:
     image: ngrok/ngrok:latest
     command: http mcp:8000
     environment:
       - NGROK_AUTHTOKEN
-    profiles: [ "ngrok", "test" ]
     depends_on:
       - mcp
     ports:
       - "4040:4040"
+
+volumes:
+  db_data:
