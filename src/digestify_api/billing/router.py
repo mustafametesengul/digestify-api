@@ -77,6 +77,14 @@ async def create_topic(
     if user is None:
         raise UserNotFound()
 
+    topic_result = await session.exec(
+        select(Topic).where(Topic.id == topic_id, Topic.user_id == user_id)
+    )
+
+    topic = topic_result.one_or_none()
+    if topic is not None:
+        raise TopicAlreadyExists()
+
     if (
         user.created_topics_count >= 1
         and user.subscription_tier is SubscriptionTier.FREE
@@ -90,14 +98,6 @@ async def create_topic(
         raise TopicLimitExceeded("Premium tier users can only create up to 5 topics")
 
     user.created_topics_count += 1
-
-    topic_result = await session.exec(
-        select(Topic).where(Topic.id == topic_id, Topic.user_id == user_id)
-    )
-
-    topic = topic_result.one_or_none()
-    if topic is not None:
-        raise TopicAlreadyExists()
 
     topic = Topic(id=topic_id, user_id=user_id)
     session.add(topic)

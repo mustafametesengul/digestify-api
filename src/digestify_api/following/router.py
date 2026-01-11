@@ -64,8 +64,6 @@ async def create_topic(
     if user is None or user.discarded:
         raise UserNotFound()
 
-    session.add(user)
-
     topic_result = await session.exec(
         select(Topic).where(Topic.id == topic_id, Topic.user_id == user_id)
     )
