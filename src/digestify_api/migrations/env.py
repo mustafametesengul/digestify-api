@@ -24,8 +24,8 @@ import sqlmodel
 
 target_metadata = sqlmodel.SQLModel.metadata
 
-import digestify_api.billing.models
 import digestify_api.following.models
+import digestify_api.limits.models
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

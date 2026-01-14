@@ -7,7 +7,6 @@ from sqlmodel import select
 from digestify_api.auth import Auth, get_auth
 from digestify_api.db import AsyncSession, get_session
 from digestify_api.following.exceptions import (
-    FollowLimitReached,
     TopicAlreadyExists,
     TopicNotFound,
     UserAlreadyExists,
@@ -120,9 +119,6 @@ async def follow(
     user = user_result.one_or_none()
     if user is None:
         raise UserNotFound()
-
-    if user.followed_topics_count >= 100:
-        raise FollowLimitReached()
 
     topic_result = await session.exec(
         select(Topic).where(Topic.id == topic_id).with_for_update()

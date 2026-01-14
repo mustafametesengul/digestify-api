@@ -11,5 +11,6 @@ class SubscriptionTier(StrEnum):
 
 class UserRead(BaseModel):
     id: UUID
-    created_topics_count: int
     subscription_tier: SubscriptionTier
+    created_topics_count: int
+    followed_topics_count: int

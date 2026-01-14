@@ -3,8 +3,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-import digestify_api.billing.router as billing
 import digestify_api.following.router as following
+import digestify_api.limits.router as billing
 from digestify_api.auth import Auth, get_auth
 from digestify_api.db import AsyncSession, get_session
 
