@@ -1,0 +1,3 @@
+from digestify_api.routers.follow_router import follow_router
+from digestify_api.routers.topic_router import topic_router
+from digestify_api.routers.user_router import user_router

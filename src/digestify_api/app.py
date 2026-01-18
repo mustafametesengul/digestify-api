@@ -7,10 +7,12 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from digestify_api.auth import AuthSettings, fetch_jwks, get_auth, mock_get_auth
-from digestify_api.db import DBSettings, create_engine, dispose_engine
-from digestify_api.following.router import following_router
-from digestify_api.topics.router import topics_router
-from digestify_api.users.router import users_router
+from digestify_api.db import DBSettings, close_pool, create_pool
+from digestify_api.routers import (
+    follow_router,
+    topic_router,
+    user_router,
+)
 
 
 class AppSettings(BaseSettings):
@@ -35,7 +37,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _settings
     if _settings is None:
         raise ValueError("AppSettings have not been initialized.")
-    create_engine(_settings.db)
+    await create_pool(_settings.db)
     if not _settings.debug:
         if _settings.auth is None:
             raise ValueError("AuthSettings must be provided in non-debug mode.")
@@ -43,7 +45,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        await dispose_engine()
+        await close_pool()
 
 
 def run_app(settings: AppSettings | None = None) -> None:
@@ -54,9 +56,9 @@ def run_app(settings: AppSettings | None = None) -> None:
         lifespan=lifespan,
         debug=_settings.debug,
     )
-    app.include_router(users_router)
-    app.include_router(following_router)
-    app.include_router(topics_router)
+    app.include_router(user_router)
+    app.include_router(follow_router)
+    app.include_router(topic_router)
 
     if _settings.debug:
         app.dependency_overrides[get_auth] = mock_get_auth
