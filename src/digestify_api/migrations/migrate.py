@@ -45,6 +45,14 @@ async def apply_migrations(conn: asyncpg.Connection) -> None:
     print("Migrations complete")
 
 
+async def reset_migrations(conn: asyncpg.Connection) -> None:
+    await conn.execute("DROP TABLE IF EXISTS follows CASCADE")
+    await conn.execute("DROP TABLE IF EXISTS stories CASCADE")
+    await conn.execute("DROP TABLE IF EXISTS topics CASCADE")
+    await conn.execute("DROP TABLE IF EXISTS users CASCADE")
+    await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
+
+
 async def apply_migrations_main(settings: DBSettings | None = None) -> None:
     if settings is None:
         settings = DBSettings()

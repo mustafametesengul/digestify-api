@@ -4,7 +4,7 @@ import asyncpg
 import pytest
 
 from digestify_api.db import DBSettings
-from digestify_api.migrations import apply_migrations
+from digestify_api.migrations import apply_migrations, reset_migrations
 from digestify_api.repositories import FollowRepository, TopicRepository, UserRepository
 
 
@@ -25,23 +25,12 @@ async def connection(
         port=db_settings.port,
     )
 
-    # Clean up and setup
-    await conn.execute("DROP TABLE IF EXISTS follows CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS stories CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS topics CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS users CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
-
+    await reset_migrations(conn)
     await apply_migrations(conn)
 
     yield conn
 
-    await conn.execute("DROP TABLE IF EXISTS follows CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS stories CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS topics CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS users CASCADE")
-    await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
-
+    await reset_migrations(conn)
     await conn.close()
 
 
