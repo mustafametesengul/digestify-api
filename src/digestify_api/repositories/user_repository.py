@@ -61,7 +61,7 @@ class UserRepository:
         row = await self._connection.fetchrow(query, user_id)
         if row is None:
             return None
-        return UserRead.model_validate(row, from_attributes=True)
+        return UserRead.model_validate(dict(row))
 
     async def increase_created_topics_count(self, user_id: UUID) -> None:
         await self._connection.execute(

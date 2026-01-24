@@ -55,4 +55,4 @@ class FollowRepository:
         row = await self._connection.fetchrow(query, user_id, topic_id)
         if row is None:
             return None
-        return FollowRead.model_validate(row, from_attributes=True)
+        return FollowRead.model_validate(dict(row))

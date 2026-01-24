@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 import asyncpg
@@ -56,7 +55,6 @@ async def close_pool() -> None:
             _pool = None
 
 
-@asynccontextmanager
 async def get_connection() -> AsyncIterator[asyncpg.Connection]:
     global _pool
     if _pool is None:

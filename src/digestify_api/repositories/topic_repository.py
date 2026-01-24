@@ -57,7 +57,7 @@ class TopicRepository:
         if row is None:
             return None
 
-        topic = TopicCreate.model_validate(row, from_attributes=True)
+        topic = TopicCreate.model_validate(dict(row))
         return topic
 
     async def is_topic_discarded(self, topic_id: UUID) -> bool:
