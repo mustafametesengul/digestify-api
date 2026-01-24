@@ -5,7 +5,12 @@ import pytest
 
 from digestify_api.db import DBSettings
 from digestify_api.migrations import apply_migrations, reset_migrations
-from digestify_api.repositories import FollowRepository, TopicRepository, UserRepository
+from digestify_api.repositories import (
+    FollowRepository,
+    StoryRepository,
+    TopicRepository,
+    UserRepository,
+)
 
 
 @pytest.fixture(scope="session")
@@ -47,3 +52,8 @@ def topic_repo(connection: asyncpg.Connection):
 @pytest.fixture
 def follow_repo(connection: asyncpg.Connection):
     return FollowRepository(connection)
+
+
+@pytest.fixture
+def story_repo(connection: asyncpg.Connection):
+    return StoryRepository(connection)
