@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -16,19 +17,32 @@ class FollowRepository:
         self._connection = connection
 
     async def create_follow(self, follow: FollowCreate) -> None:
+        time = datetime.now(timezone.utc)
         await self._connection.execute(
-            "INSERT INTO follows (user_id, topic_id, is_following) VALUES ($1, $2, $3)",
+            """
+            INSERT INTO follows
+            (user_id, topic_id, is_following, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
             follow.user_id,
             follow.topic_id,
             follow.is_following,
+            time,
+            time,
         )
 
     async def update_follow(self, follow: FollowUpdate) -> None:
+        time = datetime.now(timezone.utc)
         await self._connection.execute(
-            "UPDATE follows SET is_following = $3 WHERE user_id = $1 AND topic_id = $2",
+            """
+            UPDATE follows
+            SET is_following = $3, updated_at = $4
+            WHERE user_id = $1 AND topic_id = $2
+            """,
             follow.user_id,
             follow.topic_id,
             follow.is_following,
+            time,
         )
 
     async def read_follow(

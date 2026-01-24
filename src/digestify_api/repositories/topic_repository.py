@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -23,8 +24,14 @@ class TopicRepository:
         return row is not None
 
     async def create_topic(self, topic: TopicCreate) -> None:
+        time = datetime.now(timezone.utc)
         await self._connection.execute(
-            "INSERT INTO topics (id, user_id, discarded, name, description, language, image_url, is_active, followers_count) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+            """
+            INSERT INTO topics
+            (id, user_id, discarded, name, description, language, image_url,
+            is_active, followers_count, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            """,
             topic.id,
             topic.user_id,
             topic.discarded,
@@ -34,6 +41,8 @@ class TopicRepository:
             topic.image_url,
             topic.is_active,
             topic.followers_count,
+            time,
+            time,
         )
 
     async def read_topic(

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -16,35 +17,41 @@ class UserRepository:
         self._connection = connection
 
     async def create_user(self, user: UserCreate) -> None:
-        query = """
-            INSERT INTO users (id, discarded, subscription_tier, created_topics_count, followed_topics_count)
-            VALUES ($1, $2, $3, $4, $5)
-        """
+        time = datetime.now(timezone.utc)
         await self._connection.execute(
-            query,
+            """
+            INSERT INTO users
+            (id, discarded, subscription_tier, created_topics_count,
+            followed_topics_count, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """,
             user.id,
             user.discarded,
             user.subscription_tier,
             user.created_topics_count,
             user.followed_topics_count,
+            time,
+            time,
         )
 
     async def update_user(self, user: UserUpdate) -> None:
-        query = """
+        time = datetime.now(timezone.utc)
+        await self._connection.execute(
+            """
             UPDATE users
             SET discarded = $2,
                 subscription_tier = $3,
                 created_topics_count = $4,
-                followed_topics_count = $5
+                followed_topics_count = $5,
+                updated_at = $6
             WHERE id = $1
-        """
-        await self._connection.execute(
-            query,
+            """,
             user.id,
             user.discarded,
             user.subscription_tier,
             user.created_topics_count,
             user.followed_topics_count,
+            time,
         )
 
     async def read_user(self, user_id: UUID, lock: bool = False) -> UserRead | None:
@@ -58,13 +65,15 @@ class UserRepository:
 
     async def increase_created_topics_count(self, user_id: UUID) -> None:
         await self._connection.execute(
-            "UPDATE users SET created_topics_count = created_topics_count + 1 WHERE id = $1",
+            """UPDATE users SET created_topics_count =
+            created_topics_count + 1 WHERE id = $1""",
             user_id,
         )
 
     async def increase_followed_topics_count(self, user_id: UUID) -> None:
         await self._connection.execute(
-            "UPDATE users SET followed_topics_count = followed_topics_count + 1 WHERE id = $1",
+            """UPDATE users SET followed_topics_count =
+            followed_topics_count + 1 WHERE id = $1""",
             user_id,
         )
 

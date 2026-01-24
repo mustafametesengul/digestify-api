@@ -40,7 +40,10 @@ async def create_topic(
 
     if user_read.subscription_tier is SubscriptionTier.FREE:
         raise TopicLimitExceeded(
-            detail="Free tier users cannot create topics. Please upgrade your subscription to create topics."
+            detail=(
+                "Free tier users cannot create topics. "
+                "Please upgrade your subscription to create topics."
+            )
         )
 
     if (
@@ -48,7 +51,10 @@ async def create_topic(
         and user_read.subscription_tier is SubscriptionTier.PREMIUM
     ):
         raise TopicLimitExceeded(
-            detail="Premium tier users can create up to 10 topics. Please delete some topics to create new ones."
+            detail=(
+                "Premium tier users can create up to 10 topics. "
+                "Please delete some topics to create new ones."
+            )
         )
 
     topic_create = TopicCreate(
