@@ -50,6 +50,7 @@ async def reset_migrations(conn: asyncpg.Connection) -> None:
     await conn.execute("DROP TABLE IF EXISTS stories CASCADE")
     await conn.execute("DROP TABLE IF EXISTS topics CASCADE")
     await conn.execute("DROP TABLE IF EXISTS users CASCADE")
+    await conn.execute("DROP TABLE IF EXISTS tasks CASCADE")
     await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
 
 

@@ -79,6 +79,7 @@ services:
       - WEBQUEST_MCP_PORT=8001
       - HYPERBROWSER_API_KEY
       - OPENAI_API_KEY
+    command: run
 
   ngrok:
     image: ngrok/ngrok:latest

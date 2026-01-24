@@ -71,5 +71,19 @@ async def create_initial_tables(connection: Connection) -> None:
         CREATE INDEX ix_stories_discarded ON stories (discarded);
         CREATE INDEX ix_stories_topic_id ON stories (topic_id);
         CREATE INDEX ix_stories_language ON stories (language);
+
+        CREATE TABLE tasks (
+            id UUID PRIMARY KEY,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            type TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            status TEXT NOT NULL
+        );
+
+        CREATE INDEX ix_tasks_status ON tasks (status);
+        CREATE INDEX ix_tasks_scheduled_at ON tasks (scheduled_at);
+        CREATE INDEX ix_tasks_type ON tasks (type);
         """
     )

@@ -8,6 +8,7 @@ from digestify_api.migrations import apply_migrations, reset_migrations
 from digestify_api.repositories import (
     FollowRepository,
     StoryRepository,
+    TaskRepository,
     TopicRepository,
     UserRepository,
 )
@@ -57,3 +58,8 @@ def follow_repo(connection: asyncpg.Connection):
 @pytest.fixture
 def story_repo(connection: asyncpg.Connection):
     return StoryRepository(connection)
+
+
+@pytest.fixture
+def task_repo(connection: asyncpg.Connection):
+    return TaskRepository(connection)
