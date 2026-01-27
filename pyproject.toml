@@ -8,6 +8,7 @@ requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",
     "cryptography>=46.0.3",
+    "digestify>=0.1.1",
     "fastapi[standard]>=0.128.0",
     "httpx>=0.28.1",
     "openai>=2.14.0",
@@ -25,22 +26,25 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "poethepoet>=0.40.0",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
-    "pytest-mypy>=1.0.1",
-    "ruff>=0.13.2",
+    "ruff>=0.14.1",
+    "ty>=0.0.13",
 ]
 
 [tool.pytest.ini_options]
-markers = [
-  "integration: slow / costly tests",
-]
-addopts = [
-  "--mypy",
-  "-m", "not integration",
-]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 
-[tool.mypy]
-disable_error_code = ["import-untyped"]
+[tool.poe.tasks]
+test = [
+  { cmd = "ruff check" },
+  { cmd = "ruff format --check" },
+  { cmd = "ty check" }
+]
+format = [
+  { cmd = "ruff check --select I --fix" },
+  { cmd = "ruff format" }
+]

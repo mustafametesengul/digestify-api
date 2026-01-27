@@ -1,12 +1,8 @@
 import uuid
 
-import pytest
-
-from digestify_api.models import SubscriptionTier, UserCreate, UserUpdate
-from digestify_api.repositories.user_repository import UserRepository
+from digestify_api.users import SubscriptionTier, UserCreate, UserRepository, UserUpdate
 
 
-@pytest.mark.asyncio
 async def test_create_and_read_user(user_repo: UserRepository):
     user_id = uuid.uuid4()
     user_create = UserCreate(
@@ -28,7 +24,6 @@ async def test_create_and_read_user(user_repo: UserRepository):
     assert user_read.followed_topics_count == 0
 
 
-@pytest.mark.asyncio
 async def test_update_user(user_repo: UserRepository):
     user_id = uuid.uuid4()
     user_create = UserCreate(
@@ -57,7 +52,6 @@ async def test_update_user(user_repo: UserRepository):
     assert user_read.followed_topics_count == 10
 
 
-@pytest.mark.asyncio
 async def test_counters_increment(user_repo: UserRepository):
     user_id = uuid.uuid4()
     user_create = UserCreate(
@@ -78,7 +72,6 @@ async def test_counters_increment(user_repo: UserRepository):
     assert user_read.followed_topics_count == 1
 
 
-@pytest.mark.asyncio
 async def test_user_exists(user_repo: UserRepository):
     user_id = uuid.uuid4()
     assert await user_repo.user_exists(user_id) is False
@@ -94,7 +87,6 @@ async def test_user_exists(user_repo: UserRepository):
     assert await user_repo.user_exists(user_id) is True
 
 
-@pytest.mark.asyncio
 async def test_is_user_discarded(user_repo: UserRepository):
     user_id = uuid.uuid4()
     # Non existent user should return False (as per implementation logic reading None -> False)

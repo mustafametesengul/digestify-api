@@ -1,0 +1,89 @@
+from asyncpg import Connection
+
+
+async def create_initial_tables(connection: Connection) -> None:
+    await connection.execute(
+        """
+        CREATE TABLE users (
+            id UUID PRIMARY KEY,
+            discarded BOOLEAN NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            subscription_tier TEXT NOT NULL,
+            created_topics_count INTEGER NOT NULL,
+            followed_topics_count INTEGER NOT NULL
+        );
+
+        CREATE INDEX ix_users_discarded ON users (discarded);
+        CREATE INDEX ix_users_subscription_tier ON users (subscription_tier);
+        CREATE INDEX ix_users_created_topics_count ON users (created_topics_count);
+        CREATE INDEX ix_users_followed_topics_count ON users (followed_topics_count);
+
+        CREATE TABLE topics (
+            id UUID PRIMARY KEY,
+            user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+            discarded BOOLEAN NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            language TEXT NOT NULL,
+            image_url TEXT,
+            is_active BOOLEAN NOT NULL,
+            followers_count INTEGER NOT NULL
+        );
+
+        CREATE INDEX ix_topics_discarded ON topics (discarded);
+        CREATE INDEX ix_topics_user_id ON topics (user_id);
+        CREATE INDEX ix_topics_is_active ON topics (is_active);
+        CREATE INDEX ix_topics_language ON topics (language);
+        CREATE INDEX ix_topics_followers_count ON topics (followers_count);
+
+        CREATE TABLE follows (
+            user_id UUID NOT NULL,
+            topic_id UUID NOT NULL,
+            is_following BOOLEAN NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            PRIMARY KEY (user_id, topic_id),
+            CONSTRAINT fk_follows_user_id FOREIGN KEY (user_id)
+                REFERENCES users (id) ON DELETE CASCADE,
+            CONSTRAINT fk_follows_topic_id FOREIGN KEY (topic_id)
+                REFERENCES topics (id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX ix_follows_user_id ON follows (user_id);
+        CREATE INDEX ix_follows_topic_id ON follows (topic_id);
+        CREATE INDEX ix_follows_is_following ON follows (is_following);
+
+        CREATE TABLE stories (
+            id UUID PRIMARY KEY,
+            discarded BOOLEAN NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            topic_id UUID NOT NULL REFERENCES topics (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            image_url TEXT,
+            content TEXT NOT NULL,
+            language TEXT NOT NULL
+        );
+
+        CREATE INDEX ix_stories_discarded ON stories (discarded);
+        CREATE INDEX ix_stories_topic_id ON stories (topic_id);
+        CREATE INDEX ix_stories_language ON stories (language);
+
+        CREATE TABLE tasks (
+            id UUID PRIMARY KEY,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            name TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            status TEXT NOT NULL
+        );
+
+        CREATE INDEX ix_tasks_status ON tasks (status);
+        CREATE INDEX ix_tasks_scheduled_at ON tasks (scheduled_at);
+        CREATE INDEX ix_tasks_name ON tasks (name);
+        """
+    )

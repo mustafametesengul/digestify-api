@@ -1,11 +1,9 @@
-from digestify_api.migrations.migrate import (
-    apply_migrations,
-    apply_migrations_main,
-    reset_migrations,
-)
+from digestify_api.migrations.main import migrations_main
+from digestify_api.migrations.repository import MigrationRepository
+from digestify_api.migrations.service import MigrationService
 
 __all__ = [
-    "apply_migrations",
-    "apply_migrations_main",
-    "reset_migrations",
+    "MigrationService",
+    "MigrationRepository",
+    "migrations_main",
 ]
