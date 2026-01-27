@@ -3,7 +3,7 @@ import asyncio
 from pydantic import BaseModel
 
 from digestify_api.db import DBService
-from digestify_api.tasks.models import TaskRead, TaskStatus
+from digestify_api.tasks.models import Task, TaskStatus
 from digestify_api.tasks.repository import TaskRepository
 from digestify_api.tasks.router import AsyncTaskHandler, TaskRouter
 
@@ -11,7 +11,7 @@ from digestify_api.tasks.router import AsyncTaskHandler, TaskRouter
 class TaskService:
     def __init__(self, db: DBService) -> None:
         self._routers: list[TaskRouter] = []
-        self._queue: asyncio.Queue[TaskRead] = asyncio.Queue()
+        self._queue: asyncio.Queue[Task] = asyncio.Queue()
         self._db = db
         self._tasks: list[asyncio.Task] = []
 
@@ -45,7 +45,7 @@ class TaskService:
                 self._queue.task_done()
                 continue
 
-            payload_model = BaseModel.model_validate_json(task.payload)
+            payload_model = BaseModel.model_validate(task.payload)
 
             try:
                 await handler(payload_model)

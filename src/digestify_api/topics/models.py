@@ -4,22 +4,15 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class FollowCreate(BaseModel):
+class Follow(BaseModel):
     user_id: UUID
     topic_id: UUID
-    is_following: bool
-
-
-class FollowUpdate(FollowCreate):
-    pass
-
-
-class FollowRead(FollowUpdate):
+    is_following: bool = True
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None
 
 
-class TopicCreate(BaseModel):
+class Topic(BaseModel):
     id: UUID
     discarded: bool
     user_id: UUID
@@ -29,12 +22,5 @@ class TopicCreate(BaseModel):
     image_url: str | None
     is_active: bool
     followers_count: int
-
-
-class TopicUpdate(TopicCreate):
-    pass
-
-
-class TopicRead(TopicUpdate):
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None

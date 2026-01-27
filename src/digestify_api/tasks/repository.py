@@ -2,9 +2,8 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from asyncpg import Connection
-from pydantic import BaseModel
 
-from digestify_api.tasks.models import TaskCreate, TaskRead, TaskStatus
+from digestify_api.tasks.models import Task, TaskStatus
 
 
 class TaskRepository:
@@ -14,23 +13,7 @@ class TaskRepository:
     ) -> None:
         self._connection = connection
 
-    async def create_task(
-        self,
-        task_id: UUID,
-        task_name: str,
-        payload: BaseModel,
-        scheduled_at: datetime | None = None,
-    ) -> None:
-        now = datetime.now(timezone.utc)
-        if scheduled_at is None or scheduled_at < now:
-            scheduled_at = now
-        task = TaskCreate(
-            id=task_id,
-            name=task_name,
-            payload=payload.model_dump_json(),
-            scheduled_at=scheduled_at,
-            status=TaskStatus.PENDING,
-        )
+    async def create_task(self, task: Task) -> None:
         await self._connection.execute(
             """
             INSERT INTO tasks
@@ -42,11 +25,11 @@ class TaskRepository:
             task.payload,
             task.scheduled_at,
             task.status,
-            now,
-            now,
+            task.created_at,
+            task.updated_at,
         )
 
-    async def read_task(self, task_id: UUID) -> TaskRead | None:
+    async def read_task(self, task_id: UUID) -> Task | None:
         row = await self._connection.fetchrow(
             "SELECT * FROM tasks WHERE id = $1",
             task_id,
@@ -55,7 +38,7 @@ class TaskRepository:
         if row is None:
             return None
 
-        return TaskRead.model_validate(dict(row))
+        return Task.model_validate(dict(row))
 
     async def update_task_status(self, task_id: UUID, status: TaskStatus) -> None:
         now = datetime.now(timezone.utc)
@@ -70,7 +53,7 @@ class TaskRepository:
             now,
         )
 
-    async def get_pending_tasks(self) -> list[TaskRead]:
+    async def get_pending_tasks(self) -> list[Task]:
         now = datetime.now(timezone.utc)
         rows = await self._connection.fetch(
             """
@@ -82,4 +65,4 @@ class TaskRepository:
             """,
             now,
         )
-        return [TaskRead.model_validate(dict(row)) for row in rows]
+        return [Task.model_validate(dict(row)) for row in rows]

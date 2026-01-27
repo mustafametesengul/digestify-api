@@ -1,14 +1,8 @@
-from datetime import datetime, timezone
 from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.topics.models import (
-    FollowCreate,
-    FollowRead,
-    FollowUpdate,
-    TopicCreate,
-)
+from digestify_api.topics.models import Follow, Topic
 
 
 class TopicRepository:
@@ -25,8 +19,7 @@ class TopicRepository:
         )
         return row is not None
 
-    async def create_topic(self, topic: TopicCreate) -> None:
-        time = datetime.now(timezone.utc)
+    async def create_topic(self, topic: Topic) -> None:
         await self._connection.execute(
             """
             INSERT INTO topics
@@ -43,13 +36,11 @@ class TopicRepository:
             topic.image_url,
             topic.is_active,
             topic.followers_count,
-            time,
-            time,
+            topic.created_at,
+            topic.updated_at,
         )
 
-    async def read_topic(
-        self, topic_id: UUID, lock: bool = False
-    ) -> TopicCreate | None:
+    async def read_topic(self, topic_id: UUID, lock: bool = False) -> Topic | None:
         query = "SELECT * FROM topics WHERE id = $1"
         if lock:
             query += " FOR UPDATE"
@@ -59,32 +50,22 @@ class TopicRepository:
         if row is None:
             return None
 
-        topic = TopicCreate.model_validate(dict(row))
+        topic = Topic.model_validate(dict(row))
         return topic
 
-    async def is_topic_discarded(self, topic_id: UUID) -> bool:
-        row = await self._connection.fetchrow(
-            "SELECT discarded FROM topics WHERE id = $1",
-            topic_id,
-        )
-        if row is None:
-            return False
-        return row["discarded"]
-
-    async def increase_followers_count(self, topic_id: UUID) -> None:
+    async def increment_followers_count(self, topic_id: UUID) -> None:
         await self._connection.execute(
             "UPDATE topics SET followers_count = followers_count + 1 WHERE id = $1",
             topic_id,
         )
 
-    async def decrease_followers_count(self, topic_id: UUID) -> None:
+    async def decrement_followers_count(self, topic_id: UUID) -> None:
         await self._connection.execute(
             "UPDATE topics SET followers_count = followers_count - 1 WHERE id = $1",
             topic_id,
         )
 
-    async def create_follow(self, follow: FollowCreate) -> None:
-        time = datetime.now(timezone.utc)
+    async def create_follow(self, follow: Follow) -> None:
         await self._connection.execute(
             """
             INSERT INTO follows
@@ -94,12 +75,11 @@ class TopicRepository:
             follow.user_id,
             follow.topic_id,
             follow.is_following,
-            time,
-            time,
+            follow.created_at,
+            follow.updated_at,
         )
 
-    async def update_follow(self, follow: FollowUpdate) -> None:
-        time = datetime.now(timezone.utc)
+    async def update_follow(self, follow: Follow) -> None:
         await self._connection.execute(
             """
             UPDATE follows
@@ -109,12 +89,15 @@ class TopicRepository:
             follow.user_id,
             follow.topic_id,
             follow.is_following,
-            time,
+            follow.updated_at,
         )
 
     async def read_follow(
-        self, user_id: UUID, topic_id: UUID, lock: bool = False
-    ) -> FollowRead | None:
+        self,
+        user_id: UUID,
+        topic_id: UUID,
+        lock: bool = False,
+    ) -> Follow | None:
         query = "SELECT * FROM follows WHERE user_id = $1 AND topic_id = $2"
         if lock:
             query += " FOR UPDATE"
@@ -122,4 +105,4 @@ class TopicRepository:
         row = await self._connection.fetchrow(query, user_id, topic_id)
         if row is None:
             return None
-        return FollowRead.model_validate(dict(row))
+        return Follow.model_validate(dict(row))

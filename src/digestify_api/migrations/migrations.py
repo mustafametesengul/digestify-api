@@ -8,7 +8,7 @@ async def create_initial_tables(connection: Connection) -> None:
             id UUID PRIMARY KEY,
             discarded BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE,
             subscription_tier TEXT NOT NULL,
             created_topics_count INTEGER NOT NULL,
             followed_topics_count INTEGER NOT NULL
@@ -24,7 +24,7 @@ async def create_initial_tables(connection: Connection) -> None:
             user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
             discarded BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE,
             name TEXT NOT NULL,
             description TEXT NOT NULL,
             language TEXT NOT NULL,
@@ -44,7 +44,7 @@ async def create_initial_tables(connection: Connection) -> None:
             topic_id UUID NOT NULL,
             is_following BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE,
             PRIMARY KEY (user_id, topic_id),
             CONSTRAINT fk_follows_user_id FOREIGN KEY (user_id)
                 REFERENCES users (id) ON DELETE CASCADE,
@@ -60,7 +60,7 @@ async def create_initial_tables(connection: Connection) -> None:
             id UUID PRIMARY KEY,
             discarded BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE,
             topic_id UUID NOT NULL REFERENCES topics (id) ON DELETE CASCADE,
             title TEXT NOT NULL,
             image_url TEXT,
@@ -75,9 +75,9 @@ async def create_initial_tables(connection: Connection) -> None:
         CREATE TABLE tasks (
             id UUID PRIMARY KEY,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE,
             name TEXT NOT NULL,
-            payload TEXT NOT NULL,
+            payload JSONB NOT NULL,
             scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
             status TEXT NOT NULL
         );

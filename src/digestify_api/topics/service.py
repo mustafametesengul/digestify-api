@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from digestify_api.db import DBService
@@ -9,7 +10,7 @@ from digestify_api.topics.exceptions import (
     UserAlreadyFollowsTopic,
     UserDoesNotFollowTopic,
 )
-from digestify_api.topics.models import FollowCreate, FollowUpdate, TopicCreate
+from digestify_api.topics.models import Follow, Topic
 from digestify_api.topics.repository import TopicRepository
 from digestify_api.users import SubscriptionTier, UserNotFound, UserRepository
 
@@ -30,18 +31,20 @@ class TopicService:
         language: str,
         image_url: str | None = None,
     ) -> None:
+        now = datetime.now(timezone.utc)
+
         async with self._db.get_connection() as connection:
             user_repository = UserRepository(connection)
             topic_repository = TopicRepository(connection)
-            user_read = await user_repository.read_user(user_id, lock=True)
-            if user_read is None:
+            user = await user_repository.read_user(user_id)
+            if user is None:
                 raise UserNotFound()
 
             topic_exists = await topic_repository.topic_exists(topic_id)
             if topic_exists:
                 raise TopicAlreadyExists()
 
-            if user_read.subscription_tier is SubscriptionTier.FREE:
+            if user.subscription_tier is SubscriptionTier.FREE:
                 raise TopicLimitExceeded(
                     detail=(
                         "Free tier users cannot create topics. "
@@ -50,8 +53,8 @@ class TopicService:
                 )
 
             if (
-                user_read.created_topics_count >= 10
-                and user_read.subscription_tier is SubscriptionTier.PREMIUM
+                user.created_topics_count >= 10
+                and user.subscription_tier is SubscriptionTier.PREMIUM
             ):
                 raise TopicLimitExceeded(
                     detail=(
@@ -60,7 +63,9 @@ class TopicService:
                     )
                 )
 
-            topic_create = TopicCreate(
+            await user_repository.increment_created_topics_count(user_id)
+
+            topic = Topic(
                 id=topic_id,
                 user_id=user_id,
                 discarded=False,
@@ -70,28 +75,34 @@ class TopicService:
                 description=description,
                 language=language,
                 followers_count=1,
+                created_at=now,
+                updated_at=None,
             )
 
-            await topic_repository.create_topic(topic_create)
+            await topic_repository.create_topic(topic)
 
-            follow_create = FollowCreate(
+            follow = Follow(
                 user_id=user_id,
                 topic_id=topic_id,
                 is_following=True,
+                created_at=now,
+                updated_at=None,
             )
 
-            await topic_repository.create_follow(follow_create)
+            await topic_repository.create_follow(follow)
 
     async def follow(
         self,
         user_id: UUID,
         topic_id: UUID,
     ) -> None:
+        now = datetime.now(timezone.utc)
+
         async with self._db.get_connection() as connection:
             user_repository = UserRepository(connection)
             topic_repository = TopicRepository(connection)
 
-            user = await user_repository.read_user(user_id, lock=True)
+            user = await user_repository.read_user(user_id)
             if user is None:
                 raise UserNotFound()
 
@@ -104,34 +115,34 @@ class TopicService:
                     detail="User has reached the maximum number of followed topics."
                 )
 
-            follow_read = await topic_repository.read_follow(
-                user_id, topic_id, lock=True
-            )
-            if follow_read is not None and follow_read.is_following:
-                raise UserAlreadyFollowsTopic()
+            follow = await topic_repository.read_follow(user_id, topic_id, lock=True)
 
-            if follow_read is None:
-                follow_create = FollowCreate(
+            if follow is None:
+                follow = Follow(
                     user_id=user_id,
                     topic_id=topic_id,
                     is_following=True,
+                    created_at=now,
+                    updated_at=None,
                 )
-                await topic_repository.create_follow(follow_create)
+                await topic_repository.create_follow(follow)
             else:
-                follow_update = FollowUpdate(
-                    user_id=user_id,
-                    topic_id=topic_id,
-                    is_following=True,
-                )
-                await topic_repository.update_follow(follow_update)
+                if follow.is_following:
+                    raise UserAlreadyFollowsTopic()
 
-            await topic_repository.increase_followers_count(topic_id)
+                follow.is_following = True
+                follow.updated_at = now
+
+                await topic_repository.update_follow(follow)
+
+            await topic_repository.increment_followers_count(topic_id)
 
     async def unfollow(
         self,
         user_id: UUID,
         topic_id: UUID,
     ) -> None:
+        now = datetime.now(timezone.utc)
         async with self._db.get_connection() as connection:
             user_repository = UserRepository(connection)
             topic_repository = TopicRepository(connection)
@@ -148,11 +159,10 @@ class TopicService:
             if follow is None or not follow.is_following:
                 raise UserDoesNotFollowTopic()
 
-            follow_update = FollowUpdate(
-                user_id=user_id,
-                topic_id=topic_id,
-                is_following=False,
-            )
-            await topic_repository.update_follow(follow_update)
+            follow.is_following = False
+            follow.updated_at = now
 
-            await topic_repository.decrease_followers_count(topic_id)
+            await topic_repository.update_follow(follow)
+            await topic_repository.decrement_followers_count(topic_id)
+
+            await user_repository.decrement_followed_topics_count(user_id)
