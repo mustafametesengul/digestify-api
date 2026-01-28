@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class StoryCreate(BaseModel):
+class Story(BaseModel):
     id: UUID
     discarded: bool
     topic_id: UUID
@@ -12,16 +12,5 @@ class StoryCreate(BaseModel):
     image_url: str | None
     content: str
     language: str
-
-
-class StoryUpdate(StoryCreate):
-    pass
-
-
-class StoryRead(StoryUpdate):
     created_at: datetime
-    updated_at: datetime
-
-
-class GetStories(BaseModel):
-    topic_id: UUID
+    updated_at: datetime | None

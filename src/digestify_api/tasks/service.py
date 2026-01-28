@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 
 from pydantic import BaseModel
 
@@ -20,14 +21,15 @@ class TaskService:
 
     async def _queue_pending_tasks(self) -> None:
         while True:
+            now = datetime.now(timezone.utc)
             async with self._db.get_connection() as connection:
                 task_repository = TaskRepository(connection)
                 pending_tasks = await task_repository.get_pending_tasks()
                 for task in pending_tasks:
                     await self._queue.put(task)
-                    await task_repository.update_task_status(
-                        task.id, TaskStatus.IN_PROGRESS
-                    )
+                    task.status = TaskStatus.IN_PROGRESS
+                    task.updated_at = now
+                    await task_repository.update_task(task)
             await asyncio.sleep(10)
 
     async def _handle_tasks(self) -> None:
@@ -45,21 +47,31 @@ class TaskService:
                 self._queue.task_done()
                 continue
 
-            payload_model = BaseModel.model_validate(task.payload)
+            payload = BaseModel.model_validate(task.payload)
 
             try:
-                await handler(payload_model)
+                await handler(payload)
                 task_status = TaskStatus.COMPLETED
+                error_message = None
             except Exception as e:
                 print(f"Error handling task {task.id}: {e}")
                 task_status = TaskStatus.FAILED
+                error_message = str(e)
             finally:
                 async with self._db.get_connection() as connection:
                     task_repository = TaskRepository(connection)
-                    await task_repository.update_task_status(
+                    task = await task_repository.read_task(
                         task.id,
-                        task_status,
+                        lock=True,
                     )
+                    if task is None:
+                        raise ValueError("Task not found")
+
+                    task.status = task_status
+                    task.updated_at = datetime.now(timezone.utc)
+                    task.error_message = error_message
+                    await task_repository.update_task(task)
+
                 self._queue.task_done()
 
     async def start(self) -> None:

@@ -1,9 +1,8 @@
-from datetime import datetime, timezone
 from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.stories.models import StoryCreate, StoryRead
+from digestify_api.story_repository.models import Story
 
 
 class StoryRepository:
@@ -17,8 +16,7 @@ class StoryRepository:
         )
         return row is not None
 
-    async def create_story(self, story: StoryCreate) -> None:
-        time = datetime.now(timezone.utc)
+    async def create_story(self, story: Story) -> None:
         await self._connection.execute(
             """
             INSERT INTO stories
@@ -28,8 +26,8 @@ class StoryRepository:
             """,
             story.id,
             story.discarded,
-            time,
-            time,
+            story.created_at,
+            story.updated_at,
             story.topic_id,
             story.title,
             story.image_url,
@@ -37,23 +35,13 @@ class StoryRepository:
             story.language,
         )
 
-    async def read_story(self, story_id: UUID, lock: bool = False) -> StoryRead | None:
+    async def read_story(self, story_id: UUID, lock: bool = False) -> Story | None:
         query = "SELECT * FROM stories WHERE id = $1"
         if lock:
             query += " FOR UPDATE"
 
         row = await self._connection.fetchrow(query, story_id)
-
         if row is None:
             return None
 
-        return StoryRead.model_validate(dict(row))
-
-    async def is_story_discarded(self, story_id: UUID) -> bool:
-        row = await self._connection.fetchrow(
-            "SELECT discarded FROM stories WHERE id = $1",
-            story_id,
-        )
-        if row is None:
-            return False
-        return row["discarded"]
+        return Story.model_validate(dict(row))

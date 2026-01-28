@@ -2,16 +2,16 @@ from datetime import datetime
 from enum import StrEnum
 from types import FunctionType
 from typing import Awaitable, Callable, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 
 
 class TaskStatus(StrEnum):
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class Task(BaseModel):
@@ -22,22 +22,29 @@ class Task(BaseModel):
     status: TaskStatus
     created_at: datetime
     updated_at: datetime | None
+    error_message: str | None
 
 
 T = TypeVar("T", bound=BaseModel)
 AsyncTaskHandler = Callable[[T], Awaitable[None]]
 
 
-def handler_to_task(
+def from_handler(
     self,
-    task_id: UUID,
     handler: AsyncTaskHandler[T],
     payload: T,
-    scheduled_at: datetime,
     created_at: datetime,
+    task_id: UUID | None = None,
+    scheduled_at: datetime | None = None,
 ) -> Task:
     if not isinstance(handler, FunctionType):
         raise ValueError("Handler must be a function")
+
+    if scheduled_at is None:
+        scheduled_at = created_at
+
+    if task_id is None:
+        task_id = uuid4()
 
     task = Task(
         id=task_id,
@@ -47,5 +54,6 @@ def handler_to_task(
         status=TaskStatus.PENDING,
         created_at=created_at,
         updated_at=None,
+        error_message=None,
     )
     return task

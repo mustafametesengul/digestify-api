@@ -3,7 +3,7 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.tasks.models import Task, TaskStatus
+from digestify_api.tasks.models import Task
 
 
 class TaskRepository:
@@ -17,8 +17,8 @@ class TaskRepository:
         await self._connection.execute(
             """
             INSERT INTO tasks
-            (id, name, payload, scheduled_at, status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (id, name, payload, scheduled_at, status, created_at, updated_at, error_message)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             """,
             task.id,
             task.name,
@@ -27,30 +27,43 @@ class TaskRepository:
             task.status,
             task.created_at,
             task.updated_at,
+            task.error_message,
         )
 
-    async def read_task(self, task_id: UUID) -> Task | None:
+    async def read_task(self, task_id: UUID, lock: bool = False) -> Task | None:
+        query = "SELECT * FROM tasks WHERE id = $1"
+        if lock:
+            query += " FOR UPDATE"
         row = await self._connection.fetchrow(
-            "SELECT * FROM tasks WHERE id = $1",
+            query,
             task_id,
         )
-
         if row is None:
             return None
 
         return Task.model_validate(dict(row))
 
-    async def update_task_status(self, task_id: UUID, status: TaskStatus) -> None:
-        now = datetime.now(timezone.utc)
+    async def update_task(self, task: Task) -> None:
         await self._connection.execute(
             """
             UPDATE tasks
-            SET status = $2, updated_at = $3
+            SET name = $2,
+                payload = $3,
+                scheduled_at = $4,
+                status = $5,
+                created_at = $6,
+                updated_at = $7,
+                error_message = $8
             WHERE id = $1
             """,
-            task_id,
-            status,
-            now,
+            task.id,
+            task.name,
+            task.payload,
+            task.scheduled_at,
+            task.status,
+            task.created_at,
+            task.updated_at,
+            task.error_message,
         )
 
     async def get_pending_tasks(self) -> list[Task]:

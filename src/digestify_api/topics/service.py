@@ -13,14 +13,18 @@ from digestify_api.topics.exceptions import (
 from digestify_api.topics.models import Follow, Topic
 from digestify_api.topics.repository import TopicRepository
 from digestify_api.users import SubscriptionTier, UserNotFound, UserRepository
+from digestify import Digestify, Topic as DigestifyTopic
+from digestify_api.stories import Story, StoryRepository
 
 
 class TopicService:
     def __init__(
         self,
         db: DBService,
+        digestify: Digestify,
     ) -> None:
         self._db = db
+        self._digestify = digestify
 
     async def create_topic(
         self,
@@ -166,3 +170,36 @@ class TopicService:
             await topic_repository.decrement_followers_count(topic_id)
 
             await user_repository.decrement_followed_topics_count(user_id)
+
+    
+    async def save_stories_by_topic(self, topic_id: UUID) -> None:
+        now = datetime.now(timezone.utc)
+        async with self._db.get_connection() as connection:
+            topic_repository = TopicRepository(connection)
+            topic = await topic_repository.read_topic(topic_id)
+            if topic is None:
+                raise TopicNotFound()
+
+        digestify_topic = DigestifyTopic.model_validate(topic.model_dump())
+
+        digest = await self._digestify.get_stories(digestify_topic)
+
+        stories = [
+            Story.model_validate(story.model_dump()) for story in digest.stories
+        ]
+
+        async with self._db.get_connection() as connection:
+            story_repository = StoryRepository(connection)
+            for story in stories:
+                story_create = Story(
+                    id=story.id,
+                    discarded=False,
+                    topic_id=topic_id,
+                    title=story.title,
+                    image_url=story.image_url,
+                    content=story.content,
+                    language=story.language,
+                    created_at=now,
+                    updated_at=None,
+                )
+                await story_repository.create_story(story_create)
