@@ -4,32 +4,37 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from digestify_api.db import DBService
-from digestify_api.tasks.models import Task, TaskStatus
-from digestify_api.tasks.repository import TaskRepository
-from digestify_api.tasks.router import AsyncTaskHandler, TaskRouter
+from digestify_api.queries.task_queries import (
+    AsyncTaskHandler,
+    Task,
+    TaskStatus,
+    get_pending_tasks,
+    read_task,
+    update_task,
+)
+from digestify_api.task_processor.registry import TaskRegistry
 
 
-class TaskService:
+class TaskProcessor:
     def __init__(self, db: DBService) -> None:
-        self._routers: list[TaskRouter] = []
+        self._routers: list[TaskRegistry] = []
         self._queue: asyncio.Queue[Task] = asyncio.Queue()
         self._db = db
         self._tasks: list[asyncio.Task] = []
 
-    def add_router(self, router: TaskRouter) -> None:
+    def add_router(self, router: TaskRegistry) -> None:
         self._routers.append(router)
 
     async def _queue_pending_tasks(self) -> None:
         while True:
             now = datetime.now(timezone.utc)
             async with self._db.get_connection() as connection:
-                task_repository = TaskRepository(connection)
-                pending_tasks = await task_repository.get_pending_tasks()
+                pending_tasks = await get_pending_tasks(connection, now)
                 for task in pending_tasks:
                     await self._queue.put(task)
                     task.status = TaskStatus.IN_PROGRESS
                     task.updated_at = now
-                    await task_repository.update_task(task)
+                    await update_task(connection, task)
             await asyncio.sleep(10)
 
     async def _handle_tasks(self) -> None:
@@ -59,18 +64,14 @@ class TaskService:
                 error_message = str(e)
             finally:
                 async with self._db.get_connection() as connection:
-                    task_repository = TaskRepository(connection)
-                    task = await task_repository.read_task(
-                        task.id,
-                        lock=True,
-                    )
+                    task = await read_task(connection, task.id, lock=True)
                     if task is None:
                         raise ValueError("Task not found")
 
                     task.status = task_status
                     task.updated_at = datetime.now(timezone.utc)
                     task.error_message = error_message
-                    await task_repository.update_task(task)
+                    await update_task(connection, task)
 
                 self._queue.task_done()
 

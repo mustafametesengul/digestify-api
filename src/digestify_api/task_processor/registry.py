@@ -7,11 +7,11 @@ T = TypeVar("T", bound=BaseModel)
 AsyncTaskHandler = Callable[[T], Awaitable[None]]
 
 
-class TaskRouter:
+class TaskRegistry:
     def __init__(self) -> None:
         self._handlers: dict[str, AsyncTaskHandler] = {}
 
-    def register_handler(
+    def task(
         self,
         handler: AsyncTaskHandler,
     ) -> None:
