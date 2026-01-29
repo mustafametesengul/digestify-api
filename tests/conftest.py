@@ -3,14 +3,14 @@ from typing import AsyncIterator
 import asyncpg
 import pytest
 
-from digestify_api.db import DBService, DBSettings
+from digestify_api.db import DatabaseManager, DBSettings
 from digestify_api.migrations import apply_migrations, reset_db_
 
 
 @pytest.fixture(scope="session")
-async def db_service() -> AsyncIterator[DBService]:
+async def db_service() -> AsyncIterator[DatabaseManager]:
     settings = DBSettings()
-    service = DBService(settings=settings)
+    service = DatabaseManager(settings=settings)
     await service.init_pool()
 
     await apply_migrations(service)
@@ -22,6 +22,6 @@ async def db_service() -> AsyncIterator[DBService]:
 
 
 @pytest.fixture
-async def connection(db_service: DBService) -> AsyncIterator[asyncpg.Connection]:
+async def connection(db_service: DatabaseManager) -> AsyncIterator[asyncpg.Connection]:
     async with db_service.get_connection() as connection:
         yield connection

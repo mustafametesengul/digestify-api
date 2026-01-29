@@ -6,9 +6,9 @@ from digestify import Topic as DigestifyTopic
 from pydantic import BaseModel
 
 from digestify_api.db import get_db
-from digestify_api.exceptions.topic_exceptions import TopicNotFound
-from digestify_api.queries.story_queries import Story, create_story
-from digestify_api.queries.topic_queries import read_topic
+from digestify_api.exceptions.topics import TopicNotFound
+from digestify_api.queries.stories import Story, create_story
+from digestify_api.queries.topics import read_topic
 from digestify_api.task_processor import TaskRegistry
 
 

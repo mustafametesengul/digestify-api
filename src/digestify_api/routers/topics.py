@@ -5,36 +5,36 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from digestify_api.auth import Auth, get_auth
-from digestify_api.db import DBService, get_db
-from digestify_api.exceptions.topic_exceptions import (
+from digestify_api.db import DatabaseManager, get_db
+from digestify_api.exceptions.topics import (
     TopicAlreadyExists,
     TopicLimitExceeded,
 )
-from digestify_api.exceptions.user_exceptions import UserNotFound
-from digestify_api.queries.follow_queries import Follow, create_follow
-from digestify_api.queries.task_queries import create_task, from_handler
-from digestify_api.queries.topic_queries import (
+from digestify_api.exceptions.users import UserNotFound
+from digestify_api.queries.follows import Follow, create_follow
+from digestify_api.queries.tasks import create_task, from_handler
+from digestify_api.queries.topics import (
     Topic,
     create_topic,
     topic_exists,
 )
-from digestify_api.queries.user_queries import (
+from digestify_api.queries.users import (
     SubscriptionTier,
     increment_created_topics_count,
     read_user,
 )
-from digestify_api.tasks.story_tasks import StoryTaskPayload, save_stories_by_topic
+from digestify_api.tasks.stories import StoryTaskPayload, save_stories_by_topic
 
-topic_router = APIRouter(
-    prefix="/topic",
-    tags=["topic"],
+topics_router = APIRouter(
+    prefix="/topics",
+    tags=["topics"],
 )
 
 
-@topic_router.post("/create", status_code=201)
+@topics_router.post("/create", status_code=201)
 async def create(
     auth: Annotated[Auth, Depends(get_auth)],
-    db: Annotated[DBService, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db)],
     topic_id: UUID,
     name: str,
     description: str,

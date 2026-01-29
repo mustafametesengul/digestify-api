@@ -1,16 +1,16 @@
-from digestify_api.db.service import DBService
+from digestify_api.db.service import DatabaseManager
 from digestify_api.db.settings import DBSettings
 
-_db: DBService | None = None
+_db: DatabaseManager | None = None
 
 
-def init_db(settings: DBSettings) -> DBService:
+def init_db(settings: DBSettings) -> DatabaseManager:
     global _db
-    _db = DBService(settings)
+    _db = DatabaseManager(settings)
     return _db
 
 
-def get_db() -> DBService:
+def get_db() -> DatabaseManager:
     global _db
     if _db is None:
         raise RuntimeError("Database service is not initialized.")

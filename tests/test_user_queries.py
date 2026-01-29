@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from asyncpg import Connection
 
-from digestify_api.queries.user_queries import (
+from digestify_api.queries.users import (
     SubscriptionTier,
     User,
     create_user,

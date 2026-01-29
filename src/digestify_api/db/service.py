@@ -7,7 +7,7 @@ import asyncpg
 from digestify_api.db.settings import DBSettings
 
 
-class DBService:
+class DatabaseManager:
     def __init__(self, settings: DBSettings | None = None) -> None:
         if settings is None:
             settings = DBSettings()

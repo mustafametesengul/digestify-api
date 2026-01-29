@@ -4,25 +4,25 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from digestify_api.auth import Auth, get_auth
-from digestify_api.db import DBService, get_db
-from digestify_api.exceptions.user_exceptions import UserAlreadyExists
-from digestify_api.queries.user_queries import (
+from digestify_api.db import DatabaseManager, get_db
+from digestify_api.exceptions.users import UserAlreadyExists
+from digestify_api.queries.users import (
     SubscriptionTier,
     User,
     create_user,
     user_exists,
 )
 
-user_router = APIRouter(
-    prefix="/user",
-    tags=["user"],
+users_router = APIRouter(
+    prefix="/users",
+    tags=["users"],
 )
 
 
-@user_router.post("/register", status_code=201)
+@users_router.post("/register", status_code=201)
 async def register(
     auth: Annotated[Auth, Depends(get_auth)],
-    db: Annotated[DBService, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db)],
 ) -> None:
     now = datetime.now(timezone.utc)
     async with db.get_connection() as connection:

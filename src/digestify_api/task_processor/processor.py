@@ -1,8 +1,8 @@
 import asyncio
 from datetime import datetime, timezone
 
-from digestify_api.db import DBService
-from digestify_api.queries.task_queries import (
+from digestify_api.db import DatabaseManager
+from digestify_api.queries.tasks import (
     Task,
     TaskStatus,
     get_pending_tasks,
@@ -13,7 +13,7 @@ from digestify_api.task_processor.registry import TaskRegistry
 
 
 class TaskProcessor:
-    def __init__(self, db: DBService) -> None:
+    def __init__(self, db: DatabaseManager) -> None:
         self._db = db
         self._registries: list[TaskRegistry] = []
         self._queue: asyncio.Queue[Task] = asyncio.Queue()

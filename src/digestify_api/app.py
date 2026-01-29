@@ -8,11 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from digestify_api.auth import AuthSettings, get_auth, init_auth_service, mock_get_auth
 from digestify_api.db import DBSettings, init_db
-from digestify_api.routers.follow_router import follow_router
-from digestify_api.routers.topic_router import topic_router
-from digestify_api.routers.user_router import user_router
+from digestify_api.routers.follows import follows_router
+from digestify_api.routers.topics import topics_router
+from digestify_api.routers.users import users_router
 from digestify_api.task_processor import TaskProcessor
-from digestify_api.tasks.story_tasks import story_task_registry
+from digestify_api.tasks.stories import story_task_registry
 
 
 class AppSettings(BaseSettings):
@@ -69,9 +69,9 @@ def run_app(settings: AppSettings | None = None) -> None:
         debug=_settings.debug,
     )
 
-    app.include_router(user_router)
-    app.include_router(topic_router)
-    app.include_router(follow_router)
+    app.include_router(users_router)
+    app.include_router(topics_router)
+    app.include_router(follows_router)
 
     if _settings.debug:
         app.dependency_overrides[get_auth] = mock_get_auth
