@@ -39,6 +39,8 @@ services:
       db:
         condition: service_healthy
     command: migrate
+    profiles:
+      - api
 
   web:
     build:
@@ -49,9 +51,12 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=db
-      - DIGESTIFY_API_JWKS_URL
       - OPENAI_API_KEY
+      - DIGESTIFY_API_HOST=0.0.0.0
+      - DIGESTIFY_API_JWKS_URL
       - DIGESTIFY_API_DEBUG
+      - WEBQUEST_MCP_ACCESS_TOKEN
+      - WEBQUEST_MCP_URL
     depends_on:
       db:
         condition: service_healthy
@@ -60,6 +65,8 @@ services:
     ports:
       - "8000:8000"
     command: run
+    profiles:
+      - api
     develop:
       watch:
         - action: sync+restart

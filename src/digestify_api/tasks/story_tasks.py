@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from digestify import Digestify
 from digestify import Topic as DigestifyTopic
@@ -35,18 +35,16 @@ async def save_stories_by_topic(
 
     digest = await digestify.get_stories(digestify_topic)
 
-    stories = [Story.model_validate(story.model_dump()) for story in digest.stories]
-
     async with db.get_connection() as connection:
-        for story in stories:
+        for story in digest.stories:
             story_create = Story(
-                id=story.id,
+                id=uuid4(),
                 discarded=False,
                 topic_id=payload.topic_id,
                 title=story.title,
-                image_url=story.image_url,
+                image_url=None,
                 content=story.content,
-                language=story.language,
+                language=topic.language,
                 created_at=now,
                 updated_at=None,
             )
