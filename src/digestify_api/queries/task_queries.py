@@ -18,7 +18,7 @@ class TaskStatus(StrEnum):
 class Task(BaseModel):
     id: UUID
     name: str
-    payload: dict
+    payload: str
     scheduled_at: datetime
     status: TaskStatus
     created_at: datetime
@@ -31,7 +31,6 @@ AsyncTaskHandler = Callable[[T], Awaitable[None]]
 
 
 def from_handler(
-    self,
     handler: AsyncTaskHandler[T],
     payload: T,
     created_at: datetime,
@@ -50,7 +49,7 @@ def from_handler(
     task = Task(
         id=task_id,
         name=handler.__name__,
-        payload=payload.model_dump(mode="json"),
+        payload=payload.model_dump_json(),
         scheduled_at=scheduled_at,
         status=TaskStatus.PENDING,
         created_at=created_at,

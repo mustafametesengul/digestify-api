@@ -117,6 +117,7 @@ async def create_initial_tables(connection: Connection) -> None:
             name TEXT NOT NULL,
             payload JSONB NOT NULL,
             scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            error_message TEXT,
             status TEXT NOT NULL
         );
 

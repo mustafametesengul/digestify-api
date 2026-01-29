@@ -16,10 +16,10 @@ class StoryTaskPayload(BaseModel):
     topic_id: UUID
 
 
-registry = TaskRegistry()
+story_task_registry = TaskRegistry()
 
 
-@registry.task
+@story_task_registry.task
 async def save_stories_by_topic(
     payload: StoryTaskPayload,
 ) -> None:

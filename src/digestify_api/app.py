@@ -11,6 +11,8 @@ from digestify_api.db import DBSettings, init_db
 from digestify_api.routers.follow_router import follow_router
 from digestify_api.routers.topic_router import topic_router
 from digestify_api.routers.user_router import user_router
+from digestify_api.task_processor import TaskProcessor
+from digestify_api.tasks.story_tasks import story_task_registry
 
 
 class AppSettings(BaseSettings):
@@ -39,6 +41,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     db = init_db(_settings.db)
     await db.init_pool()
 
+    task_processor = TaskProcessor(db)
+    task_processor.add_registry(story_task_registry)
+    await task_processor.start()
+
     if not _settings.debug:
         if _settings.auth is None:
             raise ValueError("AuthSettings must be provided in non-debug mode.")
@@ -49,6 +55,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        await task_processor.stop()
         await db.close_pool()
 
 

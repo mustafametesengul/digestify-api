@@ -12,6 +12,7 @@ from digestify_api.exceptions.topic_exceptions import (
 )
 from digestify_api.exceptions.user_exceptions import UserNotFound
 from digestify_api.queries.follow_queries import Follow, create_follow
+from digestify_api.queries.task_queries import create_task, from_handler
 from digestify_api.queries.topic_queries import (
     Topic,
     create_topic,
@@ -22,6 +23,7 @@ from digestify_api.queries.user_queries import (
     increment_created_topics_count,
     read_user,
 )
+from digestify_api.tasks.story_tasks import StoryTaskPayload, save_stories_by_topic
 
 topic_router = APIRouter(
     prefix="/topic",
@@ -33,7 +35,6 @@ topic_router = APIRouter(
 async def create(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBService, Depends(get_db)],
-    user_id: UUID,
     topic_id: UUID,
     name: str,
     description: str,
@@ -43,7 +44,7 @@ async def create(
     now = datetime.now(timezone.utc)
 
     async with db.get_connection() as connection:
-        user = await read_user(connection, user_id)
+        user = await read_user(connection, auth.id)
         if user is None:
             raise UserNotFound()
 
@@ -51,10 +52,13 @@ async def create(
         if topic_exists_flag:
             raise TopicAlreadyExists()
 
-        if user.subscription_tier is SubscriptionTier.FREE:
+        if (
+            user.created_topics_count >= 5
+            and user.subscription_tier is SubscriptionTier.FREE
+        ):
             raise TopicLimitExceeded(
                 detail=(
-                    "Free tier users cannot create topics. "
+                    "Free tier users can create up to 5 topics. "
                     "Please upgrade your subscription to create topics."
                 )
             )
@@ -70,11 +74,11 @@ async def create(
                 )
             )
 
-        await increment_created_topics_count(connection, user_id)
+        await increment_created_topics_count(connection, auth.id)
 
         topic = Topic(
             id=topic_id,
-            user_id=user_id,
+            user_id=auth.id,
             discarded=False,
             image_url=image_url,
             is_active=True,
@@ -89,7 +93,7 @@ async def create(
         await create_topic(connection, topic)
 
         follow = Follow(
-            user_id=user_id,
+            user_id=auth.id,
             topic_id=topic_id,
             is_following=True,
             created_at=now,
@@ -97,3 +101,12 @@ async def create(
         )
 
         await create_follow(connection, follow)
+
+        task = from_handler(
+            save_stories_by_topic,
+            StoryTaskPayload(
+                topic_id=topic_id,
+            ),
+            created_at=now,
+        )
+        await create_task(connection, task)

@@ -1,11 +1,8 @@
 import asyncio
 from datetime import datetime, timezone
 
-from pydantic import BaseModel
-
 from digestify_api.db import DBService
 from digestify_api.queries.task_queries import (
-    AsyncTaskHandler,
     Task,
     TaskStatus,
     get_pending_tasks,
@@ -17,13 +14,13 @@ from digestify_api.task_processor.registry import TaskRegistry
 
 class TaskProcessor:
     def __init__(self, db: DBService) -> None:
-        self._routers: list[TaskRegistry] = []
-        self._queue: asyncio.Queue[Task] = asyncio.Queue()
         self._db = db
+        self._registries: list[TaskRegistry] = []
+        self._queue: asyncio.Queue[Task] = asyncio.Queue()
         self._tasks: list[asyncio.Task] = []
 
-    def add_router(self, router: TaskRegistry) -> None:
-        self._routers.append(router)
+    def add_registry(self, registry: TaskRegistry) -> None:
+        self._registries.append(registry)
 
     async def _queue_pending_tasks(self) -> None:
         while True:
@@ -41,18 +38,20 @@ class TaskProcessor:
         while True:
             task = await self._queue.get()
 
-            handler: AsyncTaskHandler | None = None
-            for router in self._routers:
-                handler = router.get_handler(task.name)
-                if handler is not None:
+            definition = None
+            for registry in self._registries:
+                definition = registry.get_definition(task.name)
+                if definition is not None:
                     break
 
-            if handler is None:
+            if definition is None:
                 print(f"No handler found for task name {task.name}")
                 self._queue.task_done()
                 continue
 
-            payload = BaseModel.model_validate(task.payload)
+            model_type = definition.model_class
+            payload = model_type.model_validate_json(task.payload)
+            handler = definition.handler
 
             try:
                 await handler(payload)
@@ -80,7 +79,6 @@ class TaskProcessor:
         self._tasks.append(task)
         task = asyncio.create_task(self._queue_pending_tasks())
         self._tasks.append(task)
-        await asyncio.gather(*self._tasks)
 
     async def stop(self) -> None:
         for task in self._tasks:

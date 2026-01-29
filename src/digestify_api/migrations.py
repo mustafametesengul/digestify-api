@@ -1,3 +1,5 @@
+import asyncio
+
 from digestify_api.db import DBService, DBSettings
 from digestify_api.queries.migration_queries import (
     create_initial_tables,
@@ -51,3 +53,7 @@ async def migrations_main(settings: DBSettings | None = None) -> None:
     await apply_migrations(db)
 
     await db.close_pool()
+
+
+if __name__ == "__main__":
+    asyncio.run(migrations_main())
