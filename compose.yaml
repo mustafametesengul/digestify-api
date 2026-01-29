@@ -80,7 +80,7 @@ services:
     image: mustafametesengul/webquest-mcp:latest
     environment:
       - WEBQUEST_MCP_AUTH_SECRET
-      - WEBQUEST_MCP_AUTH_AUDIENCE
+      - WEBQUEST_MCP_AUTH_AUDIENCE=webquest-mcp
       - WEBQUEST_MCP_TRANSPORT=streamable-http
       - WEBQUEST_MCP_HOST=0.0.0.0
       - WEBQUEST_MCP_PORT=8001
