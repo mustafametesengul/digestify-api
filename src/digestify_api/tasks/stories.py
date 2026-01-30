@@ -10,10 +10,10 @@ from digestify_api.exceptions import TopicNotFound
 from digestify_api.models import Story, StoryTaskPayload
 from digestify_api.queries import create_story, read_topic
 
-story_task_registry = TaskRegistry()
+stories_task_registry = TaskRegistry()
 
 
-@story_task_registry.task
+@stories_task_registry.task
 async def save_stories_by_topic(
     payload: StoryTaskPayload,
 ) -> None:

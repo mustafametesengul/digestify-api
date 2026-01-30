@@ -14,7 +14,7 @@ from digestify_api.dependencies import (
     mock_get_auth,
 )
 from digestify_api.routers import follows_router, topics_router, users_router
-from digestify_api.tasks import story_task_registry
+from digestify_api.tasks import stories_task_registry
 
 
 class AppSettings(BaseSettings):
@@ -44,7 +44,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await db.init_pool()
 
     task_processor = TaskProcessor(db)
-    task_processor.add_registry(story_task_registry)
+    task_processor.add_registry(stories_task_registry)
     await task_processor.start()
 
     if not _settings.debug:

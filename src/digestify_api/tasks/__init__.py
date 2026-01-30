@@ -1,6 +1,6 @@
-from digestify_api.tasks.stories import save_stories_by_topic, story_task_registry
+from digestify_api.tasks.stories import save_stories_by_topic, stories_task_registry
 
 __all__ = [
     "save_stories_by_topic",
-    "story_task_registry",
+    "stories_task_registry",
 ]
