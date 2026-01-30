@@ -6,7 +6,12 @@ from digestify_api.queries.migrations import (
     reset_db,
     update_schema_migrations,
 )
-from digestify_api.queries.stories import create_story, read_story, story_exists
+from digestify_api.queries.stories import (
+    create_story,
+    read_stories_by_topic,
+    read_story,
+    story_exists,
+)
 from digestify_api.queries.tasks import create_task, read_task, update_task
 from digestify_api.queries.topics import (
     create_topic,
@@ -47,6 +52,7 @@ __all__ = [
     "create_story",
     "read_story",
     "story_exists",
+    "read_stories_by_topic",
     "create_initial_tables",
     "create_schema_migrations_table",
     "get_applied_migrations",

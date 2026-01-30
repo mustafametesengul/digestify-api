@@ -13,7 +13,12 @@ from digestify_api.dependencies import (
     init_db,
     mock_get_auth,
 )
-from digestify_api.routers import follows_router, topics_router, users_router
+from digestify_api.routers import (
+    follows_router,
+    stories_router,
+    topics_router,
+    users_router,
+)
 from digestify_api.tasks import stories_task_registry
 
 
@@ -74,6 +79,7 @@ def run_app(settings: AppSettings | None = None) -> None:
     app.include_router(users_router)
     app.include_router(topics_router)
     app.include_router(follows_router)
+    app.include_router(stories_router)
 
     if _settings.debug:
         app.dependency_overrides[get_auth] = mock_get_auth

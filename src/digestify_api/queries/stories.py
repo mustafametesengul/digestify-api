@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from asyncpg import Connection
@@ -47,3 +48,23 @@ async def read_story(
         return None
 
     return Story.model_validate(dict(row))
+
+
+async def read_stories_by_topic(
+    conn: Connection,
+    topic_id: UUID,
+    until: datetime,
+    limit: int = 20,
+) -> list[Story]:
+    rows = await conn.fetch(
+        """
+        SELECT * FROM stories
+        WHERE topic_id = $1 AND created_at <= $2
+        ORDER BY created_at DESC
+        LIMIT $3
+        """,
+        topic_id,
+        until,
+        limit,
+    )
+    return [Story.model_validate(dict(row)) for row in rows]
