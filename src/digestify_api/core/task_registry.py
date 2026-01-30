@@ -61,10 +61,13 @@ class TaskRegistry:
 
         sig = inspect.signature(handler)
         params = list(sig.parameters.values())
-        if len(params) != 1:
-            raise ValueError("Handler must have exactly one argument")
+        if len(params) != 2:
+            raise ValueError("Handler must have exactly two arguments")
 
-        model_class = params[0].annotation
+        if params[0].annotation is not UUID:
+            raise TypeError("First handler argument must be of type UUID")
+
+        model_class = params[1].annotation
         if not issubclass(model_class, BaseModel):
             raise TypeError("Handler argument must be a Pydantic model")
 
