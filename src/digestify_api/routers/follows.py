@@ -26,8 +26,8 @@ from digestify_api.queries import (
 )
 
 follows_router = APIRouter(
-    prefix="/follow",
-    tags=["follow"],
+    prefix="/follows",
+    tags=["follows"],
 )
 
 
