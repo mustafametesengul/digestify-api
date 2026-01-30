@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from digestify_api.models.tasks import Task, TaskStatus
 
 T = TypeVar("T", bound=BaseModel)
-AsyncTaskHandler = Callable[[T], Awaitable[None]]
+AsyncTaskHandler = Callable[[UUID, T], Awaitable[None]]
 
 
 def from_handler(

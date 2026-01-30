@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 
 from digestify_api.core.db_manager import DBManager
 from digestify_api.core.task_registry import TaskRegistry
-from digestify_api.models.tasks import Task, TaskStatus
-from digestify_api.queries.tasks import (
+from digestify_api.models import Task
+from digestify_api.queries import (
     get_pending_tasks,
-    read_task,
-    update_task,
+    mark_task_failed,
+    mark_task_in_progress,
 )
 
 
@@ -25,12 +25,14 @@ class TaskProcessor:
         while True:
             now = datetime.now(timezone.utc)
             async with self._db.get_connection() as connection:
-                pending_tasks = await get_pending_tasks(connection, now)
+                pending_tasks = await get_pending_tasks(
+                    connection,
+                    now,
+                    limit=10,
+                )
                 for task in pending_tasks:
                     await self._queue.put(task)
-                    task.status = TaskStatus.IN_PROGRESS
-                    task.updated_at = now
-                    await update_task(connection, task)
+                    await mark_task_in_progress(connection, task.id, now)
             await asyncio.sleep(10)
 
     async def _handle_tasks(self) -> None:
@@ -44,7 +46,6 @@ class TaskProcessor:
                     break
 
             if definition is None:
-                print(f"No handler found for task name {task.name}")
                 self._queue.task_done()
                 continue
 
@@ -53,24 +54,18 @@ class TaskProcessor:
             handler = definition.handler
 
             try:
-                await handler(payload)
-                task_status = TaskStatus.COMPLETED
-                error_message = None
+                await handler(task.id, payload)
             except Exception as e:
-                print(f"Error handling task {task.id}: {e}")
-                task_status = TaskStatus.FAILED
                 error_message = str(e)
-            finally:
+                now = datetime.now(timezone.utc)
                 async with self._db.get_connection() as connection:
-                    task = await read_task(connection, task.id, lock=True)
-                    if task is None:
-                        raise ValueError("Task not found")
-
-                    task.status = task_status
-                    task.updated_at = datetime.now(timezone.utc)
-                    task.error_message = error_message
-                    await update_task(connection, task)
-
+                    await mark_task_failed(
+                        connection,
+                        task.id,
+                        error_message,
+                        now,
+                    )
+            finally:
                 self._queue.task_done()
 
     async def start(self) -> None:

@@ -35,13 +35,12 @@ follows_router = APIRouter(
 async def follow(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
-    user_id: UUID,
     topic_id: UUID,
 ) -> None:
     now = datetime.now(timezone.utc)
 
     async with db.get_connection() as connection:
-        user = await read_user(connection, user_id)
+        user = await read_user(connection, auth.id)
         if user is None:
             raise UserNotFound()
 
@@ -54,11 +53,11 @@ async def follow(
                 detail="User has reached the maximum number of followed topics."
             )
 
-        follow = await read_follow(connection, user_id, topic_id, lock=True)
+        follow = await read_follow(connection, auth.id, topic_id, lock=True)
 
         if follow is None:
             follow = Follow(
-                user_id=user_id,
+                user_id=auth.id,
                 topic_id=topic_id,
                 is_following=True,
                 created_at=now,
@@ -81,12 +80,11 @@ async def follow(
 async def unfollow(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
-    user_id: UUID,
     topic_id: UUID,
 ) -> None:
     now = datetime.now(timezone.utc)
     async with db.get_connection() as connection:
-        user = await read_user(connection, user_id, lock=True)
+        user = await read_user(connection, auth.id, lock=True)
         if user is None:
             raise UserNotFound()
 
@@ -94,7 +92,7 @@ async def unfollow(
         if topic is None:
             raise TopicNotFound()
 
-        follow = await read_follow(connection, user_id, topic_id, lock=True)
+        follow = await read_follow(connection, auth.id, topic_id, lock=True)
         if follow is None or not follow.is_following:
             raise UserDoesNotFollowTopic()
 
@@ -104,4 +102,4 @@ async def unfollow(
         await update_follow(connection, follow)
         await decrement_followers_count(connection, topic_id)
 
-        await decrement_followed_topics_count(connection, user_id)
+        await decrement_followed_topics_count(connection, auth.id)

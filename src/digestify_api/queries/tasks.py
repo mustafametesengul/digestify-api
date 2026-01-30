@@ -62,7 +62,11 @@ async def update_task(conn: Connection, task: Task) -> None:
     )
 
 
-async def get_pending_tasks(conn: Connection, until: datetime) -> list[Task]:
+async def get_pending_tasks(
+    conn: Connection,
+    time: datetime,
+    limit: int,
+) -> list[Task]:
     rows = await conn.fetch(
         """
         SELECT *
@@ -70,7 +74,59 @@ async def get_pending_tasks(conn: Connection, until: datetime) -> list[Task]:
         WHERE status = 'pending' AND scheduled_at <= $1
         ORDER BY scheduled_at ASC
         FOR UPDATE SKIP LOCKED
+        LIMIT $2
         """,
-        until,
+        time,
+        limit,
     )
     return [Task.model_validate(dict(row)) for row in rows]
+
+
+async def mark_task_in_progress(
+    conn: Connection,
+    task_id: UUID,
+    time: datetime,
+) -> None:
+    await conn.execute(
+        """
+        UPDATE tasks
+        SET status = 'in_progress', updated_at = $2
+        WHERE id = $1 AND status = 'pending'
+        """,
+        task_id,
+        time,
+    )
+
+
+async def mark_task_completed(
+    conn: Connection,
+    task_id: UUID,
+    time: datetime,
+) -> None:
+    await conn.execute(
+        """
+        UPDATE tasks
+        SET status = 'done', updated_at = $2
+        WHERE id = $1 AND status = 'in_progress'
+        """,
+        task_id,
+        time,
+    )
+
+
+async def mark_task_failed(
+    conn: Connection,
+    task_id: UUID,
+    error_message: str,
+    time: datetime,
+) -> None:
+    await conn.execute(
+        """
+        UPDATE tasks
+        SET status = 'failed', error_message = $2, updated_at = $3
+        WHERE id = $1 AND status = 'in_progress'
+        """,
+        task_id,
+        error_message,
+        time,
+    )

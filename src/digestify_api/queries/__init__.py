@@ -12,7 +12,15 @@ from digestify_api.queries.stories import (
     read_story,
     story_exists,
 )
-from digestify_api.queries.tasks import create_task, read_task, update_task
+from digestify_api.queries.tasks import (
+    create_task,
+    get_pending_tasks,
+    mark_task_completed,
+    mark_task_failed,
+    mark_task_in_progress,
+    read_task,
+    update_task,
+)
 from digestify_api.queries.topics import (
     create_topic,
     decrement_followers_count,
@@ -47,6 +55,10 @@ __all__ = [
     "create_task",
     "read_task",
     "update_task",
+    "get_pending_tasks",
+    "mark_task_in_progress",
+    "mark_task_completed",
+    "mark_task_failed",
     "decrement_followed_topics_count",
     "increment_created_topics_count",
     "create_story",
