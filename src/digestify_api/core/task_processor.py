@@ -4,11 +4,7 @@ from datetime import datetime, timezone
 from digestify_api.core.db_manager import DBManager
 from digestify_api.core.task_registry import TaskRegistry
 from digestify_api.models import Task
-from digestify_api.queries import (
-    get_pending_tasks,
-    mark_task_failed,
-    mark_task_in_progress,
-)
+from digestify_api.queries import get_pending_tasks, mark_task_in_progress
 
 
 class TaskProcessor:
@@ -55,16 +51,6 @@ class TaskProcessor:
 
             try:
                 await handler(task.id, payload)
-            except Exception as e:
-                error_message = str(e)
-                now = datetime.now(timezone.utc)
-                async with self._db.get_connection() as connection:
-                    await mark_task_failed(
-                        connection,
-                        task.id,
-                        error_message,
-                        now,
-                    )
             finally:
                 self._queue.task_done()
 
