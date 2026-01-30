@@ -6,14 +6,26 @@ import httpx
 import jwt
 from cryptography.hazmat.primitives.asymmetric import ec
 from jwt import InvalidTokenError
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.auth.exceptions import InvalidCredentials
-from digestify_api.auth.settings import AuthSettings
+from digestify_api.exceptions.auth import InvalidCredentials
+
+
+class AuthSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="DIGESTIFY_API_",
+    )
+
+    jwks_url: str = Field(default=...)
+
 
 _logger = logging.getLogger(__name__)
 
 
-class AuthService:
+class AuthManager:
     def __init__(self, settings: AuthSettings | None = None) -> None:
         if settings is None:
             settings = AuthSettings()

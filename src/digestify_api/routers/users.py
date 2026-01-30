@@ -3,15 +3,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from digestify_api.auth import Auth, get_auth
-from digestify_api.db import DatabaseManager, get_db
-from digestify_api.exceptions.users import UserAlreadyExists
-from digestify_api.queries.users import (
-    SubscriptionTier,
-    User,
-    create_user,
-    user_exists,
-)
+from digestify_api.core import DBManager
+from digestify_api.dependencies import get_auth, get_db
+from digestify_api.exceptions import UserAlreadyExists
+from digestify_api.models import Auth, SubscriptionTier, User
+from digestify_api.queries import create_user, user_exists
 
 users_router = APIRouter(
     prefix="/users",
@@ -22,7 +18,7 @@ users_router = APIRouter(
 @users_router.post("/register", status_code=201)
 async def register(
     auth: Annotated[Auth, Depends(get_auth)],
-    db: Annotated[DatabaseManager, Depends(get_db)],
+    db: Annotated[DBManager, Depends(get_db)],
 ) -> None:
     now = datetime.now(timezone.utc)
     async with db.get_connection() as connection:

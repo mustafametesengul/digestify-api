@@ -6,13 +6,15 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.auth import AuthSettings, get_auth, init_auth_service, mock_get_auth
-from digestify_api.db import DBSettings, init_db
-from digestify_api.routers.follows import follows_router
-from digestify_api.routers.topics import topics_router
-from digestify_api.routers.users import users_router
-from digestify_api.task_processor import TaskProcessor
-from digestify_api.tasks.stories import story_task_registry
+from digestify_api.core import AuthSettings, DBSettings, TaskProcessor
+from digestify_api.dependencies import (
+    get_auth,
+    init_auth_manager,
+    init_db,
+    mock_get_auth,
+)
+from digestify_api.routers import follows_router, topics_router, users_router
+from digestify_api.tasks import story_task_registry
 
 
 class AppSettings(BaseSettings):
@@ -49,7 +51,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         if _settings.auth is None:
             raise ValueError("AuthSettings must be provided in non-debug mode.")
 
-        auth_service = init_auth_service(_settings.auth)
+        auth_service = init_auth_manager(_settings.auth)
         await auth_service.fetch_jwks()
 
     try:

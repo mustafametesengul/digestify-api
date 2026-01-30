@@ -4,7 +4,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand
 
 from digestify_api.app import AppSettings, run_app
-from digestify_api.db import DBSettings
+from digestify_api.core import DBSettings
 from digestify_api.migrations import migrations_main
 
 

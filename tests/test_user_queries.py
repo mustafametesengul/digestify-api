@@ -3,9 +3,8 @@ from datetime import datetime, timezone
 
 from asyncpg import Connection
 
-from digestify_api.queries.users import (
-    SubscriptionTier,
-    User,
+from digestify_api.models import SubscriptionTier, User
+from digestify_api.queries import (
     create_user,
     increment_created_topics_count,
     increment_followed_topics_count,

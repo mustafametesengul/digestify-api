@@ -4,26 +4,23 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from digestify_api.auth import Auth, get_auth
-from digestify_api.db import DatabaseManager, get_db
-from digestify_api.exceptions.topics import (
+from digestify_api.core import DBManager, from_handler
+from digestify_api.dependencies import get_auth, get_db
+from digestify_api.exceptions import (
     TopicAlreadyExists,
     TopicLimitExceeded,
+    UserNotFound,
 )
-from digestify_api.exceptions.users import UserNotFound
-from digestify_api.queries.follows import Follow, create_follow
-from digestify_api.queries.tasks import create_task, from_handler
-from digestify_api.queries.topics import (
-    Topic,
+from digestify_api.models import Auth, Follow, StoryTaskPayload, SubscriptionTier, Topic
+from digestify_api.queries import (
+    create_follow,
+    create_task,
     create_topic,
-    topic_exists,
-)
-from digestify_api.queries.users import (
-    SubscriptionTier,
     increment_created_topics_count,
     read_user,
+    topic_exists,
 )
-from digestify_api.tasks.stories import StoryTaskPayload, save_stories_by_topic
+from digestify_api.tasks import save_stories_by_topic
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -34,7 +31,7 @@ topics_router = APIRouter(
 @topics_router.post("/create", status_code=201)
 async def create(
     auth: Annotated[Auth, Depends(get_auth)],
-    db: Annotated[DatabaseManager, Depends(get_db)],
+    db: Annotated[DBManager, Depends(get_db)],
     topic_id: UUID,
     name: str,
     description: str,

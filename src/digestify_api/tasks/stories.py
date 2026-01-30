@@ -1,20 +1,14 @@
 from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from digestify import Digestify
 from digestify import Topic as DigestifyTopic
-from pydantic import BaseModel
 
-from digestify_api.db import get_db
-from digestify_api.exceptions.topics import TopicNotFound
-from digestify_api.queries.stories import Story, create_story
-from digestify_api.queries.topics import read_topic
-from digestify_api.task_processor import TaskRegistry
-
-
-class StoryTaskPayload(BaseModel):
-    topic_id: UUID
-
+from digestify_api.core import TaskRegistry
+from digestify_api.dependencies import get_db
+from digestify_api.exceptions import TopicNotFound
+from digestify_api.models import Story, StoryTaskPayload
+from digestify_api.queries import create_story, read_topic
 
 story_task_registry = TaskRegistry()
 

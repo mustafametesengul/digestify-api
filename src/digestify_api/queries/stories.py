@@ -1,20 +1,8 @@
-from datetime import datetime
 from uuid import UUID
 
 from asyncpg import Connection
-from pydantic import BaseModel
 
-
-class Story(BaseModel):
-    id: UUID
-    discarded: bool
-    topic_id: UUID
-    title: str
-    image_url: str | None
-    content: str
-    language: str
-    created_at: datetime
-    updated_at: datetime | None
+from digestify_api.models import Story
 
 
 async def story_exists(conn: Connection, story_id: UUID) -> bool:

@@ -4,31 +4,25 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from digestify_api.auth import Auth, get_auth
-from digestify_api.db import DatabaseManager, get_db
-from digestify_api.exceptions.follows import (
+from digestify_api.core import DBManager
+from digestify_api.dependencies import get_auth, get_db
+from digestify_api.exceptions import (
     FollowLimitExceeded,
+    TopicNotFound,
     UserAlreadyFollowsTopic,
     UserDoesNotFollowTopic,
+    UserNotFound,
 )
-from digestify_api.exceptions.topics import (
-    TopicNotFound,
-)
-from digestify_api.exceptions.users import UserNotFound
-from digestify_api.queries.follows import (
-    Follow,
+from digestify_api.models import Auth, Follow
+from digestify_api.queries import (
     create_follow,
-    read_follow,
-    update_follow,
-)
-from digestify_api.queries.topics import (
+    decrement_followed_topics_count,
     decrement_followers_count,
     increment_followers_count,
+    read_follow,
     read_topic,
-)
-from digestify_api.queries.users import (
-    decrement_followed_topics_count,
     read_user,
+    update_follow,
 )
 
 follows_router = APIRouter(
@@ -40,7 +34,7 @@ follows_router = APIRouter(
 @follows_router.post("/follow", status_code=200)
 async def follow(
     auth: Annotated[Auth, Depends(get_auth)],
-    db: Annotated[DatabaseManager, Depends(get_db)],
+    db: Annotated[DBManager, Depends(get_db)],
     user_id: UUID,
     topic_id: UUID,
 ) -> None:
@@ -86,7 +80,7 @@ async def follow(
 @follows_router.post("/unfollow", status_code=200)
 async def unfollow(
     auth: Annotated[Auth, Depends(get_auth)],
-    db: Annotated[DatabaseManager, Depends(get_db)],
+    db: Annotated[DBManager, Depends(get_db)],
     user_id: UUID,
     topic_id: UUID,
 ) -> None:

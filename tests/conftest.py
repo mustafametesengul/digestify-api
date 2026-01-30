@@ -3,25 +3,25 @@ from typing import AsyncIterator
 import asyncpg
 import pytest
 
-from digestify_api.db import DatabaseManager, DBSettings
+from digestify_api.core import DBManager, DBSettings
 from digestify_api.migrations import apply_migrations, reset_db_
 
 
 @pytest.fixture(scope="session")
-async def db_service() -> AsyncIterator[DatabaseManager]:
+async def db() -> AsyncIterator[DBManager]:
     settings = DBSettings()
-    service = DatabaseManager(settings=settings)
-    await service.init_pool()
+    manager = DBManager(settings=settings)
+    await manager.init_pool()
 
-    await apply_migrations(service)
+    await apply_migrations(manager)
 
-    yield service
+    yield manager
 
-    await reset_db_(service)
-    await service.close_pool()
+    await reset_db_(manager)
+    await manager.close_pool()
 
 
 @pytest.fixture
-async def connection(db_service: DatabaseManager) -> AsyncIterator[asyncpg.Connection]:
-    async with db_service.get_connection() as connection:
+async def connection(db: DBManager) -> AsyncIterator[asyncpg.Connection]:
+    async with db.get_connection() as connection:
         yield connection

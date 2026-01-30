@@ -1,16 +1,8 @@
-from datetime import datetime
 from uuid import UUID
 
 from asyncpg import Connection
-from pydantic import BaseModel
 
-
-class Follow(BaseModel):
-    user_id: UUID
-    topic_id: UUID
-    is_following: bool = True
-    created_at: datetime
-    updated_at: datetime | None
+from digestify_api.models import Follow
 
 
 async def create_follow(conn: Connection, follow: Follow) -> None:
