@@ -69,7 +69,7 @@ async def create_initial_tables(connection: Connection) -> None:
             description TEXT NOT NULL,
             language TEXT NOT NULL,
             image_url TEXT,
-            embedding vector(1536),
+            embedding vector(1536) NOT NULL,
             is_active BOOLEAN NOT NULL,
             followers_count INTEGER NOT NULL
         );
@@ -107,7 +107,7 @@ async def create_initial_tables(connection: Connection) -> None:
             image_url TEXT,
             content TEXT NOT NULL,
             language TEXT NOT NULL,
-            embedding vector(1536)
+            embedding vector(1536) NOT NULL
         );
 
         CREATE INDEX ix_stories_discarded ON stories (discarded);

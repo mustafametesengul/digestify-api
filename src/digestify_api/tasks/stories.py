@@ -47,7 +47,7 @@ async def save_stories_by_topic(
     response = await openai.embeddings.create(
         input=inputs, model="text-embedding-3-small"
     )
-    embeddings: list[list[int | float]] = [data.embedding for data in response.data]
+    embeddings: list[str] = [str(data.embedding) for data in response.data]
 
     async with db.get_connection() as connection:
         for story, embedding in zip(digest.stories, embeddings):

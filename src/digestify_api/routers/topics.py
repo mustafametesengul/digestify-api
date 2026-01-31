@@ -63,7 +63,7 @@ async def create(
     response = await openai.embeddings.create(
         input=openai_input, model="text-embedding-3-small"
     )
-    embedding = response.data[0].embedding
+    embedding = str(response.data[0].embedding)
 
     async with db.get_connection() as connection:
         user = await read_user(connection, auth.id)
