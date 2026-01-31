@@ -143,7 +143,6 @@ async def search_topics(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
     query: str,
-    offset: int = 0,
 ) -> list[TopicPublic]:
     openai = get_openai()
 
@@ -155,7 +154,6 @@ async def search_topics(
             connection,
             embedding=embedding,
             limit=20,
-            offset=offset,
         )
         topics_public = [TopicPublic.model_validate(topic) for topic in topics]
         return topics_public
