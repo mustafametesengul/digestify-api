@@ -16,3 +16,4 @@ class Story(BaseModel):
     language: Language
     created_at: datetime
     updated_at: datetime | None
+    embedding: list[float] | None

@@ -19,8 +19,8 @@ async def create_story(conn: Connection, story: Story) -> None:
         """
         INSERT INTO stories
         (id, discarded, created_at, updated_at, topic_id,
-        title, image_url, content, language)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        title, image_url, content, language, embedding)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         """,
         story.id,
         story.discarded,
@@ -31,6 +31,7 @@ async def create_story(conn: Connection, story: Story) -> None:
         story.image_url,
         story.content,
         story.language,
+        story.embedding,
     )
 
 

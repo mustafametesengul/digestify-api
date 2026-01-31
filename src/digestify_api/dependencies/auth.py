@@ -11,7 +11,7 @@ _auth_manager: AuthManager | None = None
 _security = HTTPBearer()
 
 
-def init_auth_manager(settings: AuthSettings | None = None) -> AuthManager:
+def init_auth_manager(settings: AuthSettings) -> AuthManager:
     global _auth_manager
     _auth_manager = AuthManager(settings)
     return _auth_manager

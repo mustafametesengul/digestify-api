@@ -18,8 +18,8 @@ async def create_topic(conn: Connection, topic: Topic) -> None:
         """
         INSERT INTO topics
         (id, user_id, discarded, name, description, language, image_url,
-        is_active, followers_count, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        is_active, followers_count, created_at, updated_at, embedding)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         """,
         topic.id,
         topic.user_id,
@@ -32,6 +32,7 @@ async def create_topic(conn: Connection, topic: Topic) -> None:
         topic.followers_count,
         topic.created_at,
         topic.updated_at,
+        topic.embedding,
     )
 
 

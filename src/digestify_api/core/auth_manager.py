@@ -26,10 +26,8 @@ _logger = logging.getLogger(__name__)
 
 
 class AuthManager:
-    def __init__(self, settings: AuthSettings | None = None) -> None:
-        if settings is None:
-            settings = AuthSettings()
-        self.settings = settings
+    def __init__(self, settings: AuthSettings) -> None:
+        self._settings = settings
 
         self._public_keys: dict[str, ec.EllipticCurvePublicKey] = {}
 
@@ -51,10 +49,8 @@ class AuthManager:
 
     async def fetch_jwks(self) -> None:
         """Fetch JWKS on startup."""
-        if self.settings is None:
-            self.settings = AuthSettings()
         async with httpx.AsyncClient() as client:
-            resp = await client.get(self.settings.jwks_url)
+            resp = await client.get(self._settings.jwks_url)
             resp.raise_for_status()
             jwks = resp.json()
             for jwk in jwks["keys"]:

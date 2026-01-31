@@ -5,7 +5,7 @@ from digestify import Digestify
 from digestify import Topic as DigestifyTopic
 
 from digestify_api.core import TaskRegistry
-from digestify_api.dependencies import get_db
+from digestify_api.dependencies import get_db, get_openai
 from digestify_api.models import Story, StoryTaskPayload
 from digestify_api.queries import (
     create_story,
@@ -25,6 +25,9 @@ async def save_stories_by_topic(
     db = get_db()
     digestify = Digestify()
     now = datetime.now(timezone.utc)
+
+    openai = get_openai()
+
     async with db.get_connection() as connection:
         topic = await read_topic(connection, payload.topic_id)
         if topic is None:
@@ -40,8 +43,14 @@ async def save_stories_by_topic(
 
     digest = await digestify.get_stories(digestify_topic)
 
+    inputs = [story.content for story in digest.stories]
+    response = await openai.embeddings.create(
+        input=inputs, model="text-embedding-3-small"
+    )
+    embeddings: list[list[int | float]] = [data.embedding for data in response.data]
+
     async with db.get_connection() as connection:
-        for story in digest.stories:
+        for story, embedding in zip(digest.stories, embeddings):
             story_create = Story(
                 id=uuid4(),
                 discarded=False,
@@ -52,6 +61,7 @@ async def save_stories_by_topic(
                 language=topic.language,
                 created_at=now,
                 updated_at=None,
+                embedding=embedding,
             )
             await create_story(connection, story_create)
 

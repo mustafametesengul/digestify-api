@@ -22,3 +22,4 @@ class Topic(BaseModel):
     followers_count: int
     created_at: datetime
     updated_at: datetime | None
+    embedding: list[float] | None

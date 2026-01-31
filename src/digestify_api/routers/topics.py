@@ -5,9 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from digestify_api.core import DBManager, from_handler
-from digestify_api.dependencies import get_auth, get_db
+from digestify_api.dependencies import get_auth, get_db, get_openai
 from digestify_api.exceptions import (
     TopicAlreadyExists,
+    TopicContainsInappropriateContent,
     TopicLimitExceeded,
     UserNotFound,
 )
@@ -46,6 +47,23 @@ async def create(
     image_url: str | None = None,
 ) -> Topic:
     now = datetime.now(timezone.utc)
+
+    openai = get_openai()
+
+    openai_input = f"{name}\n\n{description}"
+    response = await openai.moderations.create(
+        model="omni-moderation-latest",
+        input=openai_input,
+    )
+    flagged = response.results[0].flagged
+
+    if flagged:
+        raise TopicContainsInappropriateContent()
+
+    response = await openai.embeddings.create(
+        input=openai_input, model="text-embedding-3-small"
+    )
+    embedding = response.data[0].embedding
 
     async with db.get_connection() as connection:
         user = await read_user(connection, auth.id)
@@ -92,6 +110,7 @@ async def create(
             followers_count=1,
             created_at=now,
             updated_at=None,
+            embedding=embedding,
         )
 
         await create_topic(connection, topic)

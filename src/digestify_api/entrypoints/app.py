@@ -6,11 +6,12 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.core import AuthSettings, DBSettings, TaskProcessor
+from digestify_api.core import AuthSettings, DBSettings, OpenAISettings, TaskProcessor
 from digestify_api.dependencies import (
     get_auth,
     init_auth_manager,
     init_db,
+    init_openai,
     mock_get_auth,
 )
 from digestify_api.routers import (
@@ -34,6 +35,7 @@ class AppSettings(BaseSettings):
     port: int = Field(default=8000)
     auth: AuthSettings | None = Field(default=None)
     db: DBSettings = Field(default_factory=DBSettings)
+    openai: OpenAISettings = Field(default_factory=OpenAISettings)
 
 
 _settings: AppSettings | None = None
@@ -47,6 +49,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
     db = init_db(_settings.db)
     await db.init_pool()
+
+    init_openai(settings=_settings.openai)
 
     task_processor = TaskProcessor(db)
     task_processor.add_registry(stories_task_registry)

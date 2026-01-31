@@ -22,10 +22,7 @@ class DBSettings(BaseSettings):
 
 
 class DBManager:
-    def __init__(self, settings: DBSettings | None = None) -> None:
-        if settings is None:
-            settings = DBSettings()
-
+    def __init__(self, settings: DBSettings) -> None:
         self._pool: asyncpg.Pool | None = None
         self._lock = asyncio.Lock()
 

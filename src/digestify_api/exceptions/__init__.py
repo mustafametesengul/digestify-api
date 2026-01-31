@@ -6,6 +6,7 @@ from digestify_api.exceptions.follows import (
 )
 from digestify_api.exceptions.topics import (
     TopicAlreadyExists,
+    TopicContainsInappropriateContent,
     TopicLimitExceeded,
     TopicNotFound,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "TopicNotFound",
     "TopicAlreadyExists",
     "TopicLimitExceeded",
+    "TopicContainsInappropriateContent",
     "FollowLimitExceeded",
     "UserAlreadyFollowsTopic",
     "UserDoesNotFollowTopic",

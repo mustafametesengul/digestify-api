@@ -23,3 +23,11 @@ class TopicLimitExceeded(HTTPException):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=detail,
         )
+
+
+class TopicContainsInappropriateContent(HTTPException):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The topic name or description contains inappropriate content.",
+        )

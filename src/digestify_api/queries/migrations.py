@@ -42,6 +42,8 @@ async def reset_db(conn: Connection) -> None:
 async def create_initial_tables(connection: Connection) -> None:
     await connection.execute(
         """
+        CREATE EXTENSION IF NOT EXISTS vector;
+
         CREATE TABLE users (
             id UUID PRIMARY KEY,
             discarded BOOLEAN NOT NULL,
@@ -67,6 +69,7 @@ async def create_initial_tables(connection: Connection) -> None:
             description TEXT NOT NULL,
             language TEXT NOT NULL,
             image_url TEXT,
+            embedding vector(1536),
             is_active BOOLEAN NOT NULL,
             followers_count INTEGER NOT NULL
         );
@@ -103,7 +106,8 @@ async def create_initial_tables(connection: Connection) -> None:
             title TEXT NOT NULL,
             image_url TEXT,
             content TEXT NOT NULL,
-            language TEXT NOT NULL
+            language TEXT NOT NULL,
+            embedding vector(1536)
         );
 
         CREATE INDEX ix_stories_discarded ON stories (discarded);
