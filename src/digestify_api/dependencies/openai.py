@@ -1,17 +1,15 @@
-from openai import AsyncOpenAI
+from digestify_api.core import OpenAI, OpenAISettings
 
-from digestify_api.core.openai import OpenAISettings
-
-_openai: AsyncOpenAI | None = None
+_openai: OpenAI | None = None
 
 
-def init_openai(settings: OpenAISettings) -> AsyncOpenAI:
+def init_openai(settings: OpenAISettings) -> OpenAI:
     global _openai
-    _openai = AsyncOpenAI(api_key=settings.api_key.get_secret_value())
+    _openai = OpenAI(settings)
     return _openai
 
 
-def get_openai() -> AsyncOpenAI:
+def get_openai() -> OpenAI:
     if _openai is None:
         raise RuntimeError("OpenAI client not initialized")
     return _openai

@@ -53,19 +53,14 @@ async def create(
     openai = get_openai()
 
     openai_input = f"{name}\n\n{description}"
-    response = await openai.moderations.create(
-        model="omni-moderation-latest",
-        input=openai_input,
-    )
-    flagged = response.results[0].flagged
 
-    if flagged:
+    flagged_list = await openai.check_for_moderation([openai_input])
+
+    if flagged_list[0]:
         raise TopicContainsInappropriateContent()
 
-    response = await openai.embeddings.create(
-        input=openai_input, model="text-embedding-3-small"
-    )
-    embedding = str(response.data[0].embedding)
+    embeddings = await openai.get_embeddings([openai_input])
+    embedding = embeddings[0]
 
     async with db.get_connection() as connection:
         user = await read_user(connection, auth.id)
@@ -147,10 +142,8 @@ async def search_topics(
 ) -> list[TopicPublic]:
     openai = get_openai()
 
-    response = await openai.embeddings.create(
-        input=query, model="text-embedding-3-small"
-    )
-    embedding = str(response.data[0].embedding)
+    embeddings = await openai.get_embeddings([query])
+    embedding = embeddings[0]
 
     async with db.get_connection() as connection:
         topics = await retrieve_topics_by_embedding(

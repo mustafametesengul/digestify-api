@@ -44,10 +44,7 @@ async def save_stories_by_topic(
     digest = await digestify.get_stories(digestify_topic)
 
     inputs = [story.content for story in digest.stories]
-    response = await openai.embeddings.create(
-        input=inputs, model="text-embedding-3-small"
-    )
-    embeddings: list[str] = [str(data.embedding) for data in response.data]
+    embeddings = await openai.get_embeddings(inputs)
 
     async with db.get_connection() as connection:
         for story, embedding in zip(digest.stories, embeddings):
