@@ -3,7 +3,7 @@ from typing import AsyncIterator
 import asyncpg
 import pytest
 
-from digestify_api.core import DBManager, DBSettings
+from digestify_api.dependencies import DBManager, DBSettings
 from digestify_api.entrypoints import apply_migrations, reset_db_
 
 

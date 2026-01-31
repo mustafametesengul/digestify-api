@@ -4,8 +4,7 @@ from uuid import UUID, uuid4
 from digestify import Digestify
 from digestify import Topic as DigestifyTopic
 
-from digestify_api.core import TaskRegistry
-from digestify_api.dependencies import get_db, get_openai
+from digestify_api.dependencies import TaskRegistry, get_db, get_openai
 from digestify_api.models import Story, StoryTaskPayload
 from digestify_api.queries import (
     create_story,

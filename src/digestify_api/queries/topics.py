@@ -71,18 +71,20 @@ async def retrieve_topics_by_embedding(
     embedding: str,
     limit: int = 10,
     offset: int = 0,
+    threshold: float = 1.1,
 ) -> list[Topic]:
     rows = await conn.fetch(
         """
         SELECT *
         FROM topics
+        WHERE embedding <-> $1 < $4
         ORDER BY embedding <-> $1
         LIMIT $2 OFFSET $3
         """,
         embedding,
         limit,
         offset,
+        threshold,
     )
-
     topics = [Topic.model_validate(dict(row)) for row in rows]
     return topics

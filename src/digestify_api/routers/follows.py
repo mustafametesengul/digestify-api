@@ -4,8 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from digestify_api.core import DBManager
-from digestify_api.dependencies import get_auth, get_db
+from digestify_api.dependencies import DBManager, get_auth, get_db
 from digestify_api.exceptions import (
     FollowLimitExceeded,
     TopicNotFound,

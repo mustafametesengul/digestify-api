@@ -3,8 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from digestify_api.core import DBManager
-from digestify_api.dependencies import get_auth, get_db
+from digestify_api.dependencies import DBManager, get_auth, get_db
 from digestify_api.exceptions import UserAlreadyExists
 from digestify_api.models import Auth, SubscriptionTier, User, UserPublic
 from digestify_api.queries import create_user, user_exists

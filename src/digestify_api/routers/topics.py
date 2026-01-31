@@ -4,8 +4,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from digestify_api.core import DBManager, from_handler
-from digestify_api.dependencies import get_auth, get_db, get_openai
+from digestify_api.dependencies import (
+    DBManager,
+    from_handler,
+    get_auth,
+    get_db,
+    get_openai,
+)
 from digestify_api.exceptions import (
     TopicAlreadyExists,
     TopicContainsInappropriateContent,

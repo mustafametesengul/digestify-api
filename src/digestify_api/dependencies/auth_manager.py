@@ -1,15 +1,21 @@
 import base64
 import logging
-from typing import Any
+from typing import Annotated, Any
+from uuid import UUID
 
 import httpx
 import jwt
 from cryptography.hazmat.primitives.asymmetric import ec
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from digestify_api.exceptions.auth import InvalidCredentials
+from digestify_api.models import Auth
+
+_logger = logging.getLogger(__name__)
 
 
 class AuthSettings(BaseSettings):
@@ -20,9 +26,6 @@ class AuthSettings(BaseSettings):
     )
 
     jwks_url: str = Field(default=...)
-
-
-_logger = logging.getLogger(__name__)
 
 
 class AuthManager:
@@ -83,3 +86,36 @@ class AuthManager:
             return payload
         except InvalidTokenError:
             raise InvalidCredentials()
+
+
+_auth_manager: AuthManager | None = None
+_security = HTTPBearer()
+
+
+def init_auth_manager(settings: AuthSettings) -> AuthManager:
+    global _auth_manager
+    _auth_manager = AuthManager(settings)
+    return _auth_manager
+
+
+def get_auth_manager() -> AuthManager:
+    global _auth_manager
+    if _auth_manager is None:
+        raise RuntimeError("Auth service is not initialized.")
+    return _auth_manager
+
+
+def get_auth(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_security)],
+) -> Auth:
+    auth_manager = get_auth_manager()
+    token = credentials.credentials
+    decoded_token = auth_manager.verify_jwt_token(token)
+    user_id = UUID(decoded_token["sub"])
+    is_anonymous = bool(decoded_token.get("is_anonymous", False))
+    auth = Auth(id=user_id, is_anonymous=is_anonymous)
+    return auth
+
+
+def mock_get_auth() -> Auth:
+    return Auth(id=UUID("12345678-1234-5678-1234-567812345678"), is_anonymous=False)

@@ -6,8 +6,11 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.core import AuthSettings, DBSettings, OpenAISettings, TaskProcessor
 from digestify_api.dependencies import (
+    AuthSettings,
+    DBSettings,
+    OpenAISettings,
+    TaskProcessor,
     get_auth,
     init_auth_manager,
     init_db,

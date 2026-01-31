@@ -1,6 +1,6 @@
 import asyncio
 
-from digestify_api.core import DBManager, DBSettings
+from digestify_api.dependencies import DBManager, DBSettings
 from digestify_api.queries import (
     create_initial_tables,
     create_schema_migrations_table,

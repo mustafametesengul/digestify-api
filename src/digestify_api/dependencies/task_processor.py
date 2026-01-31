@@ -2,8 +2,8 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from digestify_api.core.db_manager import DBManager
-from digestify_api.core.task_registry import TaskRegistry
+from digestify_api.dependencies.db_manager import DBManager
+from digestify_api.dependencies.task_registry import TaskRegistry
 from digestify_api.models import Task
 from digestify_api.queries import get_pending_tasks, mark_task_in_progress
 
