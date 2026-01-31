@@ -19,7 +19,7 @@ users_router = APIRouter(
 async def register(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
-) -> None:
+) -> User:
     now = datetime.now(timezone.utc)
     async with db.get_connection() as connection:
         user_exists_flag = await user_exists(connection, auth.id)
@@ -37,3 +37,4 @@ async def register(
         )
 
         await create_user(connection, user)
+        return user

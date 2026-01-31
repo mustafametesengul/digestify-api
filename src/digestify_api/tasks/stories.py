@@ -6,9 +6,13 @@ from digestify import Topic as DigestifyTopic
 
 from digestify_api.core import TaskRegistry
 from digestify_api.dependencies import get_db
-from digestify_api.exceptions import TopicNotFound
 from digestify_api.models import Story, StoryTaskPayload
-from digestify_api.queries import create_story, mark_task_completed, read_topic
+from digestify_api.queries import (
+    create_story,
+    mark_task_completed,
+    mark_task_failed,
+    read_topic,
+)
 
 stories_task_registry = TaskRegistry()
 
@@ -24,7 +28,13 @@ async def save_stories_by_topic(
     async with db.get_connection() as connection:
         topic = await read_topic(connection, payload.topic_id)
         if topic is None:
-            raise TopicNotFound()
+            await mark_task_failed(
+                connection,
+                task_id,
+                "Topic not found",
+                now,
+            )
+            return
 
     digestify_topic = DigestifyTopic.model_validate(topic.model_dump())
 

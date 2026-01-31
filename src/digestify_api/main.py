@@ -3,9 +3,8 @@ import asyncio
 from pydantic import Field
 from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand
 
-from digestify_api.app import AppSettings, run_app
 from digestify_api.core import DBSettings
-from digestify_api.migrations import migrations_main
+from digestify_api.entrypoints import AppSettings, app_main, migrations_main
 
 
 class Settings(BaseSettings, cli_parse_args=True):
@@ -17,7 +16,7 @@ def main(settings: Settings | None = None) -> None:
     settings = settings or Settings()
     subcommand = get_subcommand(settings)
     if isinstance(subcommand, AppSettings):
-        run_app(subcommand)
+        app_main(subcommand)
     if isinstance(subcommand, DBSettings):
         asyncio.run(migrations_main(subcommand))
 

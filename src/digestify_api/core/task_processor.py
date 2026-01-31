@@ -1,10 +1,13 @@
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 from digestify_api.core.db_manager import DBManager
 from digestify_api.core.task_registry import TaskRegistry
 from digestify_api.models import Task
 from digestify_api.queries import get_pending_tasks, mark_task_in_progress
+
+_logger = logging.getLogger(__name__)
 
 
 class TaskProcessor:
@@ -26,6 +29,7 @@ class TaskProcessor:
                     now,
                     limit=10,
                 )
+                _logger.debug(f"Found {len(pending_tasks)} pending tasks")
                 for task in pending_tasks:
                     await self._queue.put(task)
                     await mark_task_in_progress(connection, task.id, now)
@@ -50,7 +54,13 @@ class TaskProcessor:
             handler = definition.handler
 
             try:
+                _logger.info(f"Processing task {task.id} of type {task.name}")
                 await handler(task.id, payload)
+                _logger.info(f"Completed task {task.id} of type {task.name}")
+            except Exception as e:
+                _logger.exception(
+                    f"Error processing task {task.id} of type {task.name}: {e}"
+                )
             finally:
                 self._queue.task_done()
 

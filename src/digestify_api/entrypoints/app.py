@@ -66,7 +66,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await db.close_pool()
 
 
-def run_app(settings: AppSettings | None = None) -> None:
+def app_main(settings: AppSettings | None = None) -> None:
     global _settings
     _settings = settings or AppSettings()
 
@@ -88,4 +88,4 @@ def run_app(settings: AppSettings | None = None) -> None:
 
 
 if __name__ == "__main__":
-    run_app()
+    app_main()

@@ -4,7 +4,7 @@ import asyncpg
 import pytest
 
 from digestify_api.core import DBManager, DBSettings
-from digestify_api.migrations import apply_migrations, reset_db_
+from digestify_api.entrypoints import apply_migrations, reset_db_
 
 
 @pytest.fixture(scope="session")
