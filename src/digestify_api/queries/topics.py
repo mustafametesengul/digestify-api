@@ -64,3 +64,25 @@ async def decrement_followers_count(conn: Connection, topic_id: UUID) -> None:
         "UPDATE topics SET followers_count = followers_count - 1 WHERE id = $1",
         topic_id,
     )
+
+
+async def retrieve_topics_by_embedding(
+    conn: Connection,
+    embedding: str,
+    limit: int = 10,
+    offset: int = 0,
+) -> list[Topic]:
+    rows = await conn.fetch(
+        """
+        SELECT *
+        FROM topics
+        ORDER BY embedding <-> $1
+        LIMIT $2 OFFSET $3
+        """,
+        embedding,
+        limit,
+        offset,
+    )
+
+    topics = [Topic.model_validate(dict(row)) for row in rows]
+    return topics

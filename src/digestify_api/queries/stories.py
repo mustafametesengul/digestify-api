@@ -69,3 +69,25 @@ async def read_stories_by_topic(
         limit,
     )
     return [Story.model_validate(dict(row)) for row in rows]
+
+
+async def retrieve_stories_by_embedding(
+    conn: Connection,
+    embedding: str,
+    limit: int = 10,
+    offset: int = 0,
+) -> list[Story]:
+    rows = await conn.fetch(
+        """
+        SELECT *
+        FROM stories
+        ORDER BY embedding <-> $1
+        LIMIT $2 OFFSET $3
+        """,
+        embedding,
+        limit,
+        offset,
+    )
+
+    stories = [Story.model_validate(dict(row)) for row in rows]
+    return stories

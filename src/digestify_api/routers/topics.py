@@ -27,6 +27,7 @@ from digestify_api.queries import (
     create_topic,
     increment_created_topics_count,
     read_user,
+    retrieve_topics_by_embedding,
     topic_exists,
 )
 from digestify_api.tasks import save_stories_by_topic
@@ -135,3 +136,28 @@ async def create(
         )
         await create_task(connection, task)
         return TopicPublic.model_validate(topic)
+
+
+@topics_router.get("/search")
+async def search_topics(
+    auth: Annotated[Auth, Depends(get_auth)],
+    db: Annotated[DBManager, Depends(get_db)],
+    query: str,
+    offset: int = 0,
+) -> list[TopicPublic]:
+    openai = get_openai()
+
+    response = await openai.embeddings.create(
+        input=query, model="text-embedding-3-small"
+    )
+    embedding = str(response.data[0].embedding)
+
+    async with db.get_connection() as connection:
+        topics = await retrieve_topics_by_embedding(
+            connection,
+            embedding=embedding,
+            limit=20,
+            offset=offset,
+        )
+        topics_public = [TopicPublic.model_validate(topic) for topic in topics]
+        return topics_public

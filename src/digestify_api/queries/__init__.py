@@ -10,6 +10,7 @@ from digestify_api.queries.stories import (
     create_story,
     read_stories_by_topic,
     read_story,
+    retrieve_stories_by_embedding,
     story_exists,
 )
 from digestify_api.queries.tasks import (
@@ -26,6 +27,7 @@ from digestify_api.queries.topics import (
     decrement_followers_count,
     increment_followers_count,
     read_topic,
+    retrieve_topics_by_embedding,
     topic_exists,
 )
 from digestify_api.queries.users import (
@@ -70,4 +72,6 @@ __all__ = [
     "get_applied_migrations",
     "reset_db",
     "update_schema_migrations",
+    "retrieve_topics_by_embedding",
+    "retrieve_stories_by_embedding",
 ]
