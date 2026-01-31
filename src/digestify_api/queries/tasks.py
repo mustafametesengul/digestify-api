@@ -3,7 +3,7 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import Task
+from digestify_api.models import Task, TaskStatus
 
 
 async def create_task(conn: Connection, task: Task) -> None:
@@ -90,10 +90,12 @@ async def mark_task_in_progress(
     await conn.execute(
         """
         UPDATE tasks
-        SET status = 'in_progress', updated_at = $2
-        WHERE id = $1 AND status = 'pending'
+        SET status = $3, updated_at = $4
+        WHERE id = $1 AND status = $2
         """,
         task_id,
+        TaskStatus.PENDING.value,
+        TaskStatus.IN_PROGRESS.value,
         time,
     )
 
@@ -106,10 +108,12 @@ async def mark_task_completed(
     await conn.execute(
         """
         UPDATE tasks
-        SET status = 'done', updated_at = $2
-        WHERE id = $1 AND status = 'in_progress'
+        SET status = $3, updated_at = $4
+        WHERE id = $1 AND status = $2
         """,
         task_id,
+        TaskStatus.IN_PROGRESS.value,
+        TaskStatus.COMPLETED.value,
         time,
     )
 
@@ -123,10 +127,12 @@ async def mark_task_failed(
     await conn.execute(
         """
         UPDATE tasks
-        SET status = 'failed', error_message = $2, updated_at = $3
-        WHERE id = $1 AND status = 'in_progress'
+        SET status = $3, error_message = $4, updated_at = $5
+        WHERE id = $1 AND status = $2
         """,
         task_id,
+        TaskStatus.IN_PROGRESS.value,
+        TaskStatus.FAILED.value,
         error_message,
         time,
     )

@@ -37,7 +37,7 @@ async def create(
     description: str,
     language: str,
     image_url: str | None = None,
-) -> None:
+) -> Topic:
     now = datetime.now(timezone.utc)
 
     async with db.get_connection() as connection:
@@ -107,3 +107,4 @@ async def create(
             created_at=now,
         )
         await create_task(connection, task)
+        return topic

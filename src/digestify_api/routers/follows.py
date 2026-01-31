@@ -36,7 +36,7 @@ async def follow(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
     topic_id: UUID,
-) -> None:
+) -> Follow:
     now = datetime.now(timezone.utc)
 
     async with db.get_connection() as connection:
@@ -74,6 +74,7 @@ async def follow(
             await update_follow(connection, follow)
 
         await increment_followers_count(connection, topic_id)
+        return follow
 
 
 @follows_router.post("/unfollow", status_code=200)
@@ -81,7 +82,7 @@ async def unfollow(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
     topic_id: UUID,
-) -> None:
+) -> Follow:
     now = datetime.now(timezone.utc)
     async with db.get_connection() as connection:
         user = await read_user(connection, auth.id, lock=True)
@@ -103,3 +104,4 @@ async def unfollow(
         await decrement_followers_count(connection, topic_id)
 
         await decrement_followed_topics_count(connection, auth.id)
+        return follow
