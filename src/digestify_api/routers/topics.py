@@ -19,6 +19,7 @@ from digestify_api.models import (
     StoryTaskPayload,
     SubscriptionTier,
     Topic,
+    TopicPublic,
 )
 from digestify_api.queries import (
     create_follow,
@@ -45,7 +46,7 @@ async def create(
     description: str,
     language: Language,
     image_url: str | None = None,
-) -> Topic:
+) -> TopicPublic:
     now = datetime.now(timezone.utc)
 
     openai = get_openai()
@@ -133,4 +134,4 @@ async def create(
             created_at=now,
         )
         await create_task(connection, task)
-        return topic
+        return TopicPublic.model_validate(topic)

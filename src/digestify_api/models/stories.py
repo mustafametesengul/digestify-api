@@ -6,9 +6,8 @@ from pydantic import BaseModel
 from digestify_api.models.topics import Language
 
 
-class Story(BaseModel):
+class StoryPublic(BaseModel):
     id: UUID
-    discarded: bool
     topic_id: UUID
     title: str
     image_url: str | None
@@ -16,4 +15,8 @@ class Story(BaseModel):
     language: Language
     created_at: datetime
     updated_at: datetime | None
+
+
+class Story(StoryPublic):
+    discarded: bool
     embedding: str

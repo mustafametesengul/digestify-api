@@ -10,9 +10,8 @@ class Language(StrEnum):
     TR_TR = "tr-TR"
 
 
-class Topic(BaseModel):
+class TopicPublic(BaseModel):
     id: UUID
-    discarded: bool
     user_id: UUID
     name: str
     description: str
@@ -22,4 +21,8 @@ class Topic(BaseModel):
     followers_count: int
     created_at: datetime
     updated_at: datetime | None
+
+
+class Topic(TopicPublic):
+    discarded: bool
     embedding: str

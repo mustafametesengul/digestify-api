@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from digestify_api.core import DBManager
 from digestify_api.dependencies import get_auth, get_db
 from digestify_api.exceptions import UserAlreadyExists
-from digestify_api.models import Auth, SubscriptionTier, User
+from digestify_api.models import Auth, SubscriptionTier, User, UserPublic
 from digestify_api.queries import create_user, user_exists
 
 users_router = APIRouter(
@@ -19,7 +19,7 @@ users_router = APIRouter(
 async def register(
     auth: Annotated[Auth, Depends(get_auth)],
     db: Annotated[DBManager, Depends(get_db)],
-) -> User:
+) -> UserPublic:
     now = datetime.now(timezone.utc)
     async with db.get_connection() as connection:
         user_exists_flag = await user_exists(connection, auth.id)
@@ -37,4 +37,4 @@ async def register(
         )
 
         await create_user(connection, user)
-        return user
+        return UserPublic.model_validate(user)

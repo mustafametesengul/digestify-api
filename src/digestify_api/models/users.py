@@ -10,11 +10,14 @@ class SubscriptionTier(StrEnum):
     PREMIUM = "premium"
 
 
-class User(BaseModel):
+class UserPublic(BaseModel):
     id: UUID
-    discarded: bool
     subscription_tier: SubscriptionTier
     created_topics_count: int
     followed_topics_count: int
     created_at: datetime
     updated_at: datetime | None
+
+
+class User(UserPublic):
+    discarded: bool
