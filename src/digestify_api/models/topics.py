@@ -1,7 +1,13 @@
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel
+
+
+class Language(StrEnum):
+    EN_US = "en-US"
+    TR_TR = "tr-TR"
 
 
 class Topic(BaseModel):
@@ -10,7 +16,7 @@ class Topic(BaseModel):
     user_id: UUID
     name: str
     description: str
-    language: str
+    language: Language
     image_url: str | None
     is_active: bool
     followers_count: int

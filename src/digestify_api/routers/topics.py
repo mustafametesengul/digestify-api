@@ -11,7 +11,14 @@ from digestify_api.exceptions import (
     TopicLimitExceeded,
     UserNotFound,
 )
-from digestify_api.models import Auth, Follow, StoryTaskPayload, SubscriptionTier, Topic
+from digestify_api.models import (
+    Auth,
+    Follow,
+    Language,
+    StoryTaskPayload,
+    SubscriptionTier,
+    Topic,
+)
 from digestify_api.queries import (
     create_follow,
     create_task,
@@ -35,7 +42,7 @@ async def create(
     topic_id: UUID,
     name: str,
     description: str,
-    language: str,
+    language: Language,
     image_url: str | None = None,
 ) -> Topic:
     now = datetime.now(timezone.utc)
