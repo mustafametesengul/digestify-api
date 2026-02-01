@@ -11,17 +11,15 @@ from digestify_api.dependencies import (
     DBSettings,
     OpenAISettings,
     TaskProcessor,
-    get_auth,
     init_auth_manager,
     init_db,
     init_openai,
-    mock_get_auth,
 )
 from digestify_api.routers import (
+    auth_router,
     follows_router,
     stories_router,
     topics_router,
-    users_router,
 )
 from digestify_api.tasks import stories_task_registry
 
@@ -36,7 +34,7 @@ class AppSettings(BaseSettings):
     debug: bool = Field(default=False)
     host: str = Field(default="localhost")
     port: int = Field(default=8000)
-    auth: AuthSettings | None = Field(default=None)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     db: DBSettings = Field(default_factory=DBSettings)
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
 
@@ -59,12 +57,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     task_processor.add_registry(stories_task_registry)
     await task_processor.start()
 
-    if not _settings.debug:
-        if _settings.auth is None:
-            raise ValueError("AuthSettings must be provided in non-debug mode.")
-
-        auth_service = init_auth_manager(_settings.auth)
-        await auth_service.fetch_jwks()
+    init_auth_manager(_settings.auth)
 
     try:
         yield
@@ -83,13 +76,10 @@ def app_main(settings: AppSettings | None = None) -> None:
         debug=_settings.debug,
     )
 
-    app.include_router(users_router)
+    app.include_router(auth_router)
     app.include_router(topics_router)
     app.include_router(follows_router)
     app.include_router(stories_router)
-
-    if _settings.debug:
-        app.dependency_overrides[get_auth] = mock_get_auth
 
     uvicorn.run(app, host=_settings.host, port=_settings.port)
 

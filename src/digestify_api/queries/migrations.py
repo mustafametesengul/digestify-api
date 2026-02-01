@@ -46,6 +46,8 @@ async def create_initial_tables(connection: Connection) -> None:
 
         CREATE TABLE users (
             id UUID PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
             discarded BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE,
@@ -54,6 +56,7 @@ async def create_initial_tables(connection: Connection) -> None:
             followed_topics_count INTEGER NOT NULL
         );
 
+        CREATE INDEX ix_users_username ON users (username);
         CREATE INDEX ix_users_discarded ON users (discarded);
         CREATE INDEX ix_users_subscription_tier ON users (subscription_tier);
         CREATE INDEX ix_users_created_topics_count ON users (created_topics_count);

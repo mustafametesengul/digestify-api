@@ -25,6 +25,8 @@ async def test_create_and_read_user(connection: Connection):
         followed_topics_count=0,
         created_at=now,
         updated_at=None,
+        username="user1",
+        password_hash="",
     )
 
     await create_user(connection, user)
@@ -50,6 +52,8 @@ async def test_update_user(connection: Connection):
         followed_topics_count=0,
         created_at=now,
         updated_at=None,
+        username="user2",
+        password_hash="",
     )
     await create_user(connection, user)
 
@@ -61,6 +65,8 @@ async def test_update_user(connection: Connection):
         followed_topics_count=10,
         created_at=user.created_at,
         updated_at=now,
+        username="user2",
+        password_hash="",
     )
     await update_user(connection, user)
 
@@ -83,6 +89,8 @@ async def test_counters_increment(connection: Connection):
         followed_topics_count=0,
         created_at=now,
         updated_at=None,
+        username="user3",
+        password_hash="",
     )
     await create_user(connection, user)
 
@@ -109,6 +117,8 @@ async def test_user_exists(connection: Connection):
         followed_topics_count=0,
         created_at=now,
         updated_at=None,
+        username="user4",
+        password_hash="",
     )
     await create_user(connection, user)
     assert await user_exists(connection, user_id) is True

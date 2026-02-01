@@ -36,6 +36,7 @@ from digestify_api.queries.users import (
     increment_created_topics_count,
     increment_followed_topics_count,
     read_user,
+    read_user_by_username,
     update_user,
     user_exists,
 )
@@ -74,4 +75,5 @@ __all__ = [
     "update_schema_migrations",
     "retrieve_topics_by_embedding",
     "retrieve_stories_by_embedding",
+    "read_user_by_username",
 ]

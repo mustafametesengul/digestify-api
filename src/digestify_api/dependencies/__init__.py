@@ -2,8 +2,8 @@ from digestify_api.dependencies.auth_manager import (
     AuthManager,
     AuthSettings,
     get_auth,
+    get_auth_manager,
     init_auth_manager,
-    mock_get_auth,
 )
 from digestify_api.dependencies.db_manager import DBManager, DBSettings, get_db, init_db
 from digestify_api.dependencies.openai import (
@@ -32,4 +32,5 @@ __all__ = [
     "init_db",
     "get_openai",
     "init_openai",
+    "get_auth_manager",
 ]

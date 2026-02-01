@@ -9,11 +9,13 @@ async def create_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         INSERT INTO users
-        (id, discarded, subscription_tier, created_topics_count,
+        (id, username, password_hash, discarded, subscription_tier, created_topics_count,
         followed_topics_count, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         """,
         user.id,
+        user.username,
+        user.password_hash,
         user.discarded,
         user.subscription_tier,
         user.created_topics_count,
@@ -21,6 +23,13 @@ async def create_user(conn: Connection, user: User) -> None:
         user.created_at,
         user.updated_at,
     )
+
+
+async def read_user_by_username(conn: Connection, username: str) -> User | None:
+    row = await conn.fetchrow("SELECT * FROM users WHERE username = $1", username)
+    if row is None:
+        return None
+    return User.model_validate(dict(row))
 
 
 async def update_user(conn: Connection, user: User) -> None:

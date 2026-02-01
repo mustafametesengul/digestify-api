@@ -13,6 +13,7 @@ async def db() -> AsyncIterator[DBManager]:
     manager = DBManager(settings=settings)
     await manager.init_pool()
 
+    await reset_db_(manager)
     await apply_migrations(manager)
 
     yield manager

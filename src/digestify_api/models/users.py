@@ -12,6 +12,7 @@ class SubscriptionTier(StrEnum):
 
 class UserPublic(BaseModel):
     id: UUID
+    username: str
     subscription_tier: SubscriptionTier
     created_topics_count: int
     followed_topics_count: int
@@ -20,4 +21,15 @@ class UserPublic(BaseModel):
 
 
 class User(UserPublic):
+    password_hash: str
     discarded: bool
+
+
+class UserRegister(BaseModel):
+    username: str
+    password: str
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
