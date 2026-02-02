@@ -7,6 +7,6 @@ from pydantic import BaseModel
 class Follow(BaseModel):
     user_id: UUID
     topic_id: UUID
-    is_following: bool = True
+    is_following: bool
     created_at: datetime
     updated_at: datetime | None

@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 from digestify_api.dependencies.db_manager import DBManager
 from digestify_api.dependencies.task_registry import TaskRegistry
-from digestify_api.models import Task
-from digestify_api.queries import get_pending_tasks, mark_task_in_progress
+from digestify_api.models import task_models
+from digestify_api.queries import task_queries
 
 _logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class TaskProcessor:
     def __init__(self, db: DBManager) -> None:
         self._db = db
         self._registries: list[TaskRegistry] = []
-        self._queue: asyncio.Queue[Task] = asyncio.Queue()
+        self._queue: asyncio.Queue[task_models.Task] = asyncio.Queue()
         self._tasks: list[asyncio.Task] = []
 
     def add_registry(self, registry: TaskRegistry) -> None:
@@ -24,7 +24,7 @@ class TaskProcessor:
         while True:
             now = datetime.now(timezone.utc)
             async with self._db.get_connection() as connection:
-                pending_tasks = await get_pending_tasks(
+                pending_tasks = await task_queries.get_pending(
                     connection,
                     now,
                     limit=10,
@@ -32,7 +32,7 @@ class TaskProcessor:
                 _logger.debug(f"Found {len(pending_tasks)} pending tasks")
                 for task in pending_tasks:
                     await self._queue.put(task)
-                    await mark_task_in_progress(connection, task.id, now)
+                    await task_queries.mark_as_in_progress(connection, task.id, now)
             await asyncio.sleep(10)
 
     async def _handle_tasks(self) -> None:

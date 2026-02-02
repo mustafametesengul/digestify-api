@@ -2,10 +2,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import Topic
+from digestify_api.models import topic_models
 
 
-async def topic_exists(conn: Connection, topic_id: UUID) -> bool:
+async def exists(conn: Connection, topic_id: UUID) -> bool:
     row = await conn.fetchrow(
         "SELECT 1 FROM topics WHERE id = $1",
         topic_id,
@@ -13,7 +13,7 @@ async def topic_exists(conn: Connection, topic_id: UUID) -> bool:
     return row is not None
 
 
-async def create_topic(conn: Connection, topic: Topic) -> None:
+async def create(conn: Connection, topic: topic_models.Topic) -> None:
     await conn.execute(
         """
         INSERT INTO topics
@@ -36,9 +36,9 @@ async def create_topic(conn: Connection, topic: Topic) -> None:
     )
 
 
-async def read_topic(
+async def get(
     conn: Connection, topic_id: UUID, lock: bool = False
-) -> Topic | None:
+) -> topic_models.Topic | None:
     query = "SELECT * FROM topics WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
@@ -48,7 +48,7 @@ async def read_topic(
     if row is None:
         return None
 
-    topic = Topic.model_validate(dict(row))
+    topic = topic_models.Topic.model_validate(dict(row))
     return topic
 
 
@@ -66,25 +66,49 @@ async def decrement_followers_count(conn: Connection, topic_id: UUID) -> None:
     )
 
 
-async def retrieve_topics_by_embedding(
+async def get_by_embedding(
     conn: Connection,
     embedding: str,
+    language: topic_models.Language,
     limit: int = 10,
     offset: int = 0,
     threshold: float = 1.1,
-) -> list[Topic]:
+) -> list[topic_models.Topic]:
     rows = await conn.fetch(
         """
         SELECT *
         FROM topics
-        WHERE embedding <-> $1 < $4
+        WHERE embedding <-> $1 < $5 AND language = $2
         ORDER BY embedding <-> $1
-        LIMIT $2 OFFSET $3
+        LIMIT $3 OFFSET $4
         """,
         embedding,
+        language,
         limit,
         offset,
         threshold,
     )
-    topics = [Topic.model_validate(dict(row)) for row in rows]
+    topics = [topic_models.Topic.model_validate(dict(row)) for row in rows]
+    return topics
+
+
+async def get_most_followed(
+    conn: Connection,
+    language: topic_models.Language,
+    limit: int = 10,
+    offset: int = 0,
+) -> list[topic_models.Topic]:
+    rows = await conn.fetch(
+        """
+        SELECT *
+        FROM topics
+        WHERE language = $3
+        ORDER BY followers_count DESC
+        LIMIT $1 OFFSET $2
+        """,
+        limit,
+        offset,
+        language,
+    )
+    topics = [topic_models.Topic.model_validate(dict(row)) for row in rows]
     return topics

@@ -2,10 +2,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import User
+from digestify_api.models import user_models
 
 
-async def create_user(conn: Connection, user: User) -> None:
+async def create(conn: Connection, user: user_models.User) -> None:
     await conn.execute(
         """
         INSERT INTO users
@@ -17,7 +17,7 @@ async def create_user(conn: Connection, user: User) -> None:
         user.username,
         user.password_hash,
         user.discarded,
-        user.subscription_tier,
+        user.tier,
         user.created_topics_count,
         user.followed_topics_count,
         user.created_at,
@@ -25,14 +25,7 @@ async def create_user(conn: Connection, user: User) -> None:
     )
 
 
-async def read_user_by_username(conn: Connection, username: str) -> User | None:
-    row = await conn.fetchrow("SELECT * FROM users WHERE username = $1", username)
-    if row is None:
-        return None
-    return User.model_validate(dict(row))
-
-
-async def update_user(conn: Connection, user: User) -> None:
+async def update(conn: Connection, user: user_models.User) -> None:
     await conn.execute(
         """
         UPDATE users
@@ -45,21 +38,30 @@ async def update_user(conn: Connection, user: User) -> None:
         """,
         user.id,
         user.discarded,
-        user.subscription_tier,
+        user.tier,
         user.created_topics_count,
         user.followed_topics_count,
         user.updated_at,
     )
 
 
-async def read_user(conn: Connection, user_id: UUID, lock: bool = False) -> User | None:
+async def get(
+    conn: Connection, user_id: UUID, lock: bool = False
+) -> user_models.User | None:
     query = "SELECT * FROM users WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
     row = await conn.fetchrow(query, user_id)
     if row is None:
         return None
-    return User.model_validate(dict(row))
+    return user_models.User.model_validate(dict(row))
+
+
+async def get_by_username(conn: Connection, username: str) -> user_models.User | None:
+    row = await conn.fetchrow("SELECT * FROM users WHERE username = $1", username)
+    if row is None:
+        return None
+    return user_models.User.model_validate(dict(row))
 
 
 async def increment_created_topics_count(conn: Connection, user_id: UUID) -> None:
@@ -94,7 +96,7 @@ async def decrement_followed_topics_count(conn: Connection, user_id: UUID) -> No
     )
 
 
-async def user_exists(conn: Connection, user_id: UUID) -> bool:
+async def exists(conn: Connection, user_id: UUID) -> bool:
     query = "SELECT 1 FROM users WHERE id = $1"
     row = await conn.fetchrow(query, user_id)
     return row is not None

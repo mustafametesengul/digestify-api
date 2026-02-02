@@ -3,10 +3,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import Story
+from digestify_api.models import story_models
 
 
-async def story_exists(conn: Connection, story_id: UUID) -> bool:
+async def exists(conn: Connection, story_id: UUID) -> bool:
     row = await conn.fetchrow(
         "SELECT 1 FROM stories WHERE id = $1",
         story_id,
@@ -14,7 +14,7 @@ async def story_exists(conn: Connection, story_id: UUID) -> bool:
     return row is not None
 
 
-async def create_story(conn: Connection, story: Story) -> None:
+async def create(conn: Connection, story: story_models.Story) -> None:
     await conn.execute(
         """
         INSERT INTO stories
@@ -35,11 +35,11 @@ async def create_story(conn: Connection, story: Story) -> None:
     )
 
 
-async def read_story(
+async def get(
     conn: Connection,
     story_id: UUID,
     lock: bool = False,
-) -> Story | None:
+) -> story_models.Story | None:
     query = "SELECT * FROM stories WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
@@ -48,15 +48,15 @@ async def read_story(
     if row is None:
         return None
 
-    return Story.model_validate(dict(row))
+    return story_models.Story.model_validate(dict(row))
 
 
-async def read_stories_by_topic(
+async def get_by_topic_id(
     conn: Connection,
     topic_id: UUID,
-    until: datetime,
+    time: datetime,
     limit: int = 20,
-) -> list[Story]:
+) -> list[story_models.Story]:
     rows = await conn.fetch(
         """
         SELECT * FROM stories
@@ -65,29 +65,7 @@ async def read_stories_by_topic(
         LIMIT $3
         """,
         topic_id,
-        until,
+        time,
         limit,
     )
-    return [Story.model_validate(dict(row)) for row in rows]
-
-
-async def retrieve_stories_by_embedding(
-    conn: Connection,
-    embedding: str,
-    limit: int = 10,
-    offset: int = 0,
-) -> list[Story]:
-    rows = await conn.fetch(
-        """
-        SELECT *
-        FROM stories
-        ORDER BY embedding <-> $1
-        LIMIT $2 OFFSET $3
-        """,
-        embedding,
-        limit,
-        offset,
-    )
-
-    stories = [Story.model_validate(dict(row)) for row in rows]
-    return stories
+    return [story_models.Story.model_validate(dict(row)) for row in rows]

@@ -1,0 +1,42 @@
+from datetime import datetime
+from enum import StrEnum
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class UserTier(StrEnum):
+    ANONYMOUS = "anonymous"
+    FREE = "free"
+    PREMIUM = "premium"
+    ADMIN = "admin"
+
+
+class UserResponse(BaseModel):
+    id: UUID
+    username: str | None
+    tier: UserTier
+    created_topics_count: int
+    followed_topics_count: int
+    created_at: datetime
+    updated_at: datetime | None
+
+
+class User(UserResponse):
+    password_hash: str | None
+    discarded: bool
+
+
+class SignUpWithUsernameRequest(BaseModel):
+    user_id: UUID
+    username: str = Field(..., min_length=3, max_length=30)
+    password: str = Field(..., min_length=8)
+
+
+class SignUpAnonymouslyRequest(BaseModel):
+    user_id: UUID
+
+
+class SignInWithUsernameRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=30)
+    password: str = Field(..., min_length=8)

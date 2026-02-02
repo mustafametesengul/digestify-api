@@ -3,10 +3,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import Task, TaskStatus
+from digestify_api.models import task_models
 
 
-async def create_task(conn: Connection, task: Task) -> None:
+async def create(conn: Connection, task: task_models.Task) -> None:
     await conn.execute(
         """
         INSERT INTO tasks
@@ -24,7 +24,11 @@ async def create_task(conn: Connection, task: Task) -> None:
     )
 
 
-async def read_task(conn: Connection, task_id: UUID, lock: bool = False) -> Task | None:
+async def get(
+    conn: Connection,
+    task_id: UUID,
+    lock: bool = False,
+) -> task_models.Task | None:
     query = "SELECT * FROM tasks WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
@@ -35,10 +39,10 @@ async def read_task(conn: Connection, task_id: UUID, lock: bool = False) -> Task
     if row is None:
         return None
 
-    return Task.model_validate(dict(row))
+    return task_models.Task.model_validate(dict(row))
 
 
-async def update_task(conn: Connection, task: Task) -> None:
+async def update(conn: Connection, task: task_models.Task) -> None:
     await conn.execute(
         """
         UPDATE tasks
@@ -62,11 +66,11 @@ async def update_task(conn: Connection, task: Task) -> None:
     )
 
 
-async def get_pending_tasks(
+async def get_pending(
     conn: Connection,
     time: datetime,
     limit: int,
-) -> list[Task]:
+) -> list[task_models.Task]:
     rows = await conn.fetch(
         """
         SELECT *
@@ -79,10 +83,10 @@ async def get_pending_tasks(
         time,
         limit,
     )
-    return [Task.model_validate(dict(row)) for row in rows]
+    return [task_models.Task.model_validate(dict(row)) for row in rows]
 
 
-async def mark_task_in_progress(
+async def mark_as_in_progress(
     conn: Connection,
     task_id: UUID,
     time: datetime,
@@ -94,13 +98,13 @@ async def mark_task_in_progress(
         WHERE id = $1 AND status = $2
         """,
         task_id,
-        TaskStatus.PENDING.value,
-        TaskStatus.IN_PROGRESS.value,
+        task_models.TaskStatus.PENDING.value,
+        task_models.TaskStatus.IN_PROGRESS.value,
         time,
     )
 
 
-async def mark_task_completed(
+async def mark_as_completed(
     conn: Connection,
     task_id: UUID,
     time: datetime,
@@ -112,13 +116,13 @@ async def mark_task_completed(
         WHERE id = $1 AND status = $2
         """,
         task_id,
-        TaskStatus.IN_PROGRESS.value,
-        TaskStatus.COMPLETED.value,
+        task_models.TaskStatus.IN_PROGRESS.value,
+        task_models.TaskStatus.COMPLETED.value,
         time,
     )
 
 
-async def mark_task_failed(
+async def mark_as_failed(
     conn: Connection,
     task_id: UUID,
     error_message: str,
@@ -131,8 +135,8 @@ async def mark_task_failed(
         WHERE id = $1 AND status = $2
         """,
         task_id,
-        TaskStatus.IN_PROGRESS.value,
-        TaskStatus.FAILED.value,
+        task_models.TaskStatus.IN_PROGRESS.value,
+        task_models.TaskStatus.FAILED.value,
         error_message,
         time,
     )

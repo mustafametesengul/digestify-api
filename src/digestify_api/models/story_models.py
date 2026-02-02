@@ -3,20 +3,24 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from digestify_api.models.topics import Language
+from digestify_api.models import topic_models
 
 
-class StoryPublic(BaseModel):
+class StoryResponse(BaseModel):
     id: UUID
     topic_id: UUID
     title: str
     image_url: str | None
     content: str
-    language: Language
+    language: topic_models.Language
     created_at: datetime
     updated_at: datetime | None
 
 
-class Story(StoryPublic):
+class Story(StoryResponse):
     discarded: bool
     embedding: str
+
+
+class StoryTaskPayload(BaseModel):
+    topic_id: UUID
