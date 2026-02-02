@@ -31,13 +31,13 @@ router = APIRouter(
 async def create(
     auth: Annotated[auth_models.Auth, Depends(auth_manager.get_auth)],
     db: Annotated[db_manager.DBManager, Depends(db_manager.get_db)],
-    new_topic: topic_models.CreateTopicRequest,
+    request: topic_models.CreateTopicRequest,
 ) -> topic_models.TopicResponse:
     now = datetime.now(timezone.utc)
 
     openai = openai_client.get_openai()
 
-    openai_input = f"{new_topic.name}\n\n{new_topic.description}"
+    openai_input = f"{request.name}\n\n{request.description}"
 
     flagged = await openai.check_for_moderation([openai_input])
 
@@ -52,7 +52,7 @@ async def create(
         if user is None:
             raise users_exceptions.UserNotFound()
 
-        topic_exists_flag = await topic_queries.exists(connection, new_topic.id)
+        topic_exists_flag = await topic_queries.exists(connection, request.id)
         if topic_exists_flag:
             raise topic_exceptions.TopicAlreadyExists()
         if user.tier is user_models.UserTier.FREE:
@@ -74,14 +74,14 @@ async def create(
         await user_queries.increment_created_topics_count(connection, auth.id)
 
         topic = topic_models.Topic(
-            id=new_topic.id,
+            id=request.id,
             user_id=auth.id,
             discarded=False,
             image_url=None,
             is_active=True,
-            name=new_topic.name,
-            description=new_topic.description,
-            language=new_topic.language,
+            name=request.name,
+            description=request.description,
+            language=request.language,
             followers_count=1,
             created_at=now,
             updated_at=None,
