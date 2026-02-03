@@ -1,20 +1,71 @@
 import asyncio
+import inspect
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from types import FunctionType
+from typing import Awaitable, Callable, TypeVar
+from uuid import UUID
 
-from digestify_api.dependencies.db_manager import DBManager
-from digestify_api.dependencies.task_registry import TaskRegistry
-from digestify_api.models import task_models
-from digestify_api.queries import task_queries
+from pydantic import BaseModel
+
+from digestify_api import models, queries
+from digestify_api.dependencies import db
+
+T = TypeVar("T", bound=BaseModel)
+AsyncTaskHandler = Callable[[UUID, T], Awaitable[None]]
+
 
 _logger = logging.getLogger(__name__)
 
 
+@dataclass
+class TaskDefinition:
+    handler: AsyncTaskHandler
+    model_class: type[BaseModel]
+
+
+class TaskRegistry:
+    def __init__(self) -> None:
+        self._definitions: dict[str, TaskDefinition] = {}
+
+    def register(
+        self,
+        handler: AsyncTaskHandler[T],
+    ) -> AsyncTaskHandler[T]:
+        if not isinstance(handler, FunctionType):
+            raise TypeError("Handler must be a function")
+
+        sig = inspect.signature(handler)
+        params = list(sig.parameters.values())
+        if len(params) != 2:
+            raise ValueError("Handler must have exactly two arguments")
+
+        if params[0].annotation is not UUID:
+            raise TypeError("First handler argument must be of type UUID")
+
+        model_class = params[1].annotation
+        if not issubclass(model_class, BaseModel):
+            raise TypeError("Handler argument must be a Pydantic model")
+
+        self._definitions[handler.__name__] = TaskDefinition(
+            handler=handler, model_class=model_class
+        )
+        return handler
+
+    def get_definition(self, name: str) -> TaskDefinition | None:
+        return self._definitions.get(name)
+
+    def get_handler(self, name: str) -> AsyncTaskHandler | None:
+        definition = self.get_definition(name)
+        return definition.handler if definition else None
+
+
 class TaskProcessor:
-    def __init__(self, db: DBManager) -> None:
+    def __init__(self, db: db.DBManager) -> None:
         self._db = db
         self._registries: list[TaskRegistry] = []
-        self._queue: asyncio.Queue[task_models.Task] = asyncio.Queue()
+        self._queue: asyncio.Queue[models.tasks.Task] = asyncio.Queue()
         self._tasks: list[asyncio.Task] = []
 
     def add_registry(self, registry: TaskRegistry) -> None:
@@ -24,7 +75,7 @@ class TaskProcessor:
         while True:
             now = datetime.now(timezone.utc)
             async with self._db.get_connection() as connection:
-                pending_tasks = await task_queries.get_pending(
+                pending_tasks = await queries.tasks.get_pending(
                     connection,
                     now,
                     limit=10,
@@ -32,7 +83,7 @@ class TaskProcessor:
                 _logger.debug(f"Found {len(pending_tasks)} pending tasks")
                 for task in pending_tasks:
                     await self._queue.put(task)
-                    await task_queries.mark_as_in_progress(connection, task.id, now)
+                    await queries.tasks.mark_as_in_progress(connection, task.id, now)
             await asyncio.sleep(10)
 
     async def _handle_tasks(self) -> None:

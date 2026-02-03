@@ -3,7 +3,7 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import story_models
+from digestify_api import models
 
 
 async def exists(conn: Connection, story_id: UUID) -> bool:
@@ -14,7 +14,7 @@ async def exists(conn: Connection, story_id: UUID) -> bool:
     return row is not None
 
 
-async def create(conn: Connection, story: story_models.Story) -> None:
+async def create(conn: Connection, story: models.stories.Story) -> None:
     await conn.execute(
         """
         INSERT INTO stories
@@ -39,7 +39,7 @@ async def get(
     conn: Connection,
     story_id: UUID,
     lock: bool = False,
-) -> story_models.Story | None:
+) -> models.stories.Story | None:
     query = "SELECT * FROM stories WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
@@ -48,7 +48,7 @@ async def get(
     if row is None:
         return None
 
-    return story_models.Story.model_validate(dict(row))
+    return models.stories.Story.model_validate(dict(row))
 
 
 async def get_by_topic_id(
@@ -56,7 +56,7 @@ async def get_by_topic_id(
     topic_id: UUID,
     time: datetime,
     limit: int = 20,
-) -> list[story_models.Story]:
+) -> list[models.stories.Story]:
     rows = await conn.fetch(
         """
         SELECT * FROM stories
@@ -68,4 +68,4 @@ async def get_by_topic_id(
         time,
         limit,
     )
-    return [story_models.Story.model_validate(dict(row)) for row in rows]
+    return [models.stories.Story.model_validate(dict(row)) for row in rows]

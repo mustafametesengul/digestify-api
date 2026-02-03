@@ -4,27 +4,25 @@ from uuid import UUID, uuid4
 from digestify import Digestify
 from digestify import Topic as DigestifyTopic
 
-from digestify_api.dependencies import db_manager, openai_client, task_registry
-from digestify_api.models import story_models
-from digestify_api.queries import story_queries, task_queries, topic_queries
+from digestify_api import dependencies, models, queries
 
-story_task_registry = task_registry.TaskRegistry()
+task_registry = dependencies.tasks.TaskRegistry()
 
 
-@story_task_registry.task
+@task_registry.register
 async def save_stories_by_topic(
     task_id: UUID,
-    payload: story_models.StoryTaskPayload,
+    payload: models.stories.StoryTaskPayload,
 ) -> None:
-    db = db_manager.get_db()
+    db = dependencies.db.get_db()
     digestify = Digestify()
     now = datetime.now(timezone.utc)
 
-    openai = openai_client.get_openai()
+    openai = dependencies.openai.get_openai()
     async with db.get_connection() as connection:
-        topic = await topic_queries.get(connection, payload.topic_id)
+        topic = await queries.topics.get(connection, payload.topic_id)
         if topic is None:
-            await task_queries.mark_as_failed(
+            await queries.tasks.mark_as_failed(
                 connection,
                 task_id,
                 "Topic not found",
@@ -39,9 +37,9 @@ async def save_stories_by_topic(
     inputs = [story.content for story in digest.stories]
     embeddings = await openai.get_embeddings(inputs)
 
-    async with db.get_connection() as connection:
+    async with dependencies.db.get_db().get_connection() as connection:
         for story, embedding in zip(digest.stories, embeddings):
-            story_create = story_models.Story(
+            story_create = models.stories.Story(
                 id=uuid4(),
                 discarded=False,
                 topic_id=payload.topic_id,
@@ -53,6 +51,6 @@ async def save_stories_by_topic(
                 updated_at=None,
                 embedding=embedding,
             )
-            await story_queries.create(connection, story_create)
+            await queries.stories.create(connection, story_create)
 
-        await task_queries.mark_as_completed(connection, task_id, now)
+        await queries.tasks.mark_as_completed(connection, task_id, now)

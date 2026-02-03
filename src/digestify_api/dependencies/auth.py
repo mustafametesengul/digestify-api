@@ -12,8 +12,7 @@ from jwt import InvalidTokenError
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.exceptions import auth_exceptions
-from digestify_api.models import auth_models
+from digestify_api import exceptions, models
 
 _logger = logging.getLogger(__name__)
 
@@ -87,7 +86,7 @@ class AuthManager:
             )
             return payload
         except InvalidTokenError:
-            raise auth_exceptions.InvalidCredentials()
+            raise exceptions.auth.InvalidCredentials()
 
 
 _auth_manager: AuthManager | None = None
@@ -109,10 +108,10 @@ def get_auth_manager() -> AuthManager:
 
 def get_auth(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(_security)],
-) -> auth_models.Auth:
+) -> models.auth.Auth:
     auth_manager = get_auth_manager()
     token = credentials.credentials
     decoded_token = auth_manager.verify_jwt_token(token)
     user_id = UUID(decoded_token["sub"])
-    auth = auth_models.Auth(id=user_id)
+    auth = models.auth.Auth(id=user_id)
     return auth

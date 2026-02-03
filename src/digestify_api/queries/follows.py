@@ -2,10 +2,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import follow_models
+from digestify_api import models
 
 
-async def create(conn: Connection, follow: follow_models.Follow) -> None:
+async def create(conn: Connection, follow: models.follows.Follow) -> None:
     await conn.execute(
         """
         INSERT INTO follows
@@ -20,7 +20,7 @@ async def create(conn: Connection, follow: follow_models.Follow) -> None:
     )
 
 
-async def update(conn: Connection, follow: follow_models.Follow) -> None:
+async def update(conn: Connection, follow: models.follows.Follow) -> None:
     await conn.execute(
         """
         UPDATE follows
@@ -39,7 +39,7 @@ async def get(
     user_id: UUID,
     topic_id: UUID,
     lock: bool = False,
-) -> follow_models.Follow | None:
+) -> models.follows.Follow | None:
     query = "SELECT * FROM follows WHERE user_id = $1 AND topic_id = $2"
     if lock:
         query += " FOR UPDATE"
@@ -47,7 +47,7 @@ async def get(
     row = await conn.fetchrow(query, user_id, topic_id)
     if row is None:
         return None
-    return follow_models.Follow.model_validate(dict(row))
+    return models.follows.Follow.model_validate(dict(row))
 
 
 async def get_followed_topic_ids(

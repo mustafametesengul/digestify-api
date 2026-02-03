@@ -3,10 +3,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import task_models
+from digestify_api import models
 
 
-async def create(conn: Connection, task: task_models.Task) -> None:
+async def create(conn: Connection, task: models.tasks.Task) -> None:
     await conn.execute(
         """
         INSERT INTO tasks
@@ -28,7 +28,7 @@ async def get(
     conn: Connection,
     task_id: UUID,
     lock: bool = False,
-) -> task_models.Task | None:
+) -> models.tasks.Task | None:
     query = "SELECT * FROM tasks WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
@@ -39,10 +39,10 @@ async def get(
     if row is None:
         return None
 
-    return task_models.Task.model_validate(dict(row))
+    return models.tasks.Task.model_validate(dict(row))
 
 
-async def update(conn: Connection, task: task_models.Task) -> None:
+async def update(conn: Connection, task: models.tasks.Task) -> None:
     await conn.execute(
         """
         UPDATE tasks
@@ -70,7 +70,7 @@ async def get_pending(
     conn: Connection,
     time: datetime,
     limit: int,
-) -> list[task_models.Task]:
+) -> list[models.tasks.Task]:
     rows = await conn.fetch(
         """
         SELECT *
@@ -83,7 +83,7 @@ async def get_pending(
         time,
         limit,
     )
-    return [task_models.Task.model_validate(dict(row)) for row in rows]
+    return [models.tasks.Task.model_validate(dict(row)) for row in rows]
 
 
 async def mark_as_in_progress(
@@ -98,8 +98,8 @@ async def mark_as_in_progress(
         WHERE id = $1 AND status = $2
         """,
         task_id,
-        task_models.TaskStatus.PENDING.value,
-        task_models.TaskStatus.IN_PROGRESS.value,
+        models.tasks.TaskStatus.PENDING.value,
+        models.tasks.TaskStatus.IN_PROGRESS.value,
         time,
     )
 
@@ -116,8 +116,8 @@ async def mark_as_completed(
         WHERE id = $1 AND status = $2
         """,
         task_id,
-        task_models.TaskStatus.IN_PROGRESS.value,
-        task_models.TaskStatus.COMPLETED.value,
+        models.tasks.TaskStatus.IN_PROGRESS.value,
+        models.tasks.TaskStatus.COMPLETED.value,
         time,
     )
 
@@ -135,8 +135,8 @@ async def mark_as_failed(
         WHERE id = $1 AND status = $2
         """,
         task_id,
-        task_models.TaskStatus.IN_PROGRESS.value,
-        task_models.TaskStatus.FAILED.value,
+        models.tasks.TaskStatus.IN_PROGRESS.value,
+        models.tasks.TaskStatus.FAILED.value,
         error_message,
         time,
     )

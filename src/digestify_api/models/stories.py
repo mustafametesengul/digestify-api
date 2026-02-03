@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from digestify_api.models import topic_models
+from digestify_api.models import topics
 
 
 class StoryResponse(BaseModel):
@@ -12,7 +12,7 @@ class StoryResponse(BaseModel):
     title: str
     image_url: str | None
     content: str
-    language: topic_models.Language
+    language: topics.Language
     created_at: datetime
     updated_at: datetime | None
 

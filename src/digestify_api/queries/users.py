@@ -2,10 +2,10 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.models import user_models
+from digestify_api import models
 
 
-async def create(conn: Connection, user: user_models.User) -> None:
+async def create(conn: Connection, user: models.users.User) -> None:
     await conn.execute(
         """
         INSERT INTO users
@@ -25,7 +25,7 @@ async def create(conn: Connection, user: user_models.User) -> None:
     )
 
 
-async def update(conn: Connection, user: user_models.User) -> None:
+async def update(conn: Connection, user: models.users.User) -> None:
     await conn.execute(
         """
         UPDATE users
@@ -47,21 +47,21 @@ async def update(conn: Connection, user: user_models.User) -> None:
 
 async def get(
     conn: Connection, user_id: UUID, lock: bool = False
-) -> user_models.User | None:
+) -> models.users.User | None:
     query = "SELECT * FROM users WHERE id = $1"
     if lock:
         query += " FOR UPDATE"
     row = await conn.fetchrow(query, user_id)
     if row is None:
         return None
-    return user_models.User.model_validate(dict(row))
+    return models.users.User.model_validate(dict(row))
 
 
-async def get_by_username(conn: Connection, username: str) -> user_models.User | None:
+async def get_by_username(conn: Connection, username: str) -> models.users.User | None:
     row = await conn.fetchrow("SELECT * FROM users WHERE username = $1", username)
     if row is None:
         return None
-    return user_models.User.model_validate(dict(row))
+    return models.users.User.model_validate(dict(row))
 
 
 async def increment_created_topics_count(conn: Connection, user_id: UUID) -> None:

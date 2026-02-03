@@ -28,13 +28,8 @@ class User(UserResponse):
 
 
 class SignUpWithUsernameRequest(BaseModel):
-    user_id: UUID
     username: str = Field(..., min_length=3, max_length=30)
     password: str = Field(..., min_length=8)
-
-
-class SignUpAnonymouslyRequest(BaseModel):
-    user_id: UUID
 
 
 class SignInWithUsernameRequest(BaseModel):

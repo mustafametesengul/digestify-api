@@ -29,7 +29,6 @@ class Topic(TopicResponse):
 
 
 class CreateTopicRequest(BaseModel):
-    id: UUID
     name: str = Field(..., min_length=3, max_length=50)
     description: str = Field(..., min_length=0, max_length=300)
     language: Language
