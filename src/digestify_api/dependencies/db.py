@@ -75,7 +75,7 @@ def init_db(settings: DBSettings) -> DBManager:
     return _db
 
 
-def get_db() -> DBManager:
+def get_db_manager() -> DBManager:
     global _db
     if _db is None:
         raise RuntimeError("Database service is not initialized.")

@@ -14,7 +14,7 @@ async def save_stories_by_topic(
     task_id: UUID,
     payload: models.stories.StoryTaskPayload,
 ) -> None:
-    db = dependencies.db.get_db()
+    db = dependencies.db.get_db_manager()
     digestify = Digestify()
     now = datetime.now(timezone.utc)
 
@@ -37,7 +37,7 @@ async def save_stories_by_topic(
     inputs = [story.content for story in digest.stories]
     embeddings = await openai.get_embeddings(inputs)
 
-    async with dependencies.db.get_db().get_connection() as connection:
+    async with dependencies.db.get_db_manager().get_connection() as connection:
         for story, embedding in zip(digest.stories, embeddings):
             story_create = models.stories.Story(
                 id=uuid4(),

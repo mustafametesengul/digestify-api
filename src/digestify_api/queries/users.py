@@ -100,3 +100,8 @@ async def exists(conn: Connection, user_id: UUID) -> bool:
     query = "SELECT 1 FROM users WHERE id = $1"
     row = await conn.fetchrow(query, user_id)
     return row is not None
+
+
+async def exists_by_username(conn: Connection, username: str) -> bool:
+    row = await conn.fetchrow("SELECT 1 FROM users WHERE username = $1", username)
+    return row is not None

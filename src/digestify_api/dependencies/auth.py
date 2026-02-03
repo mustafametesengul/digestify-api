@@ -41,7 +41,7 @@ class AuthManager:
             hashed_password.encode("utf-8"),
         )
 
-    async def get_password_hash(self, password: str) -> str:
+    async def hash_password(self, password: str) -> str:
         hashed_bytes = await asyncio.to_thread(
             bcrypt.hashpw,
             password.encode("utf-8"),

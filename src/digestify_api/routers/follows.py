@@ -15,7 +15,7 @@ router = APIRouter(
 @router.post("/follow", status_code=200)
 async def follow(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     topic_id: UUID,
 ) -> models.follows.Follow:
     now = datetime.now(timezone.utc)
@@ -59,7 +59,7 @@ async def follow(
 @router.post("/unfollow", status_code=200)
 async def unfollow(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     topic_id: UUID,
 ) -> models.follows.Follow:
     now = datetime.now(timezone.utc)

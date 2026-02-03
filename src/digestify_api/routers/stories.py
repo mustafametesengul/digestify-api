@@ -14,7 +14,7 @@ router = APIRouter(
 
 @router.get("/get_topic_stories")
 async def get_topic_stories(
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     topic_id: UUID,
 ) -> list[models.stories.StoryResponse]:
     now: datetime = datetime.now(timezone.utc)
@@ -29,7 +29,7 @@ async def get_topic_stories(
 @router.get("/get_user_stories")
 async def get_user_stories(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
 ) -> list[models.stories.StoryResponse]:
     now: datetime = datetime.now(timezone.utc)
     async with db.get_connection() as conn:

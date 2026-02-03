@@ -15,7 +15,7 @@ router = APIRouter(
 @router.post("/create", status_code=201)
 async def create(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     request: models.topics.CreateTopicRequest,
 ) -> models.topics.TopicResponse:
     now = datetime.now(timezone.utc)
@@ -104,7 +104,7 @@ async def create(
 @router.get("/explore")
 async def explore(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     language: models.topics.Language,
 ) -> list[models.topics.TopicResponse]:
     async with db.get_connection() as connection:
@@ -122,7 +122,7 @@ async def explore(
 @router.get("/search")
 async def search(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db)],
+    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     query: str,
     language: models.topics.Language,
 ) -> list[models.topics.TopicResponse]:
