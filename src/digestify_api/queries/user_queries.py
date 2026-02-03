@@ -9,7 +9,7 @@ async def create(conn: Connection, user: user_models.User) -> None:
     await conn.execute(
         """
         INSERT INTO users
-        (id, username, password_hash, discarded, subscription_tier, created_topics_count,
+        (id, username, password_hash, discarded, tier, created_topics_count,
         followed_topics_count, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         """,
@@ -30,7 +30,7 @@ async def update(conn: Connection, user: user_models.User) -> None:
         """
         UPDATE users
         SET discarded = $2,
-            subscription_tier = $3,
+            tier = $3,
             created_topics_count = $4,
             followed_topics_count = $5,
             updated_at = $6
