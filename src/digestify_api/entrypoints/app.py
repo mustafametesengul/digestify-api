@@ -65,7 +65,7 @@ def app_main(settings: AppSettings | None = None) -> None:
         debug=_settings.debug,
     )
 
-    app.include_router(routers.users.router)
+    app.include_router(routers.auth.router)
     app.include_router(routers.topics.router)
     app.include_router(routers.follows.router)
     app.include_router(routers.stories.router)

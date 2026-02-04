@@ -1,14 +1,15 @@
 import asyncio
 import logging
+import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 import bcrypt
 import jwt
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jwt import InvalidTokenError
+from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,7 +25,9 @@ class AuthSettings(BaseSettings):
         env_prefix="DIGESTIFY_API_",
     )
 
-    secret_key: SecretStr = Field(default=SecretStr("default_secret_key"))
+    secret_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(secrets.token_urlsafe(32))
+    )
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -49,34 +52,46 @@ class AuthManager:
         )
         return hashed_bytes.decode("utf-8")
 
-    def create_access_token(self, data: dict) -> str:
-        to_encode = data.copy()
-
-        expire = datetime.now(timezone.utc) + timedelta(
+    def create_tokens(self, auth: models.auth.Auth) -> models.auth.TokenResponse:
+        access_token_expire = datetime.now(timezone.utc) + timedelta(
             minutes=self._settings.access_token_expire_minutes
         )
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(
+        to_encode = {
+            "sub": str(auth.id),
+            "exp": access_token_expire,
+            "anon": auth.is_anonymous,
+            "type": "access",
+        }
+        access_token = jwt.encode(
             to_encode,
             self._settings.secret_key.get_secret_value(),
             algorithm=self._settings.algorithm,
         )
-        return encoded_jwt
 
-    def create_refresh_token(self, data: dict) -> str:
-        to_encode = data.copy()
-        expire = datetime.now(timezone.utc) + timedelta(
+        refresh_token_expire = datetime.now(timezone.utc) + timedelta(
             days=self._settings.refresh_token_expire_days
         )
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(
+        to_encode = {
+            "sub": str(auth.id),
+            "exp": refresh_token_expire,
+            "anon": auth.is_anonymous,
+            "type": "refresh",
+        }
+        refresh_token = jwt.encode(
             to_encode,
             self._settings.secret_key.get_secret_value(),
             algorithm=self._settings.algorithm,
         )
-        return encoded_jwt
 
-    def verify_jwt_token(self, token: str) -> dict[str, Any]:
+        return models.auth.TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="Bearer",
+        )
+
+    def verify_jwt_token(
+        self, token: str, token_type: str = "access"
+    ) -> models.auth.Auth:
         """Verify JWT using the secret key."""
         try:
             payload = jwt.decode(
@@ -84,7 +99,15 @@ class AuthManager:
                 self._settings.secret_key.get_secret_value(),
                 algorithms=[self._settings.algorithm],
             )
-            return payload
+            if payload.get("type") != token_type:
+                raise exceptions.auth.InvalidCredentials()
+
+            return models.auth.Auth(
+                id=UUID(payload["sub"]),
+                is_anonymous=bool(payload["anon"]),
+            )
+        except ExpiredSignatureError:
+            raise exceptions.auth.TokenExpired()
         except InvalidTokenError:
             raise exceptions.auth.InvalidCredentials()
 
@@ -111,7 +134,4 @@ def get_auth(
 ) -> models.auth.Auth:
     auth_manager = get_auth_manager()
     token = credentials.credentials
-    decoded_token = auth_manager.verify_jwt_token(token)
-    user_id = UUID(decoded_token["sub"])
-    auth = models.auth.Auth(id=user_id)
-    return auth
+    return auth_manager.verify_jwt_token(token, token_type="access")

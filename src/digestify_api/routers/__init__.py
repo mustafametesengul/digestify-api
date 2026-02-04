@@ -1,3 +1,3 @@
-from digestify_api.routers import follows, stories, topics, users
+from digestify_api.routers import auth, follows, stories, topics
 
-__all__ = ["stories", "topics", "users", "follows"]
+__all__ = ["stories", "topics", "auth", "follows"]
