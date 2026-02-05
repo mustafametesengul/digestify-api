@@ -37,7 +37,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if _settings is None:
         raise ValueError("AppSettings have not been initialized.")
 
-    db = dependencies.db.init_db(_settings.db)
+    db = dependencies.db.init_db_manager(_settings.db)
     await db.init_pool()
 
     dependencies.openai.init_openai(settings=_settings.openai)

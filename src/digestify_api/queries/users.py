@@ -80,6 +80,22 @@ async def decrement_created_topics_count(conn: Connection, user_id: UUID) -> Non
     )
 
 
+async def increment_active_topics_count(conn: Connection, user_id: UUID) -> None:
+    await conn.execute(
+        """UPDATE users SET active_topics_count =
+        active_topics_count + 1 WHERE id = $1""",
+        user_id,
+    )
+
+
+async def decrement_active_topics_count(conn: Connection, user_id: UUID) -> None:
+    await conn.execute(
+        """UPDATE users SET active_topics_count =
+        active_topics_count - 1 WHERE id = $1""",
+        user_id,
+    )
+
+
 async def increment_followed_topics_count(conn: Connection, user_id: UUID) -> None:
     await conn.execute(
         """UPDATE users SET followed_topics_count =

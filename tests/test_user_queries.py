@@ -15,6 +15,7 @@ async def test_create_and_read_user(connection: Connection):
         tier=models.users.UserTier.FREE,
         created_topics_count=0,
         followed_topics_count=0,
+        active_topics_count=0,
         created_at=now,
         updated_at=None,
         username="user1",
@@ -41,6 +42,7 @@ async def test_update_user(connection: Connection):
         tier=models.users.UserTier.FREE,
         created_topics_count=0,
         followed_topics_count=0,
+        active_topics_count=0,
         created_at=now,
         updated_at=None,
         username="user2",
@@ -54,6 +56,7 @@ async def test_update_user(connection: Connection):
         tier=models.users.UserTier.PREMIUM,
         created_topics_count=5,
         followed_topics_count=10,
+        active_topics_count=5,
         created_at=user.created_at,
         updated_at=now,
         username="user2",
@@ -67,6 +70,7 @@ async def test_update_user(connection: Connection):
     assert user.tier == models.users.UserTier.PREMIUM
     assert user.created_topics_count == 5
     assert user.followed_topics_count == 10
+    assert user.active_topics_count == 5
 
 
 async def test_counters_increment(connection: Connection):
@@ -78,6 +82,7 @@ async def test_counters_increment(connection: Connection):
         tier=models.users.UserTier.FREE,
         created_topics_count=0,
         followed_topics_count=0,
+        active_topics_count=0,
         created_at=now,
         updated_at=None,
         username="user3",
@@ -106,6 +111,7 @@ async def test_user_exists(connection: Connection):
         tier=models.users.UserTier.FREE,
         created_topics_count=0,
         followed_topics_count=0,
+        active_topics_count=0,
         created_at=now,
         updated_at=None,
         username="user4",

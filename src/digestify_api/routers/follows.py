@@ -18,6 +18,9 @@ async def follow(
     db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     topic_id: UUID,
 ) -> models.follows.Follow:
+    if auth.is_anonymous:
+        raise exceptions.auth.InsufficientPermissions()
+
     now = datetime.now(timezone.utc)
 
     async with db.get_connection() as connection:
@@ -28,10 +31,15 @@ async def follow(
         topic = await queries.topics.get(connection, topic_id)
         if topic is None:
             raise exceptions.topics.TopicNotFound()
+
         if user.followed_topics_count >= 50:
             raise exceptions.follows.FollowLimitExceeded(
-                detail="User has reached the maximum number of followed topics."
+                detail="You have reached the maximum number of followed topics (50). "
+                "Please unfollow a topic before following a new one."
             )
+
+        await queries.users.increment_followed_topics_count(connection, auth.id)
+        await queries.topics.increment_followers_count(connection, topic_id)
 
         follow = await queries.follows.get(connection, auth.id, topic_id, lock=True)
         if follow is None:
@@ -52,7 +60,6 @@ async def follow(
 
             await queries.follows.update(connection, follow)
 
-        await queries.topics.increment_followers_count(connection, topic_id)
         return follow
 
 
@@ -62,7 +69,11 @@ async def unfollow(
     db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
     topic_id: UUID,
 ) -> models.follows.Follow:
+    if auth.is_anonymous:
+        raise exceptions.auth.InsufficientPermissions()
+
     now = datetime.now(timezone.utc)
+
     async with db.get_connection() as connection:
         user = await queries.users.get(connection, auth.id, lock=True)
         if user is None:

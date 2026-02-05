@@ -15,24 +15,27 @@ router = APIRouter(
 @router.post("/create", status_code=201)
 async def create(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
-    request: models.topics.CreateTopicRequest,
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
+    payload: models.topics.CreateTopicRequest,
 ) -> models.topics.TopicResponse:
+    if auth.is_anonymous:
+        raise exceptions.auth.InsufficientPermissions()
+
     now = datetime.now(timezone.utc)
 
     openai = dependencies.openai.get_openai()
 
-    openai_input = f"{request.name}\n\n{request.description}"
-
+    openai_input = f"{payload.name}\n\n{payload.description}"
     flagged = await openai.check_for_moderation([openai_input])
-
     if flagged[0]:
         raise exceptions.topics.TopicContainsInappropriateContent()
 
     embeddings = await openai.get_embeddings([openai_input])
     embedding = embeddings[0]
 
-    async with db.get_connection() as connection:
+    async with db_manager.get_connection() as connection:
         user = await queries.users.get(connection, auth.id, lock=True)
         if user is None:
             raise exceptions.users.UserNotFound()
@@ -45,18 +48,24 @@ async def create(
                 )
             )
 
-        if (
-            user.created_topics_count >= 5
-            and user.tier is models.users.UserTier.PREMIUM
-        ):
+        if user.created_topics_count >= 50:
             raise exceptions.topics.TopicLimitExceeded(
                 detail=(
-                    "Premium tier users can create up to 5 topics. "
+                    "You have reached the maximum number of created topics (50). "
                     "Please delete some topics to create new ones."
                 )
             )
 
+        if user.active_topics_count >= 5 and user.tier is models.users.UserTier.PREMIUM:
+            raise exceptions.topics.TopicLimitExceeded(
+                detail=(
+                    "Premium tier users can have up to 5 active topics. "
+                    "Please deactivate some topics to create new ones."
+                )
+            )
+
         await queries.users.increment_created_topics_count(connection, auth.id)
+        await queries.users.increment_active_topics_count(connection, auth.id)
 
         topic = models.topics.Topic(
             id=uuid4(),
@@ -64,9 +73,9 @@ async def create(
             discarded=False,
             image_url=None,
             is_active=True,
-            name=request.name,
-            description=request.description,
-            language=request.language,
+            name=payload.name,
+            description=payload.description,
+            language=payload.language,
             followers_count=1,
             created_at=now,
             updated_at=None,
@@ -85,15 +94,14 @@ async def create(
 
         await queries.follows.create(connection, follow)
 
-        payload = models.stories.StoryTaskPayload(topic_id=topic.id)
-
+        task_payload = models.stories.FetchAndSaveStoriesTask(topic_id=topic.id)
         task = models.tasks.Task(
             id=uuid4(),
-            name="save_stories_by_topic",
+            name="fetch_and_save_stories",
             status=models.tasks.TaskStatus.PENDING,
             created_at=now,
             updated_at=None,
-            payload=payload.model_dump_json(),
+            payload=task_payload.model_dump_json(),
             scheduled_at=now,
             error_message=None,
         )
@@ -101,13 +109,15 @@ async def create(
         return models.topics.TopicResponse.model_validate(topic)
 
 
-@router.get("/explore")
-async def explore(
+@router.get("/most_followed")
+async def get_most_followed(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
     language: models.topics.Language,
 ) -> list[models.topics.TopicResponse]:
-    async with db.get_connection() as connection:
+    async with db_manager.get_connection() as connection:
         topics = await queries.topics.get_most_followed(
             connection,
             language=language,
@@ -122,7 +132,9 @@ async def explore(
 @router.get("/search")
 async def search(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db: Annotated[dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)],
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
     query: str,
     language: models.topics.Language,
 ) -> list[models.topics.TopicResponse]:
@@ -131,7 +143,7 @@ async def search(
     embeddings = await openai.get_embeddings([query])
     embedding = embeddings[0]
 
-    async with db.get_connection() as connection:
+    async with db_manager.get_connection() as connection:
         topics = await queries.topics.get_by_embedding(
             connection,
             embedding=embedding,

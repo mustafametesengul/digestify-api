@@ -22,7 +22,7 @@ async def sign_up_with_username(
         dependencies.auth.AuthManager,
         Depends(dependencies.auth.get_auth_manager),
     ],
-    payload: models.users.SignUpWithUsernameRequest,
+    payload: models.auth.SignUpWithUsernameRequest,
 ) -> None:
     now = datetime.now(timezone.utc)
 
@@ -41,6 +41,7 @@ async def sign_up_with_username(
             password_hash=password_hash,
             discarded=False,
             tier=models.users.UserTier.FREE,
+            active_topics_count=0,
             created_topics_count=0,
             followed_topics_count=0,
             created_at=now,
@@ -78,7 +79,7 @@ async def sign_in_with_username(
         dependencies.auth.AuthManager,
         Depends(dependencies.auth.get_auth_manager),
     ],
-    payload: models.users.SignInWithUsernameRequest,
+    payload: models.auth.SignInWithUsernameRequest,
 ) -> models.auth.TokenResponse:
     async with db_manager.get_connection() as connection:
         user = await queries.users.get_by_username(connection, payload.username)

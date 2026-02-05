@@ -17,3 +17,11 @@ class TokenExpired(HTTPException):
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+class InsufficientPermissions(HTTPException):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to access this resource",
+        )

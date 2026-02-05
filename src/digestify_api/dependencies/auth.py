@@ -135,3 +135,11 @@ def get_auth(
     auth_manager = get_auth_manager()
     token = credentials.credentials
     return auth_manager.verify_jwt_token(token, token_type="access")
+
+
+def get_non_anonymous_auth(
+    auth: Annotated[models.auth.Auth, Depends(get_auth)],
+) -> models.auth.Auth:
+    if auth.is_anonymous:
+        raise exceptions.auth.InvalidCredentials()
+    return auth

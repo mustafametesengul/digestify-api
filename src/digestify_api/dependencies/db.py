@@ -66,17 +66,17 @@ class DBManager:
                 yield connection
 
 
-_db: DBManager | None = None
+_db_manager: DBManager | None = None
 
 
-def init_db(settings: DBSettings) -> DBManager:
-    global _db
-    _db = DBManager(settings)
-    return _db
+def init_db_manager(settings: DBSettings) -> DBManager:
+    global _db_manager
+    _db_manager = DBManager(settings)
+    return _db_manager
 
 
 def get_db_manager() -> DBManager:
-    global _db
-    if _db is None:
-        raise RuntimeError("Database service is not initialized.")
-    return _db
+    global _db_manager
+    if _db_manager is None:
+        raise RuntimeError("Database manager is not initialized.")
+    return _db_manager

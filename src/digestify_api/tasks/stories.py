@@ -12,7 +12,7 @@ task_registry = dependencies.tasks.TaskRegistry()
 @task_registry.register
 async def fetch_and_save_stories(
     task_id: UUID,
-    payload: models.stories.StoryTaskPayload,
+    payload: models.stories.FetchAndSaveStoriesTask,
 ) -> None:
     db = dependencies.db.get_db_manager()
     digestify = Digestify()

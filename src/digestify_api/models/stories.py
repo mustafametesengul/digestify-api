@@ -22,5 +22,5 @@ class Story(StoryResponse):
     embedding: str
 
 
-class StoryTaskPayload(BaseModel):
+class FetchAndSaveStoriesTask(BaseModel):
     topic_id: UUID

@@ -53,7 +53,8 @@ async def create_initial_tables(connection: Connection) -> None:
             updated_at TIMESTAMP WITH TIME ZONE,
             tier TEXT NOT NULL,
             created_topics_count INTEGER NOT NULL,
-            followed_topics_count INTEGER NOT NULL
+            followed_topics_count INTEGER NOT NULL,
+            active_topics_count INTEGER NOT NULL
         );
 
         CREATE INDEX ix_users_username ON users (username);
@@ -61,6 +62,7 @@ async def create_initial_tables(connection: Connection) -> None:
         CREATE INDEX ix_users_tier ON users (tier);
         CREATE INDEX ix_users_created_topics_count ON users (created_topics_count);
         CREATE INDEX ix_users_followed_topics_count ON users (followed_topics_count);
+        CREATE INDEX ix_users_active_topics_count ON users (active_topics_count);
 
         CREATE TABLE topics (
             id UUID PRIMARY KEY,
