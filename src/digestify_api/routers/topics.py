@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Annotated
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends
 
@@ -154,3 +154,75 @@ async def search(
             models.topics.TopicResponse.model_validate(topic) for topic in topics
         ]
         return topics_public
+
+
+@router.post("/activate", status_code=200)
+async def activate_topic(
+    auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
+    topic_id: UUID,
+) -> None:
+    if auth.is_anonymous:
+        raise exceptions.auth.InsufficientPermissions()
+
+    now = datetime.now(timezone.utc)
+
+    async with db_manager.get_connection() as connection:
+        user = await queries.users.get(connection, auth.id, lock=True)
+        if user is None:
+            raise exceptions.users.UserNotFound()
+
+        topic = await queries.topics.get(connection, topic_id, lock=True)
+        if topic is None or topic.user_id != auth.id:
+            raise exceptions.topics.TopicNotFound()
+
+        if topic.is_active:
+            return
+
+        if user.active_topics_count >= 5 and user.tier is models.users.UserTier.PREMIUM:
+            raise exceptions.topics.TopicLimitExceeded(
+                detail=(
+                    "Premium tier users can have up to 5 active topics. "
+                    "Please deactivate some topics to activate new ones."
+                )
+            )
+
+        topic.is_active = True
+        topic.updated_at = now
+
+        await queries.topics.update(connection, topic)
+        await queries.users.increment_active_topics_count(connection, auth.id)
+
+
+@router.post("/deactivate", status_code=200)
+async def deactivate_topic(
+    auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
+    topic_id: UUID,
+) -> None:
+    if auth.is_anonymous:
+        raise exceptions.auth.InsufficientPermissions()
+
+    now = datetime.now(timezone.utc)
+
+    async with db_manager.get_connection() as connection:
+        user = await queries.users.get(connection, auth.id, lock=True)
+        if user is None:
+            raise exceptions.users.UserNotFound()
+
+        topic = await queries.topics.get(connection, topic_id, lock=True)
+        if topic is None or topic.user_id != auth.id:
+            raise exceptions.topics.TopicNotFound()
+
+        if not topic.is_active:
+            return
+
+        topic.is_active = False
+        topic.updated_at = now
+
+        await queries.topics.update(connection, topic)
+        await queries.users.decrement_active_topics_count(connection, auth.id)

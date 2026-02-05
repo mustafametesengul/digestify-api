@@ -36,6 +36,36 @@ async def create(conn: Connection, topic: models.topics.Topic) -> None:
     )
 
 
+async def update(conn: Connection, topic: models.topics.Topic) -> None:
+    await conn.execute(
+        """
+        UPDATE topics
+        SET discarded = $2,
+            name = $3,
+            description = $4,
+            language = $5,
+            image_url = $6,
+            is_active = $7,
+            followers_count = $8,
+            created_at = $9,
+            updated_at = $10,
+            embedding = $11
+        WHERE id = $1
+        """,
+        topic.id,
+        topic.discarded,
+        topic.name,
+        topic.description,
+        topic.language,
+        topic.image_url,
+        topic.is_active,
+        topic.followers_count,
+        topic.created_at,
+        topic.updated_at,
+        topic.embedding,
+    )
+
+
 async def get(
     conn: Connection, topic_id: UUID, lock: bool = False
 ) -> models.topics.Topic | None:

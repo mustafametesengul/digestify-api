@@ -34,8 +34,10 @@ async def follow(
 
         if user.followed_topics_count >= 50:
             raise exceptions.follows.FollowLimitExceeded(
-                detail="You have reached the maximum number of followed topics (50). "
-                "Please unfollow a topic before following a new one."
+                detail=(
+                    "You have reached the maximum number of followed topics (50). "
+                    "Please unfollow a topic before following a new one."
+                )
             )
 
         await queries.users.increment_followed_topics_count(connection, auth.id)

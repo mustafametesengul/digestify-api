@@ -10,8 +10,8 @@ async def create(conn: Connection, user: models.users.User) -> None:
         """
         INSERT INTO users
         (id, username, password_hash, discarded, tier, created_topics_count,
-        followed_topics_count, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        active_topics_count, followed_topics_count, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         """,
         user.id,
         user.username,
@@ -19,6 +19,7 @@ async def create(conn: Connection, user: models.users.User) -> None:
         user.discarded,
         user.tier,
         user.created_topics_count,
+        user.active_topics_count,
         user.followed_topics_count,
         user.created_at,
         user.updated_at,
@@ -33,7 +34,8 @@ async def update(conn: Connection, user: models.users.User) -> None:
             tier = $3,
             created_topics_count = $4,
             followed_topics_count = $5,
-            updated_at = $6
+            active_topics_count = $6,
+            updated_at = $7
         WHERE id = $1
         """,
         user.id,
@@ -41,6 +43,7 @@ async def update(conn: Connection, user: models.users.User) -> None:
         user.tier,
         user.created_topics_count,
         user.followed_topics_count,
+        user.active_topics_count,
         user.updated_at,
     )
 
