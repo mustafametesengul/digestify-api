@@ -24,3 +24,4 @@ class Story(StoryResponse):
 
 class FetchAndSaveStoriesTask(BaseModel):
     topic_id: UUID
+    schedule_version: int

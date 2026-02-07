@@ -46,6 +46,7 @@ async def sign_up_with_username(
             followed_topics_count=0,
             created_at=now,
             updated_at=None,
+            tier_last_confirmed_at=None,
         )
 
         await queries.users.create(connection, user)

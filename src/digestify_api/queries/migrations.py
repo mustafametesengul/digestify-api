@@ -52,6 +52,7 @@ async def create_initial_tables(connection: Connection) -> None:
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE,
             tier TEXT NOT NULL,
+            tier_last_confirmed_at TIMESTAMP WITH TIME ZONE,
             created_topics_count INTEGER NOT NULL,
             followed_topics_count INTEGER NOT NULL,
             active_topics_count INTEGER NOT NULL
@@ -76,6 +77,9 @@ async def create_initial_tables(connection: Connection) -> None:
             image_url TEXT,
             embedding vector(1536) NOT NULL,
             is_active BOOLEAN NOT NULL,
+            schedule_time TIME WITHOUT TIME ZONE NOT NULL,
+            schedule_timezone TEXT NOT NULL,
+            schedule_version INTEGER NOT NULL,
             followers_count INTEGER NOT NULL
         );
 

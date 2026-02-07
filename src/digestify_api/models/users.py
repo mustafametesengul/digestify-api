@@ -15,6 +15,7 @@ class UserResponse(BaseModel):
     id: UUID
     username: str | None
     tier: UserTier
+    tier_last_confirmed_at: datetime | None
     created_topics_count: int
     followed_topics_count: int
     active_topics_count: int

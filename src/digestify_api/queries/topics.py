@@ -18,8 +18,9 @@ async def create(conn: Connection, topic: models.topics.Topic) -> None:
         """
         INSERT INTO topics
         (id, user_id, discarded, name, description, language, image_url,
-        is_active, followers_count, created_at, updated_at, embedding)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        is_active, followers_count, created_at, updated_at, embedding, schedule_time,
+        schedule_timezone, schedule_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         """,
         topic.id,
         topic.user_id,
@@ -33,6 +34,9 @@ async def create(conn: Connection, topic: models.topics.Topic) -> None:
         topic.created_at,
         topic.updated_at,
         topic.embedding,
+        topic.schedule_time,
+        topic.schedule_timezone,
+        topic.schedule_version,
     )
 
 
@@ -49,7 +53,10 @@ async def update(conn: Connection, topic: models.topics.Topic) -> None:
             followers_count = $8,
             created_at = $9,
             updated_at = $10,
-            embedding = $11
+            embedding = $11,
+            schedule_time = $12,
+            schedule_timezone = $13,
+            schedule_version = $14
         WHERE id = $1
         """,
         topic.id,
@@ -63,6 +70,9 @@ async def update(conn: Connection, topic: models.topics.Topic) -> None:
         topic.created_at,
         topic.updated_at,
         topic.embedding,
+        topic.schedule_time,
+        topic.schedule_timezone,
+        topic.schedule_version,
     )
 
 

@@ -69,3 +69,22 @@ async def get_by_topic_id(
         limit,
     )
     return [models.stories.Story.model_validate(dict(row)) for row in rows]
+
+
+async def get_latest_story_creation_time(
+    conn: Connection,
+    topic_id: UUID,
+) -> datetime | None:
+    row = await conn.fetchrow(
+        """
+        SELECT created_at FROM stories
+        WHERE topic_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        topic_id,
+    )
+    if row is None:
+        return None
+
+    return row["created_at"]
