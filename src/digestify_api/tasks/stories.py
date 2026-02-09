@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from digestify import Digestify
@@ -11,10 +11,9 @@ task_registry = dependencies.tasks.TaskRegistry()
 
 
 @task_registry.register
-async def fetch_and_save_stories(
-    task_id: UUID,
-    payload: models.stories.FetchAndSaveStoriesTask,
-) -> None:
+async def fetch_and_save_stories(task: models.tasks.Task) -> None:
+    task_id = task.id
+    payload = models.stories.FetchAndSaveStoriesTask.model_validate_json(task.payload)
     db = dependencies.db.get_db_manager()
     digestify = Digestify()
     openai = dependencies.openai.get_openai()
@@ -22,7 +21,7 @@ async def fetch_and_save_stories(
     async with db.get_connection() as connection:
         now = datetime.now(timezone.utc)
 
-        topic = await queries.topics.get(connection, payload.topic_id)
+        topic = await queries.topics.get(connection, payload.topic_id, lock=True)
         if topic is None:
             await queries.tasks.mark_as_completed(connection, task_id, now)
             return
@@ -32,15 +31,23 @@ async def fetch_and_save_stories(
             await queries.tasks.mark_as_completed(connection, task_id, now)
             return
 
+        tz = ZoneInfo(payload.schedule_timezone)
+        now_in_tz = now.astimezone(tz)
+
         if (
             user.tier_last_confirmed_at is None
             or now - user.tier_last_confirmed_at > timedelta(days=30)
             or not topic.is_active
             or topic.discarded
             or user.discarded
+            or payload.schedule_date == now_in_tz.date()
+            or payload.schedule_version != topic.schedule_version
         ):
             await queries.tasks.mark_as_completed(connection, task_id, now)
             return
+
+        topic.schedule_date = now_in_tz.date() + timedelta(days=1)
+        await queries.topics.update(connection, topic)
 
     digestify_topic = DigestifyTopic.model_validate(topic.model_dump())
 
@@ -56,7 +63,7 @@ async def fetch_and_save_stories(
             lock=True,
         )
 
-        if topic is None:
+        if topic is None or topic.discarded or not topic.is_active:
             await queries.tasks.mark_as_completed(connection, task_id, now)
             return
 
@@ -79,23 +86,28 @@ async def fetch_and_save_stories(
 
         tz = ZoneInfo(topic.schedule_timezone)
         now_in_tz = datetime.now(tz)
-        task_schedule = now_in_tz.replace(
-            hour=topic.schedule_time.hour,
-            minute=topic.schedule_time.minute,
-            second=0,
-            microsecond=0,
-        )
-        task_schedule += timedelta(days=1)
+        if topic.schedule_time < now_in_tz.time():
+            schedule_date = now_in_tz.date() + timedelta(days=1)
+        else:
+            schedule_date = now_in_tz.date()
+        schedule = datetime.combine(schedule_date, topic.schedule_time, tzinfo=tz)
 
-        if topic.is_active:
-            task = models.tasks.Task(
-                id=uuid4(),
-                name="fetch_and_save_stories",
-                payload=payload.model_dump_json(),
-                created_at=now,
-                updated_at=None,
-                scheduled_at=task_schedule,
-                status=models.tasks.TaskStatus.PENDING,
-                error_message=None,
-            )
-            await queries.tasks.create(connection, task)
+        new_payload = models.stories.FetchAndSaveStoriesTask(
+            topic_id=payload.topic_id,
+            schedule_version=payload.schedule_version,
+            schedule_date=schedule_date,
+            schedule_time=topic.schedule_time,
+            schedule_timezone=payload.schedule_timezone,
+        )
+
+        task = models.tasks.Task(
+            id=uuid4(),
+            name="fetch_and_save_stories",
+            payload=new_payload.model_dump_json(),
+            created_at=now,
+            updated_at=None,
+            scheduled_at=schedule,
+            status=models.tasks.TaskStatus.PENDING,
+            error_message=None,
+        )
+        await queries.tasks.create(connection, task)

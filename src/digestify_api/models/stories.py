@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -25,3 +25,6 @@ class Story(StoryResponse):
 class FetchAndSaveStoriesTask(BaseModel):
     topic_id: UUID
     schedule_version: int
+    schedule_time: time
+    schedule_date: date
+    schedule_timezone: str

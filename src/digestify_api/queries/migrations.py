@@ -77,10 +77,11 @@ async def create_initial_tables(connection: Connection) -> None:
             image_url TEXT,
             embedding vector(1536) NOT NULL,
             is_active BOOLEAN NOT NULL,
+            followers_count INTEGER NOT NULL,
             schedule_time TIME WITHOUT TIME ZONE NOT NULL,
             schedule_timezone TEXT NOT NULL,
-            schedule_version INTEGER NOT NULL,
-            followers_count INTEGER NOT NULL
+            schedule_date DATE NOT NULL,
+            schedule_version INTEGER NOT NULL
         );
 
         CREATE INDEX ix_topics_discarded ON topics (discarded);

@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import date, datetime, time
 from enum import StrEnum
 from uuid import UUID
 
@@ -24,6 +24,7 @@ class TopicResponse(BaseModel):
     updated_at: datetime | None
     schedule_time: time
     schedule_timezone: TimeZoneName
+    schedule_date: date
 
 
 class Topic(TopicResponse):

@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from asyncpg import Connection
@@ -13,14 +14,22 @@ async def exists(conn: Connection, topic_id: UUID) -> bool:
     return row is not None
 
 
+async def count_created_since(conn: Connection, user_id: UUID, since: datetime) -> int:
+    return await conn.fetchval(
+        "SELECT COUNT(*) FROM topics WHERE user_id = $1 AND created_at >= $2",
+        user_id,
+        since,
+    )
+
+
 async def create(conn: Connection, topic: models.topics.Topic) -> None:
     await conn.execute(
         """
         INSERT INTO topics
         (id, user_id, discarded, name, description, language, image_url,
         is_active, followers_count, created_at, updated_at, embedding, schedule_time,
-        schedule_timezone, schedule_version)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        schedule_timezone, schedule_version, schedule_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         """,
         topic.id,
         topic.user_id,
@@ -37,6 +46,7 @@ async def create(conn: Connection, topic: models.topics.Topic) -> None:
         topic.schedule_time,
         topic.schedule_timezone,
         topic.schedule_version,
+        topic.schedule_date,
     )
 
 
@@ -56,7 +66,8 @@ async def update(conn: Connection, topic: models.topics.Topic) -> None:
             embedding = $11,
             schedule_time = $12,
             schedule_timezone = $13,
-            schedule_version = $14
+            schedule_version = $14,
+            schedule_date = $15
         WHERE id = $1
         """,
         topic.id,
@@ -73,6 +84,7 @@ async def update(conn: Connection, topic: models.topics.Topic) -> None:
         topic.schedule_time,
         topic.schedule_timezone,
         topic.schedule_version,
+        topic.schedule_date,
     )
 
 

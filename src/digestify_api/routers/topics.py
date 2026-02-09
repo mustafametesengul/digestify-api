@@ -65,8 +65,27 @@ async def create(
                 )
             )
 
+        daily_created_count = await queries.topics.count_created_since(
+            connection, auth.id, now - timedelta(days=1)
+        )
+        if daily_created_count >= 5:
+            raise exceptions.topics.TopicLimitExceeded(
+                detail=(
+                    "You have reached the daily limit of created topics (5). "
+                    "Please try again later."
+                )
+            )
+
         await queries.users.increment_created_topics_count(connection, auth.id)
         await queries.users.increment_active_topics_count(connection, auth.id)
+
+        tz = ZoneInfo(payload.schedule_timezone)
+        now_in_tz = datetime.now(tz)
+        if payload.schedule_time < now_in_tz.time():
+            schedule_date = now_in_tz.date() + timedelta(days=1)
+        else:
+            schedule_date = now_in_tz.date()
+        schedule = datetime.combine(schedule_date, payload.schedule_time, tzinfo=tz)
 
         topic = models.topics.Topic(
             id=uuid4(),
@@ -84,6 +103,7 @@ async def create(
             schedule_time=payload.schedule_time,
             schedule_timezone=payload.schedule_timezone,
             schedule_version=1,
+            schedule_date=schedule_date,
         )
 
         await queries.topics.create(connection, topic)
@@ -101,17 +121,10 @@ async def create(
         task_payload = models.stories.FetchAndSaveStoriesTask(
             topic_id=topic.id,
             schedule_version=topic.schedule_version,
+            schedule_date=schedule_date,
+            schedule_time=payload.schedule_time,
+            schedule_timezone=payload.schedule_timezone,
         )
-
-        tz = ZoneInfo(payload.schedule_timezone)
-        now_in_tz = datetime.now(tz)
-        task_schedule = now_in_tz.replace(
-            hour=payload.schedule_time.hour,
-            minute=payload.schedule_time.minute,
-            second=0,
-            microsecond=0,
-        )
-        task_schedule += timedelta(days=1)
 
         task = models.tasks.Task(
             id=uuid4(),
@@ -120,7 +133,7 @@ async def create(
             created_at=now,
             updated_at=None,
             payload=task_payload.model_dump_json(),
-            scheduled_at=task_schedule,
+            scheduled_at=schedule,
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -145,27 +158,29 @@ async def change_schedule(
         if topic is None or topic.user_id != auth.id:
             raise exceptions.topics.TopicNotFound()
 
+        tz = ZoneInfo(payload.schedule_timezone)
+        now_in_tz = datetime.now(tz)
+        if payload.schedule_time < now_in_tz.time():
+            schedule_date = now_in_tz.date() + timedelta(days=1)
+        else:
+            schedule_date = now_in_tz.date()
+        schedule = datetime.combine(schedule_date, payload.schedule_time, tzinfo=tz)
+
         topic.schedule_time = payload.schedule_time
         topic.schedule_timezone = payload.schedule_timezone
         topic.schedule_version += 1
         topic.updated_at = now
+        topic.schedule_date = schedule_date
 
         await queries.topics.update(connection, topic)
 
         task_payload = models.stories.FetchAndSaveStoriesTask(
             topic_id=topic.id,
             schedule_version=topic.schedule_version,
+            schedule_date=schedule_date,
+            schedule_time=payload.schedule_time,
+            schedule_timezone=payload.schedule_timezone,
         )
-
-        tz = ZoneInfo(payload.schedule_timezone)
-        now_in_tz = datetime.now(tz)
-        task_schedule = now_in_tz.replace(
-            hour=payload.schedule_time.hour,
-            minute=payload.schedule_time.minute,
-            second=0,
-            microsecond=0,
-        )
-        task_schedule += timedelta(days=1)
 
         task = models.tasks.Task(
             id=uuid4(),
@@ -174,7 +189,7 @@ async def change_schedule(
             created_at=now,
             updated_at=None,
             payload=task_payload.model_dump_json(),
-            scheduled_at=task_schedule,
+            scheduled_at=schedule,
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -260,11 +275,40 @@ async def activate_topic(
                 )
             )
 
+        tz = ZoneInfo(topic.schedule_timezone)
+        now_in_tz = datetime.now(tz)
+        if topic.schedule_time < now_in_tz.time():
+            schedule_date = now_in_tz.date() + timedelta(days=1)
+        else:
+            schedule_date = now_in_tz.date()
+        schedule = datetime.combine(schedule_date, topic.schedule_time, tzinfo=tz)
+
         topic.is_active = True
         topic.updated_at = now
+        topic.schedule_version += 1
+        topic.schedule_date = schedule_date
 
         await queries.topics.update(connection, topic)
         await queries.users.increment_active_topics_count(connection, auth.id)
+
+        task_paylaod = models.stories.FetchAndSaveStoriesTask(
+            topic_id=topic.id,
+            schedule_version=topic.schedule_version,
+            schedule_date=topic.schedule_date,
+            schedule_time=topic.schedule_time,
+            schedule_timezone=topic.schedule_timezone,
+        )
+        task = models.tasks.Task(
+            id=uuid4(),
+            name="fetch_and_save_stories",
+            status=models.tasks.TaskStatus.PENDING,
+            created_at=now,
+            updated_at=None,
+            payload=task_paylaod.model_dump_json(),
+            scheduled_at=schedule,
+            error_message=None,
+        )
+        await queries.tasks.create(connection, task)
 
 
 @router.post("/deactivate", status_code=200)
