@@ -1,3 +1,3 @@
-from digestify_api.tasks import stories
+from digestify_api.tasks import stories, users
 
-__all__ = ["stories"]
+__all__ = ["stories", "users"]

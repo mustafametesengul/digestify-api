@@ -41,7 +41,7 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 
 [tool.poe.tasks]
-test = [
+check = [
   { cmd = "ruff check" },
   { cmd = "ruff format --check" },
   { cmd = "ty check" }
@@ -49,4 +49,7 @@ test = [
 format = [
   { cmd = "ruff check --select I --fix" },
   { cmd = "ruff format" }
+]
+test = [
+  { cmd = "pytest" }
 ]

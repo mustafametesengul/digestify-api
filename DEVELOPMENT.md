@@ -12,6 +12,12 @@ Format code:
 uv run poe format
 ```
 
+Check code:
+
+```bash
+uv run poe check
+```
+
 Run tests:
 
 ```bash

@@ -174,13 +174,11 @@ async def list_by_user_id(
     query = """
         SELECT *
         FROM topics
+        WHERE user_id = $1
+        ORDER BY created_at DESC
     """
     if lock:
         query += " FOR UPDATE"
-    query += """
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        """
     rows = await conn.fetch(query, user_id)
     topics = [models.topics.Topic.model_validate(dict(row)) for row in rows]
     return topics

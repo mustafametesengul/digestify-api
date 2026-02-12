@@ -44,6 +44,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
     task_processor_ = dependencies.tasks.TaskProcessor(db)
     task_processor_.add_registry(tasks.stories.task_registry)
+    task_processor_.add_registry(tasks.users.task_registry)
     await task_processor_.start()
 
     dependencies.auth.init_auth_manager(_settings.auth)
