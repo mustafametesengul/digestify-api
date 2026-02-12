@@ -7,7 +7,7 @@ from digestify_api import dependencies, entrypoints
 
 
 class Settings(BaseSettings, cli_parse_args=True):
-    run: CliSubCommand[entrypoints.app.AppSettings] = Field(default=...)
+    serve: CliSubCommand[entrypoints.app.AppSettings] = Field(default=...)
     migrate: CliSubCommand[dependencies.db.DBSettings] = Field(default=...)
 
 

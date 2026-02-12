@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 from enum import StrEnum
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
 
 
@@ -40,8 +40,28 @@ class CreateTopicRequest(BaseModel):
     schedule_time: time
     schedule_timezone: TimeZoneName
 
+    @field_validator("schedule_time")
+    @classmethod
+    def validate_schedule_time_is_naive(cls, schedule_time: time) -> time:
+        if schedule_time.tzinfo is not None:
+            raise ValueError(
+                "schedule_time must not include a UTC offset. "
+                "Provide local time and use schedule_timezone for timezone."
+            )
+        return schedule_time
+
 
 class ChangeTopicScheduleRequest(BaseModel):
     topic_id: UUID
     schedule_time: time
     schedule_timezone: TimeZoneName
+
+    @field_validator("schedule_time")
+    @classmethod
+    def validate_schedule_time_is_naive(cls, schedule_time: time) -> time:
+        if schedule_time.tzinfo is not None:
+            raise ValueError(
+                "schedule_time must not include a UTC offset. "
+                "Provide local time and use schedule_timezone for timezone."
+            )
+        return schedule_time

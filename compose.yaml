@@ -64,7 +64,7 @@ services:
         condition: service_completed_successfully
     ports:
       - "8000:8000"
-    command: run
+    command: serve
     profiles:
       - api
     develop:

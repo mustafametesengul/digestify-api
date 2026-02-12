@@ -200,6 +200,26 @@ async def test_create_topic_rejects_anonymous_user(
     assert response.status_code == 403
 
 
+async def test_create_topic_rejects_offset_aware_schedule_time(
+    client: AsyncClient,
+    auth_state: dict[str, models.auth.Auth],
+) -> None:
+    auth_state["value"] = models.auth.Auth(id=uuid4(), is_anonymous=False)
+
+    response = await client.post(
+        "/topics/create",
+        json={
+            "name": "AIX",
+            "description": "AI updates",
+            "language": "en-US",
+            "schedule_time": "11:00:00+03:00",
+            "schedule_timezone": "UTC",
+        },
+    )
+
+    assert response.status_code == 422
+
+
 async def test_change_schedule_updates_topic_and_creates_task(
     client: AsyncClient,
     db: dependencies.db.DBManager,
