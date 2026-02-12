@@ -52,7 +52,7 @@ async def create_initial_tables(connection: Connection) -> None:
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE,
             tier TEXT NOT NULL,
-            tier_last_confirmed_at TIMESTAMP WITH TIME ZONE,
+            tier_last_confirmed_at TIMESTAMP WITH TIME ZONE NOT NULL,
             created_topics_count INTEGER NOT NULL,
             followed_topics_count INTEGER NOT NULL,
             active_topics_count INTEGER NOT NULL

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import uuid4
 
@@ -46,10 +46,25 @@ async def sign_up_with_username(
             followed_topics_count=0,
             created_at=now,
             updated_at=None,
-            tier_last_confirmed_at=None,
+            tier_last_confirmed_at=now,
         )
 
         await queries.users.create(connection, user)
+
+        task_schedule = now + timedelta(days=5)
+        task_payload = models.users.CheckUserTierTask(user_id=user.id)
+
+        new_task = models.tasks.Task(
+            id=uuid4(),
+            name="check_user_tier",
+            payload=task_payload.model_dump_json(),
+            created_at=now,
+            updated_at=None,
+            scheduled_at=task_schedule,
+            status=models.tasks.TaskStatus.PENDING,
+            error_message=None,
+        )
+        await queries.tasks.create(connection, new_task)
 
 
 @router.post("/sign_in_anonymously", status_code=201)

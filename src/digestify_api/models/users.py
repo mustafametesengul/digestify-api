@@ -15,7 +15,6 @@ class UserResponse(BaseModel):
     id: UUID
     username: str | None
     tier: UserTier
-    tier_last_confirmed_at: datetime | None
     created_topics_count: int
     followed_topics_count: int
     active_topics_count: int
@@ -24,5 +23,10 @@ class UserResponse(BaseModel):
 
 
 class User(UserResponse):
+    tier_last_confirmed_at: datetime
     password_hash: str | None
     discarded: bool
+
+
+class CheckUserTierTask(BaseModel):
+    user_id: UUID

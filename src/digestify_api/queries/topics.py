@@ -164,3 +164,23 @@ async def get_most_followed(
     )
     topics = [models.topics.Topic.model_validate(dict(row)) for row in rows]
     return topics
+
+
+async def list_by_user_id(
+    conn: Connection,
+    user_id: UUID,
+    lock: bool = False,
+) -> list[models.topics.Topic]:
+    query = """
+        SELECT *
+        FROM topics
+    """
+    if lock:
+        query += " FOR UPDATE"
+    query += """
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        """
+    rows = await conn.fetch(query, user_id)
+    topics = [models.topics.Topic.model_validate(dict(row)) for row in rows]
+    return topics

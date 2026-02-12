@@ -24,8 +24,6 @@ async def create(
     if auth.is_anonymous:
         raise exceptions.auth.InsufficientPermissions()
 
-    now = datetime.now(timezone.utc)
-
     openai = dependencies.openai.get_openai()
 
     openai_input = f"{payload.name}\n\n{payload.description}"
@@ -37,6 +35,8 @@ async def create(
     embedding = embeddings[0]
 
     async with db_manager.get_connection() as connection:
+        now = datetime.now(timezone.utc)
+
         user = await queries.users.get(connection, auth.id, lock=True)
         if user is None:
             raise exceptions.users.UserNotFound()
@@ -80,7 +80,7 @@ async def create(
         await queries.users.increment_active_topics_count(connection, auth.id)
 
         tz = ZoneInfo(payload.schedule_timezone)
-        now_in_tz = datetime.now(tz)
+        now_in_tz = now.astimezone(tz)
         if payload.schedule_time < now_in_tz.time():
             schedule_date = now_in_tz.date() + timedelta(days=1)
         else:
@@ -121,9 +121,9 @@ async def create(
         task_payload = models.stories.FetchAndSaveStoriesTask(
             topic_id=topic.id,
             schedule_version=topic.schedule_version,
-            schedule_date=schedule_date,
-            schedule_time=payload.schedule_time,
-            schedule_timezone=payload.schedule_timezone,
+            schedule_date=topic.schedule_date,
+            schedule_time=topic.schedule_time,
+            schedule_timezone=topic.schedule_timezone,
         )
 
         task = models.tasks.Task(
@@ -133,7 +133,7 @@ async def create(
             created_at=now,
             updated_at=None,
             payload=task_payload.model_dump_json(),
-            scheduled_at=schedule,
+            scheduled_at=schedule - timedelta(minutes=10),
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -151,19 +151,20 @@ async def change_schedule(
     if auth.is_anonymous:
         raise exceptions.auth.InsufficientPermissions()
 
-    now = datetime.now(timezone.utc)
-
     async with db_manager.get_connection() as connection:
+        now = datetime.now(timezone.utc)
+
         topic = await queries.topics.get(connection, payload.topic_id, lock=True)
         if topic is None or topic.user_id != auth.id:
             raise exceptions.topics.TopicNotFound()
 
         tz = ZoneInfo(payload.schedule_timezone)
-        now_in_tz = datetime.now(tz)
+        now_in_tz = now.astimezone(tz)
         if payload.schedule_time < now_in_tz.time():
             schedule_date = now_in_tz.date() + timedelta(days=1)
         else:
             schedule_date = now_in_tz.date()
+        schedule_date = max(schedule_date, topic.schedule_date)
         schedule = datetime.combine(schedule_date, payload.schedule_time, tzinfo=tz)
 
         topic.schedule_time = payload.schedule_time
@@ -177,9 +178,9 @@ async def change_schedule(
         task_payload = models.stories.FetchAndSaveStoriesTask(
             topic_id=topic.id,
             schedule_version=topic.schedule_version,
-            schedule_date=schedule_date,
-            schedule_time=payload.schedule_time,
-            schedule_timezone=payload.schedule_timezone,
+            schedule_date=topic.schedule_date,
+            schedule_time=topic.schedule_time,
+            schedule_timezone=topic.schedule_timezone,
         )
 
         task = models.tasks.Task(
@@ -189,7 +190,7 @@ async def change_schedule(
             created_at=now,
             updated_at=None,
             payload=task_payload.model_dump_json(),
-            scheduled_at=schedule,
+            scheduled_at=schedule - timedelta(minutes=10),
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -253,9 +254,9 @@ async def activate_topic(
     if auth.is_anonymous:
         raise exceptions.auth.InsufficientPermissions()
 
-    now = datetime.now(timezone.utc)
-
     async with db_manager.get_connection() as connection:
+        now = datetime.now(timezone.utc)
+
         user = await queries.users.get(connection, auth.id, lock=True)
         if user is None:
             raise exceptions.users.UserNotFound()
@@ -276,11 +277,12 @@ async def activate_topic(
             )
 
         tz = ZoneInfo(topic.schedule_timezone)
-        now_in_tz = datetime.now(tz)
+        now_in_tz = now.astimezone(tz)
         if topic.schedule_time < now_in_tz.time():
             schedule_date = now_in_tz.date() + timedelta(days=1)
         else:
             schedule_date = now_in_tz.date()
+        schedule_date = max(schedule_date, topic.schedule_date)
         schedule = datetime.combine(schedule_date, topic.schedule_time, tzinfo=tz)
 
         topic.is_active = True
@@ -305,7 +307,7 @@ async def activate_topic(
             created_at=now,
             updated_at=None,
             payload=task_paylaod.model_dump_json(),
-            scheduled_at=schedule,
+            scheduled_at=schedule - timedelta(minutes=10),
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -322,9 +324,9 @@ async def deactivate_topic(
     if auth.is_anonymous:
         raise exceptions.auth.InsufficientPermissions()
 
-    now = datetime.now(timezone.utc)
-
     async with db_manager.get_connection() as connection:
+        now = datetime.now(timezone.utc)
+
         user = await queries.users.get(connection, auth.id, lock=True)
         if user is None:
             raise exceptions.users.UserNotFound()

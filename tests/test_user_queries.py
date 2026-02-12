@@ -20,7 +20,7 @@ async def test_create_and_read_user(connection: Connection):
         updated_at=None,
         username="user1",
         password_hash="",
-        tier_last_confirmed_at=None,
+        tier_last_confirmed_at=now,
     )
 
     await queries.users.create(connection, user)
@@ -48,7 +48,7 @@ async def test_update_user(connection: Connection):
         updated_at=None,
         username="user2",
         password_hash="",
-        tier_last_confirmed_at=None,
+        tier_last_confirmed_at=now,
     )
     await queries.users.create(connection, user)
 
@@ -63,7 +63,7 @@ async def test_update_user(connection: Connection):
         updated_at=now,
         username="user2",
         password_hash="",
-        tier_last_confirmed_at=None,
+        tier_last_confirmed_at=now,
     )
     await queries.users.update(connection, user)
 
@@ -90,7 +90,7 @@ async def test_counters_increment(connection: Connection):
         updated_at=None,
         username="user3",
         password_hash="",
-        tier_last_confirmed_at=None,
+        tier_last_confirmed_at=now,
     )
     await queries.users.create(connection, user)
 
@@ -120,7 +120,7 @@ async def test_user_exists(connection: Connection):
         updated_at=None,
         username="user4",
         password_hash="",
-        tier_last_confirmed_at=None,
+        tier_last_confirmed_at=now,
     )
     await queries.users.create(connection, user)
     assert await queries.users.exists(connection, user_id) is True
