@@ -200,53 +200,6 @@ async def change_schedule(
         await queries.tasks.create(connection, task)
 
 
-@router.get("/most_followed")
-async def get_most_followed(
-    auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db_manager: Annotated[
-        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
-    ],
-    language: models.topics.Language,
-) -> list[models.topics.TopicResponse]:
-    async with db_manager.get_connection() as connection:
-        topics = await queries.topics.get_most_followed(
-            connection,
-            language=language,
-            limit=20,
-        )
-        topics_public = [
-            models.topics.TopicResponse.model_validate(topic) for topic in topics
-        ]
-        return topics_public
-
-
-@router.get("/search")
-async def search(
-    auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
-    db_manager: Annotated[
-        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
-    ],
-    query: str,
-    language: models.topics.Language,
-) -> list[models.topics.TopicResponse]:
-    openai = dependencies.openai.get_openai()
-
-    embeddings = await openai.get_embeddings([query])
-    embedding = embeddings[0]
-
-    async with db_manager.get_connection() as connection:
-        topics = await queries.topics.get_by_embedding(
-            connection,
-            embedding=embedding,
-            language=language,
-            limit=20,
-        )
-        topics_public = [
-            models.topics.TopicResponse.model_validate(topic) for topic in topics
-        ]
-        return topics_public
-
-
 @router.post("/activate", status_code=200)
 async def activate_topic(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
@@ -355,3 +308,50 @@ async def deactivate_topic(
 
         await queries.topics.update(connection, topic)
         await queries.users.decrement_active_topics_count(connection, auth.id)
+
+
+@router.get("/most_followed")
+async def get_most_followed(
+    auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
+    language: models.topics.Language,
+) -> list[models.topics.TopicResponse]:
+    async with db_manager.get_connection() as connection:
+        topics = await queries.topics.get_most_followed(
+            connection,
+            language=language,
+            limit=20,
+        )
+        topics_public = [
+            models.topics.TopicResponse.model_validate(topic) for topic in topics
+        ]
+        return topics_public
+
+
+@router.get("/search")
+async def search(
+    auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
+    db_manager: Annotated[
+        dependencies.db.DBManager, Depends(dependencies.db.get_db_manager)
+    ],
+    query: str,
+    language: models.topics.Language,
+) -> list[models.topics.TopicResponse]:
+    openai = dependencies.openai.get_openai()
+
+    embeddings = await openai.get_embeddings([query])
+    embedding = embeddings[0]
+
+    async with db_manager.get_connection() as connection:
+        topics = await queries.topics.get_by_embedding(
+            connection,
+            embedding=embedding,
+            language=language,
+            limit=20,
+        )
+        topics_public = [
+            models.topics.TopicResponse.model_validate(topic) for topic in topics
+        ]
+        return topics_public

@@ -180,6 +180,22 @@ async def test_create_topic_success_creates_follow_and_task(
         assert task_row["scheduled_at"] == fixed_now + timedelta(hours=22, minutes=50)
 
 
+async def test_openapi_schedule_time_examples_are_naive(client: AsyncClient) -> None:
+    response = await client.get("/openapi.json")
+    assert response.status_code == 200
+
+    openapi = response.json()
+    schemas = openapi["components"]["schemas"]
+
+    for schema_name in [
+        "CreateTopicRequest",
+        "ChangeTopicScheduleRequest",
+        "TopicResponse",
+    ]:
+        schedule_time_schema = schemas[schema_name]["properties"]["schedule_time"]
+        assert schedule_time_schema["example"] == "17:04:13"
+
+
 async def test_create_topic_clamps_task_schedule_when_within_10_minutes(
     client: AsyncClient,
     db: dependencies.db.DBManager,

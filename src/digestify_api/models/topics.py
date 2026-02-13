@@ -22,7 +22,7 @@ class TopicResponse(BaseModel):
     followers_count: int
     created_at: datetime
     updated_at: datetime | None
-    schedule_time: time
+    schedule_time: time = Field(..., json_schema_extra={"example": "17:04:13"})
     schedule_timezone: TimeZoneName
     schedule_date: date
 
@@ -37,7 +37,7 @@ class CreateTopicRequest(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
     description: str = Field(..., min_length=0, max_length=300)
     language: Language
-    schedule_time: time
+    schedule_time: time = Field(..., json_schema_extra={"example": "17:04:13"})
     schedule_timezone: TimeZoneName
 
     @field_validator("schedule_time")
@@ -53,7 +53,7 @@ class CreateTopicRequest(BaseModel):
 
 class ChangeTopicScheduleRequest(BaseModel):
     topic_id: UUID
-    schedule_time: time
+    schedule_time: time = Field(..., json_schema_extra={"example": "17:04:13"})
     schedule_timezone: TimeZoneName
 
     @field_validator("schedule_time")
