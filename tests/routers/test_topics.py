@@ -180,6 +180,39 @@ async def test_create_topic_success_creates_follow_and_task(
         assert task_row["scheduled_at"] == fixed_now + timedelta(hours=22, minutes=50)
 
 
+async def test_create_topic_clamps_task_schedule_when_within_10_minutes(
+    client: AsyncClient,
+    db: dependencies.db.DBManager,
+    auth_state: dict[str, models.auth.Auth],
+    fake_openai: FakeOpenAI,
+    fixed_now: datetime,
+) -> None:
+    user_id = uuid4()
+    auth_state["value"] = models.auth.Auth(id=user_id, is_anonymous=False)
+    await _create_user(db, user_id, fixed_now, tier=models.users.UserTier.PREMIUM)
+
+    response = await client.post(
+        "/topics/create",
+        json={
+            "name": "AIX",
+            "description": "AI updates",
+            "language": "en-US",
+            "schedule_time": "12:05:00",
+            "schedule_timezone": "UTC",
+        },
+    )
+    assert response.status_code == 201
+
+    topic_id = UUID(response.json()["id"])
+    async with db.get_connection() as connection:
+        task_row = await connection.fetchrow(
+            "SELECT scheduled_at FROM tasks WHERE payload::json->>'topic_id' = $1 ORDER BY created_at DESC LIMIT 1",
+            str(topic_id),
+        )
+        assert task_row is not None
+        assert task_row["scheduled_at"] == fixed_now
+
+
 async def test_create_topic_rejects_anonymous_user(
     client: AsyncClient,
     auth_state: dict[str, models.auth.Auth],
@@ -377,6 +410,34 @@ async def test_activate_topic_marks_active_and_creates_task(
         )
         assert task_row is not None
         assert task_row["name"] == "fetch_and_save_stories"
+
+
+async def test_activate_topic_rejects_free_tier_user(
+    client: AsyncClient,
+    db: dependencies.db.DBManager,
+    auth_state: dict[str, models.auth.Auth],
+    fixed_now: datetime,
+) -> None:
+    user_id = uuid4()
+    topic_id = uuid4()
+    auth_state["value"] = models.auth.Auth(id=user_id, is_anonymous=False)
+
+    await _create_user(db, user_id, fixed_now, tier=models.users.UserTier.FREE)
+    await _create_topic(
+        db,
+        topic_id=topic_id,
+        user_id=user_id,
+        now=fixed_now,
+        is_active=False,
+    )
+
+    response = await client.post("/topics/activate", params={"topic_id": str(topic_id)})
+    assert response.status_code == 403
+
+    async with db.get_connection() as connection:
+        topic = await queries.topics.get(connection, topic_id)
+        assert topic is not None
+        assert topic.is_active is False
 
 
 async def test_deactivate_topic_marks_inactive_and_decrements_counter(

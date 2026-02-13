@@ -13,6 +13,10 @@ router = APIRouter(
 )
 
 
+def _get_scheduled_at(schedule: datetime, now: datetime) -> datetime:
+    return max(schedule - timedelta(minutes=10), now)
+
+
 @router.post("/create", status_code=201)
 async def create(
     auth: Annotated[models.auth.Auth, Depends(dependencies.auth.get_auth)],
@@ -133,7 +137,7 @@ async def create(
             created_at=now,
             updated_at=None,
             payload=task_payload.model_dump_json(),
-            scheduled_at=schedule - timedelta(minutes=10),
+            scheduled_at=_get_scheduled_at(schedule, now),
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -190,7 +194,7 @@ async def change_schedule(
             created_at=now,
             updated_at=None,
             payload=task_payload.model_dump_json(),
-            scheduled_at=schedule - timedelta(minutes=10),
+            scheduled_at=_get_scheduled_at(schedule, now),
             error_message=None,
         )
         await queries.tasks.create(connection, task)
@@ -268,6 +272,14 @@ async def activate_topic(
         if topic.is_active:
             return
 
+        if user.tier is models.users.UserTier.FREE:
+            raise exceptions.topics.TopicLimitExceeded(
+                detail=(
+                    "Free tier users cannot activate topics. "
+                    "Please upgrade your subscription to activate topics."
+                )
+            )
+
         if user.active_topics_count >= 5 and user.tier is models.users.UserTier.PREMIUM:
             raise exceptions.topics.TopicLimitExceeded(
                 detail=(
@@ -307,7 +319,7 @@ async def activate_topic(
             created_at=now,
             updated_at=None,
             payload=task_paylaod.model_dump_json(),
-            scheduled_at=schedule - timedelta(minutes=10),
+            scheduled_at=_get_scheduled_at(schedule, now),
             error_message=None,
         )
         await queries.tasks.create(connection, task)
