@@ -42,6 +42,37 @@ services:
     profiles:
       - api
 
+  redis:
+    image: redis:7
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        redis-server \
+          --requirepass "$${REDIS_PASSWORD:-password}" \
+          --appendonly yes \
+          --appendfsync everysec \
+          --dir /data
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    environment:
+      RI_REDIS_HOST: redis
+      RI_REDIS_PORT: "6379"
+      RI_REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+      RI_REDIS_DB: "0"
+      RI_ACCEPT_TERMS_AND_CONDITIONS: "true"
+    depends_on:
+      - redis
+
   web:
     build:
       context: .
@@ -100,3 +131,4 @@ services:
 
 volumes:
   db_data:
+  redis_data:
