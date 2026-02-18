@@ -12,7 +12,7 @@ from digestify_api.auth.models import (
     SignInWithUsernameRequest,
     SignUpWithUsernameRequest,
     User,
-    UserSignedUpEvent,
+    UserSignedUp,
 )
 from digestify_api.auth.password import hash_password, verify_password
 from digestify_api.auth.queries import create_user, get_user_by_username
@@ -67,14 +67,16 @@ async def sign_up_with_username(
         except UniqueViolationError:
             raise UserAlreadyExists()
 
-        event = UserSignedUpEvent(
+        event = UserSignedUp(
             user_id=user.id,
             username=user.username,
+            version=user.version,
         )
 
         message = Message(
             id=uuid4(),
             type="UserSignedUpEvent",
+            destination="auth-events",
             payload=event.model_dump_json(),
             created_at=now,
             scheduled_at=now,

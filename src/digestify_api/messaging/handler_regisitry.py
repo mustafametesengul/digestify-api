@@ -1,33 +1,32 @@
 import inspect
 from dataclasses import dataclass
 from types import FunctionType
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, TypeVar
 
-from digestify_api.messaging.models import Message
+from digestify_api.messaging.models import Command, Event, Message, Reply
 
 
 @dataclass
 class HandlerBinding:
-    stream: str
+    channel: str
     message_type: str
-    consumer_group: str
+    handler_name: str
     handler: Callable[[Message], Awaitable[None]]
 
 
-Handler = Callable[[Message], Awaitable[None]]
+Handler = Callable[..., Awaitable[None]]
+T_Handler = TypeVar("T_Handler", bound=Handler)
 
 
 class HandlerRegistry:
     def __init__(self) -> None:
-        self._handlers: dict[str, HandlerBinding] = {}
+        self._handlers: list[HandlerBinding] = []
 
     def register(
         self,
-        stream: str,
-        message_type: str,
-        consumer_group: str,
-    ) -> Callable[[Handler], Handler]:
-        def decorator(handler: Handler) -> Handler:
+        service: str,
+    ) -> Callable[[T_Handler], T_Handler]:
+        def decorator(handler: T_Handler) -> T_Handler:
             if not isinstance(handler, FunctionType):
                 raise TypeError("Handler must be a function")
 
@@ -36,19 +35,44 @@ class HandlerRegistry:
             if len(params) != 1:
                 raise ValueError("Handler must have exactly one argument")
 
-            if params[0].annotation is not Message:
-                raise TypeError("Handler argument must be of type Message")
+            arg_type = params[0].annotation
+            if not (
+                inspect.isclass(arg_type)
+                and issubclass(arg_type, (Event, Command, Reply))
+            ):
+                raise TypeError(
+                    "Handler argument must be a subclass of Event, Command, or Reply"
+                )
 
-            self._handlers[stream] = HandlerBinding(
-                stream=stream,
+            handler_name = handler.__name__
+            message_type = arg_type.__name__
+
+            already_exists = any(h.handler_name == handler_name for h in self._handlers)
+            if issubclass(arg_type, Command) and already_exists:
+                msg = f"Handler for command {message_type} already exists"
+                raise ValueError(msg)
+
+            if issubclass(arg_type, Reply) and already_exists:
+                msg = f"Handler for reply {message_type} already exists"
+                raise ValueError(msg)
+
+            async def wrapper(message: Message) -> None:
+                payload = arg_type.model_validate_json(message.payload)
+                await handler(payload)
+
+            handler_binding = HandlerBinding(
+                channel=service,
                 message_type=message_type,
-                consumer_group=consumer_group,
-                handler=handler,
+                handler_name=handler_name,
+                handler=wrapper,
             )
+
+            self._handlers.append(handler_binding)
+
             return handler
 
         return decorator
 
-    def get_handler(self, name: str) -> Handler | None:
-        handler_info = self._handlers.get(name)
-        return handler_info.handler if handler_info else None
+    @property
+    def handlers(self) -> list[HandlerBinding]:
+        return self._handlers

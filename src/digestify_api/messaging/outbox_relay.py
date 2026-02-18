@@ -12,18 +12,18 @@ class OutboxRelay:
     def __init__(
         self,
         database: Database,
+        redis: Redis,
         batch_size: int = 10,
         poll_interval: float = 1.0,
     ) -> None:
         self._database = database
-        self._redis = Redis(password="password")
-        self._stream = database.schema
+        self._redis = redis
         self._batch_size = batch_size
         self._poll_interval = poll_interval
 
     async def _publish(self, message: Message) -> None:
         await self._redis.xadd(
-            name=self._stream,
+            name=message.destination,
             fields={"message": message.model_dump_json()},
         )
 

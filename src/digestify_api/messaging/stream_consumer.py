@@ -19,9 +19,9 @@ class StreamConsumer:
     def add_registry(self, registry: HandlerRegistry) -> None:
         self._registries.append(registry)
 
-    async def _consume_stream(self, handler_info: HandlerBinding) -> None:
-        stream_name = handler_info.stream
-        group_name = handler_info.consumer_group
+    async def _consume_stream(self, handler_binding: HandlerBinding) -> None:
+        stream_name = handler_binding.channel
+        group_name = handler_binding.handler_name
         consumer_name = uuid4().hex
 
         # Create consumer group if it doesn't exist
@@ -69,14 +69,14 @@ class StreamConsumer:
                         continue
 
                     try:
-                        await handler_info.handler(message)
+                        await handler_binding.handler(message)
                         await self._redis.xack(stream_name, group_name, message_id)
                     except Exception:
                         _logger.exception("Error while handling message")
 
     async def run(self) -> None:
         for registry in self._registries:
-            for handler_info in registry._handlers.values():
-                task = asyncio.create_task(self._consume_stream(handler_info))
+            for handler_binding in registry._handlers.values():
+                task = asyncio.create_task(self._consume_stream(handler_binding))
                 self._tasks.append(task)
         await asyncio.gather(*self._tasks)

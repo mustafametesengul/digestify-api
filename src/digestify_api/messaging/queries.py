@@ -11,6 +11,7 @@ async def create_messaging_tables(connection: Connection) -> None:
         """
         CREATE TABLE messages (
             id UUID PRIMARY KEY,
+            channel TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             type TEXT NOT NULL,
             payload JSONB NOT NULL,
@@ -22,6 +23,7 @@ async def create_messaging_tables(connection: Connection) -> None:
 
         CREATE TABLE outbox (
             id UUID PRIMARY KEY,
+            channel TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             type TEXT NOT NULL,
             payload JSONB NOT NULL,
@@ -47,10 +49,11 @@ async def create_message(conn: Connection, message: Message) -> None:
     await conn.execute(
         """
         INSERT INTO messages
-        (id, type, payload, scheduled_at, created_at)
-        VALUES ($1, $2, $3, $4, $5)
+        (id, channel, type, payload, scheduled_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         """,
         message.id,
+        message.destination,
         message.type,
         message.payload,
         message.scheduled_at,
@@ -59,10 +62,11 @@ async def create_message(conn: Connection, message: Message) -> None:
     await conn.execute(
         """
         INSERT INTO outbox
-        (id, type, payload, scheduled_at, created_at)
-        VALUES ($1, $2, $3, $4, $5)
+        (id, channel, type, payload, scheduled_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         """,
         message.id,
+        message.destination,
         message.type,
         message.payload,
         message.scheduled_at,
@@ -97,4 +101,19 @@ async def delete_outbox_message(conn: Connection, message_id: UUID) -> None:
         WHERE id = $1
         """,
         message_id,
+    )
+
+
+async def add_channel_column(connection: Connection) -> None:
+    await connection.execute(
+        """
+        ALTER TABLE messages
+        ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'default';
+        """
+    )
+    await connection.execute(
+        """
+        ALTER TABLE outbox
+        ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'default';
+        """
     )
