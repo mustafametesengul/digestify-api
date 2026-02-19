@@ -1,11 +1,11 @@
 import asyncio
 
-from digestify_api import messaging
-from digestify_api.auth.dependencies import database
-from digestify_api.auth.queries import create_tables
+from digestify_api import infrastructure
+from digestify_api.identity.dependencies import database
+from digestify_api.identity.queries import create_tables
 from digestify_api.migrations import apply_migrations
 
-migrations = [create_tables] + messaging.migrations
+migrations = [create_tables] + infrastructure.migrations
 
 
 async def main() -> None:

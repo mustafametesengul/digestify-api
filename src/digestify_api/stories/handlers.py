@@ -1,5 +1,5 @@
-from digestify_api.auth import UserSignedUp
-from digestify_api.messaging import HandlerRegistry
+from digestify_api.identity import UserSignedUp
+from digestify_api.infrastructure import HandlerRegistry
 
 handler_registry = HandlerRegistry(service_name="stories")
 

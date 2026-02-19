@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from digestify_api.messaging import Event
+from digestify_api.infrastructure import Event
 
 
 class UserResponse(BaseModel):

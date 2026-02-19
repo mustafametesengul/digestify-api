@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from digestify_api import auth, stories
+from digestify_api import identity, stories
 from digestify_api.app.settings import AppSettings
 
 settings = AppSettings()
@@ -13,11 +13,11 @@ settings = AppSettings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await auth.database.init_pool()
+    await identity.database.init_pool()
     await stories.database.init_pool()
 
     tasks = [
-        asyncio.create_task(auth.outbox_publisher.run()),
+        asyncio.create_task(identity.outbox_publisher.run()),
         asyncio.create_task(stories.stream_consumer.run()),
     ]
 
@@ -28,7 +28,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             task.cancel()
 
         await asyncio.gather(*tasks, return_exceptions=True)
-        await auth.database.close_pool()
+        await identity.database.close_pool()
 
 
 def main() -> None:
@@ -38,7 +38,7 @@ def main() -> None:
         debug=settings.debug,
     )
 
-    app.include_router(auth.router)
+    app.include_router(identity.router)
 
     uvicorn.run(app, host=settings.host, port=settings.port)
 

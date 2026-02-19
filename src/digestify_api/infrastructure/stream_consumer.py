@@ -4,8 +4,9 @@ from uuid import uuid4
 
 from redis.asyncio import Redis
 
-from digestify_api.messaging.handler_regisitry import HandlerBinding, HandlerRegistry
-from digestify_api.messaging.models import Message
+from digestify_api.infrastructure.handler_registry import HandlerBinding, HandlerRegistry
+from digestify_api.infrastructure.models import Message
+from digestify_api.infrastructure.message_broker import MessageBroker
 
 _logger = getLogger(__name__)
 

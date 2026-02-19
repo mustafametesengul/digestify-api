@@ -5,14 +5,12 @@ from typing import Awaitable, Callable, TypeVar
 
 from pydantic import BaseModel
 
-from digestify_api.messaging.models import Command, Event, Message, Reply
+from digestify_api.infrastructure.models import Command, Event, Message, Reply
 
 
 @dataclass
 class HandlerBinding:
-    service_name: str
-    queue: str
-    channel: str
+    service_name: str | None
     message_type: str
     handler_name: str
     handler: Callable[[Message], Awaitable[None]]
@@ -23,31 +21,13 @@ T_Handler = TypeVar("T_Handler", bound=Handler)
 
 
 class HandlerRegistry:
-    def __init__(self, service_name: str) -> None:
-        self._service_name = service_name
+    def __init__(self) -> None:
         self._handlers: list[HandlerBinding] = []
-
-    def _get_arg_type(
-        self, handler: T_Handler, t: type, check_duplicates: bool = True
-    ) -> type:
-        sig = inspect.signature(handler)
-        params = list(sig.parameters.values())
-        if len(params) != 1:
-            raise ValueError("Handler must have exactly one argument")
-
-        arg_type = params[0].annotation
-        if not inspect.isclass(arg_type):
-            raise TypeError("Handler argument must be a class")
-        if not issubclass(arg_type, t):
-            raise TypeError(f"Handler argument must be a subclass of {t.__name__}")
-
-        return arg_type
 
     def _register(
         self,
         handler: T_Handler,
-        service_name: str,
-        queue: str,
+        service_name: str | None,
         allowed_type: type,
         check_duplicates: bool = True,
     ) -> T_Handler:
@@ -84,12 +64,8 @@ class HandlerRegistry:
             payload = arg_type.model_validate_json(message.payload)
             await handler(payload)
 
-        channel = f"{service_name}:{queue}"
-
         handler_binding = HandlerBinding(
             service_name=service_name,
-            queue=queue,
-            channel=channel,
             message_type=message_type,
             handler_name=handler_name,
             handler=wrapper,
@@ -102,8 +78,7 @@ class HandlerRegistry:
         def decorator(handler: T_Handler) -> T_Handler:
             return self._register(
                 handler,
-                service_name,
-                queue="events",
+                service_name=service_name,
                 allowed_type=Event,
                 check_duplicates=False,
             )
@@ -112,23 +87,13 @@ class HandlerRegistry:
 
     def command(self) -> Callable[[T_Handler], T_Handler]:
         def decorator(handler: T_Handler) -> T_Handler:
-            return self._register(
-                handler=handler,
-                service_name=self._service_name,
-                queue="commands",
-                allowed_type=Command,
-            )
+            return self._register(handler=handler, allowed_type=Command)
 
         return decorator
 
     def reply(self) -> Callable[[T_Handler], T_Handler]:
         def decorator(handler: T_Handler) -> T_Handler:
-            return self._register(
-                handler=handler,
-                service_name=self._service_name,
-                queue="replies",
-                allowed_type=Reply,
-            )
+            return self._register(handler=handler, allowed_type=Reply)
 
         return decorator
 

@@ -2,7 +2,7 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.auth.models import User
+from digestify_api.identity.models import User
 
 
 async def create_tables(connection: Connection) -> None:

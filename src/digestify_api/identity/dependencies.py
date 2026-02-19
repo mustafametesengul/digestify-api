@@ -1,9 +1,10 @@
 from redis.asyncio import Redis
 
-from digestify_api.db import Database, DatabaseSettings
-from digestify_api.messaging import OutboxRelay, RedisSettings
+from digestify_api.db import Database
+from digestify_api.infrastructure import OutboxRelay, RedisSettings
 
-database = Database(settings=DatabaseSettings(db_schema="auth"))
+
+database = Database()
 redis_settings = RedisSettings()
 redis = Redis(
     host=redis_settings.host,

@@ -5,17 +5,17 @@ from uuid import uuid4
 from asyncpg import UniqueViolationError
 from fastapi import APIRouter, Depends
 
-from digestify_api.auth.dependencies import get_database
-from digestify_api.auth.exceptions import UserAlreadyExists
-from digestify_api.auth.models import (
+from digestify_api.identity.dependencies import get_database
+from digestify_api.identity.exceptions import UserAlreadyExists
+from digestify_api.identity.models import (
     RefreshTokenRequest,
     SignInWithUsernameRequest,
     SignUpWithUsernameRequest,
     User,
     UserSignedUp,
 )
-from digestify_api.auth.password import hash_password, verify_password
-from digestify_api.auth.queries import create_user, get_user_by_username
+from digestify_api.identity.password import hash_password, verify_password
+from digestify_api.identity.queries import create_user, get_user_by_username
 from digestify_api.db import Database
 from digestify_api.jwt import (
     InvalidCredentials,
@@ -25,9 +25,9 @@ from digestify_api.jwt import (
     TokenType,
     get_jwt_service,
 )
-from digestify_api.messaging import Message, create_message
+from digestify_api.infrastructure import Message, create_message
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 
 @router.post("/sign_in_anonymously", status_code=201)

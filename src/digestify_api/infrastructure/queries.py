@@ -3,7 +3,7 @@ from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.messaging.models import Message
+from digestify_api.infrastructure.models import Message
 
 
 async def create_messaging_tables(connection: Connection) -> None:
