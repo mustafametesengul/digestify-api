@@ -3,6 +3,7 @@ from digestify_api.messaging.migrations import migrations
 from digestify_api.messaging.models import Command, Event, Message
 from digestify_api.messaging.outbox_relay import OutboxRelay
 from digestify_api.messaging.queries import create_message
+from digestify_api.messaging.redis_settings import RedisSettings
 from digestify_api.messaging.stream_consumer import StreamConsumer
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "Event",
     "Command",
     "StreamConsumer",
+    "RedisSettings",
 ]

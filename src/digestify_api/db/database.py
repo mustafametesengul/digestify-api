@@ -18,7 +18,7 @@ class Database:
 
     @property
     def schema(self) -> str:
-        return self._settings.schema
+        return self._settings.db_schema
 
     async def init_pool(self) -> None:
         dsn = (
@@ -54,6 +54,6 @@ class Database:
         async with self._pool.acquire() as connection:
             if not isinstance(connection, asyncpg.Connection):
                 raise RuntimeError("Failed to acquire a valid database connection.")
-            await connection.execute(f"SET search_path TO {self._settings.schema}")
+            await connection.execute(f"SET search_path TO {self._settings.db_schema}")
             async with connection.transaction():
                 yield connection
