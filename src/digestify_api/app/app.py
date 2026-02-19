@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from digestify_api import auth
+from digestify_api import auth, stories
 from digestify_api.app.settings import AppSettings
 
 settings = AppSettings()
@@ -14,9 +14,11 @@ settings = AppSettings()
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await auth.database.init_pool()
+    await stories.database.init_pool()
 
     tasks = [
         asyncio.create_task(auth.outbox_publisher.run()),
+        asyncio.create_task(stories.stream_consumer.run()),
     ]
 
     try:

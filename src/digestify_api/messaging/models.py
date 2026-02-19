@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class Message(BaseModel):
     id: UUID
-    destination: str
+    channel: str
     type: str
     payload: str
     created_at: datetime

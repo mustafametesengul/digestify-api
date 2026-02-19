@@ -1,6 +1,3 @@
-from digestify_api.messaging.queries import (
-    add_channel_column,
-    create_messaging_tables,
-)
+from digestify_api.messaging.queries import create_messaging_tables
 
-migrations = [create_messaging_tables, add_channel_column]
+migrations = [create_messaging_tables]

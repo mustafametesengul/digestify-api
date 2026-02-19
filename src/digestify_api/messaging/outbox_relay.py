@@ -23,7 +23,7 @@ class OutboxRelay:
 
     async def _publish(self, message: Message) -> None:
         await self._redis.xadd(
-            name=message.destination,
+            name=message.channel,
             fields={"message": message.model_dump_json()},
         )
 

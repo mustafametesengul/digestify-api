@@ -75,8 +75,8 @@ async def sign_up_with_username(
 
         message = Message(
             id=uuid4(),
-            type="UserSignedUpEvent",
-            destination="auth-events",
+            type="UserSignedUp",
+            channel="auth:events",
             payload=event.model_dump_json(),
             created_at=now,
             scheduled_at=now,
