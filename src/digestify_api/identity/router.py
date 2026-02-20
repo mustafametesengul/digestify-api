@@ -15,11 +15,11 @@ router = APIRouter()
 async def sign_in_anonymously(
     jwt_service: Annotated[jwt.JWTService, Depends(jwt.get_jwt_service)],
 ) -> jwt.TokenResponse:
-    auth = jwt.TokenPayload(
+    token_payload = jwt.TokenPayload(
         id=uuid4(),
         is_anonymous=True,
     )
-    return jwt_service.generate_tokens(auth)
+    return jwt_service.generate_tokens(token_payload)
 
 
 @router.post("/sign_up_with_username", status_code=201)
@@ -56,8 +56,8 @@ async def sign_up_with_username(
 
         await dependencies.channel.save_event(connection, event)
 
-        auth = jwt.TokenPayload(id=user.id, is_anonymous=False)
-        return jwt_service.generate_tokens(auth)
+        token_payload = jwt.TokenPayload(id=user.id, is_anonymous=False)
+        return jwt_service.generate_tokens(token_payload)
 
 
 @router.post("/sign_in_with_username")
@@ -79,8 +79,8 @@ async def sign_in_with_username(
         if not password_valid:
             raise jwt.InvalidCredentials()
 
-        auth = jwt.TokenPayload(id=user.id, is_anonymous=False)
-        return jwt_service.generate_tokens(auth)
+        token_payload = jwt.TokenPayload(id=user.id, is_anonymous=False)
+        return jwt_service.generate_tokens(token_payload)
 
 
 @router.post("/refresh_token")
@@ -88,8 +88,8 @@ async def refresh_token(
     jwt_service: Annotated[jwt.JWTService, Depends(jwt.get_jwt_service)],
     payload: models.RefreshTokenRequest,
 ) -> jwt.TokenResponse:
-    auth = jwt_service.decode_token(
+    token_payload = jwt_service.decode_token(
         payload.refresh_token, token_type=jwt.TokenType.REFRESH
     )
 
-    return jwt_service.generate_tokens(auth)
+    return jwt_service.generate_tokens(token_payload)
