@@ -1,3 +1,4 @@
-from digestify_api.stories.dependencies import database, stream_consumer
+from digestify_api.stories.dependencies import database
+from digestify_api.stories.handlers import handler_registry
 
-__all__ = ["stream_consumer", "database"]
+__all__ = ["database", "handler_registry"]

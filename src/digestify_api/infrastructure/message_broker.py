@@ -1,8 +1,8 @@
+import logging
+
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis.asyncio import Redis
-
-import logging
 
 from digestify_api.infrastructure.models import Message
 
@@ -60,13 +60,15 @@ class MessageBroker:
         stream_name: str,
         group_name: str,
         consumer_name: str,
+        count: int = 1,
+        block: int = 1000,
     ) -> list[tuple[str, str, Message]]:
         entries = await self._redis.xreadgroup(
             group_name,
             consumer_name,
             streams={stream_name: ">"},
-            count=1,
-            block=1000,
+            count=count,
+            block=block,
         )
 
         broker_messages: list[tuple[str, str, Message]] = []

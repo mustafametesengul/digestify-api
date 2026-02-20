@@ -59,6 +59,9 @@ async def create_message(conn: Connection, message: Message) -> None:
         message.scheduled_at,
         message.created_at,
     )
+
+
+async def create_outbox_message(conn: Connection, message: Message) -> None:
     await conn.execute(
         """
         INSERT INTO outbox

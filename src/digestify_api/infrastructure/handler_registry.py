@@ -5,12 +5,13 @@ from typing import Awaitable, Callable, TypeVar
 
 from pydantic import BaseModel
 
+from digestify_api.infrastructure.channel import Channel
 from digestify_api.infrastructure.models import Command, Event, Message, Reply
 
 
 @dataclass
 class HandlerBinding:
-    service_name: str | None
+    channel: Channel
     message_type: str
     handler_name: str
     handler: Callable[[Message], Awaitable[None]]
@@ -21,14 +22,15 @@ T_Handler = TypeVar("T_Handler", bound=Handler)
 
 
 class HandlerRegistry:
-    def __init__(self) -> None:
+    def __init__(self, channel: Channel) -> None:
         self._handlers: list[HandlerBinding] = []
+        self._channel = channel
 
     def _register(
         self,
         handler: T_Handler,
-        service_name: str | None,
         allowed_type: type,
+        channel: Channel | None = None,
         check_duplicates: bool = True,
     ) -> T_Handler:
         if not isinstance(handler, FunctionType):
@@ -51,13 +53,16 @@ class HandlerRegistry:
         handler_name = handler.__name__
         message_type = arg_type.__name__
 
+        if channel is None:
+            channel = self._channel
+
         if check_duplicates:
             already_exists = any(
-                h.message_type == message_type and h.service_name == service_name
+                h.message_type == message_type and h.channel == channel
                 for h in self._handlers
             )
             if already_exists:
-                msg = f"Handler for {message_type} on service {service_name} already exists"
+                msg = f"Handler for {message_type} on channel {channel} already exists"
                 raise ValueError(msg)
 
         async def wrapper(message: Message) -> None:
@@ -65,7 +70,7 @@ class HandlerRegistry:
             await handler(payload)
 
         handler_binding = HandlerBinding(
-            service_name=service_name,
+            channel=channel,
             message_type=message_type,
             handler_name=handler_name,
             handler=wrapper,
@@ -74,11 +79,11 @@ class HandlerRegistry:
         self._handlers.append(handler_binding)
         return handler
 
-    def event(self, service_name: str) -> Callable[[T_Handler], T_Handler]:
+    def event(self, channel: Channel) -> Callable[[T_Handler], T_Handler]:
         def decorator(handler: T_Handler) -> T_Handler:
             return self._register(
                 handler,
-                service_name=service_name,
+                channel=channel,
                 allowed_type=Event,
                 check_duplicates=False,
             )

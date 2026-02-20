@@ -1,9 +1,12 @@
 import asyncio
 from datetime import datetime, timezone
 
-from digestify_api.db import Database
-from digestify_api.infrastructure.queries import delete_outbox_message, get_outbox_messages
+from digestify_api.infrastructure.database import Database
 from digestify_api.infrastructure.message_broker import MessageBroker
+from digestify_api.infrastructure.queries import (
+    delete_outbox_message,
+    get_outbox_messages,
+)
 
 
 class OutboxRelay:

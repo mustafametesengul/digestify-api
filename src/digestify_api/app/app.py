@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from digestify_api import identity, stories
 from digestify_api.app.settings import AppSettings
+from digestify_api.infrastructure import MessageBroker, StreamConsumer
 
 settings = AppSettings()
 
@@ -16,9 +17,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await identity.database.init_pool()
     await stories.database.init_pool()
 
+    message_broker = MessageBroker()
+    consumer = StreamConsumer(message_broker)
+    consumer.add_registry(stories.handler_registry, "stories")
+
     tasks = [
         asyncio.create_task(identity.outbox_publisher.run()),
-        asyncio.create_task(stories.stream_consumer.run()),
+        asyncio.create_task(consumer.run()),
     ]
 
     try:
@@ -29,6 +34,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
         await asyncio.gather(*tasks, return_exceptions=True)
         await identity.database.close_pool()
+        await stories.database.close_pool()
 
 
 def main() -> None:

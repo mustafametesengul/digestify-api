@@ -1,4 +1,4 @@
-from digestify_api.db import Database
+from digestify_api.infrastructure import Database
 from digestify_api.migrations.queries import (
     create_schema,
     create_schema_migrations_table,
@@ -13,9 +13,9 @@ async def get_applied_migrations_(db: Database) -> set[str]:
         return rows
 
 
-async def apply_migrations(db: Database, migrations: list) -> None:
+async def apply_migrations(db: Database, migrations: list, schema: str) -> None:
     async with db.transaction() as conn:
-        await create_schema(conn, db.schema)
+        await create_schema(conn, schema)
 
     async with db.transaction() as conn:
         await create_schema_migrations_table(conn)

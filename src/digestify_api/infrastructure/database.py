@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 import asyncpg
-
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

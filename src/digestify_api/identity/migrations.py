@@ -11,7 +11,7 @@ migrations = [create_tables] + infrastructure.migrations
 async def main() -> None:
     print("Applying migrations...")
     await database.init_pool()
-    await apply_migrations(database, migrations)
+    await apply_migrations(database, migrations, "identity")
     await database.close_pool()
     print("Migrations applied successfully.")
 

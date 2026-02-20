@@ -5,7 +5,7 @@ from uuid import uuid4
 from asyncpg import UniqueViolationError
 from fastapi import APIRouter, Depends
 
-from digestify_api.identity.dependencies import get_database
+from digestify_api.identity.dependencies import channel, get_database
 from digestify_api.identity.exceptions import UserAlreadyExists
 from digestify_api.identity.models import (
     RefreshTokenRequest,
@@ -16,7 +16,7 @@ from digestify_api.identity.models import (
 )
 from digestify_api.identity.password import hash_password, verify_password
 from digestify_api.identity.queries import create_user, get_user_by_username
-from digestify_api.db import Database
+from digestify_api.infrastructure import Database
 from digestify_api.jwt import (
     InvalidCredentials,
     JWTService,
@@ -25,7 +25,6 @@ from digestify_api.jwt import (
     TokenType,
     get_jwt_service,
 )
-from digestify_api.infrastructure import Message, create_message
 
 router = APIRouter()
 
@@ -73,15 +72,7 @@ async def sign_up_with_username(
             version=user.version,
         )
 
-        message = Message(
-            id=uuid4(),
-            type="UserSignedUp",
-            channel="auth:events",
-            payload=event.model_dump_json(),
-            created_at=now,
-            scheduled_at=now,
-        )
-        await create_message(connection, message)
+        await channel.save_event(connection, event)
 
         auth = TokenPayload(id=user.id, is_anonymous=False)
         return jwt_manager.generate_tokens(auth)

@@ -1,18 +1,9 @@
-from redis.asyncio import Redis
-
-from digestify_api.db import Database
-from digestify_api.infrastructure import OutboxRelay, RedisSettings
-
+from digestify_api.infrastructure import Channel, Database, MessageBroker, OutboxRelay
 
 database = Database()
-redis_settings = RedisSettings()
-redis = Redis(
-    host=redis_settings.host,
-    port=redis_settings.port,
-    password=redis_settings.password.get_secret_value(),
-    db=redis_settings.db,
-)
-outbox_publisher = OutboxRelay(database=database, redis=redis)
+message_broker = MessageBroker()
+outbox_publisher = OutboxRelay(database=database, message_broker=message_broker)
+channel = Channel()
 
 
 def get_database() -> Database:
