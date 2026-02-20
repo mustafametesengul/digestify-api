@@ -1,6 +1,6 @@
 from digestify_api import identity
 from digestify_api.identity import UserSignedUp
-from digestify_api.infrastructure import HandlerRegistry
+from digestify_api.infrastructure.handler_registry import HandlerRegistry
 from digestify_api.stories.dependencies import channel
 
 handler_registry = HandlerRegistry(channel=channel)

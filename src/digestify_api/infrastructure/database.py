@@ -31,6 +31,12 @@ class Database:
         self._settings = settings or DatabaseSettings()
         self._schema: str | None = None
 
+    @property
+    def schema(self) -> str:
+        if self._schema is None:
+            raise RuntimeError("Database schema is not set. Call init_pool first.")
+        return self._schema
+
     async def init_pool(self, schema: str | None = None) -> None:
         dsn = (
             f"postgresql://"

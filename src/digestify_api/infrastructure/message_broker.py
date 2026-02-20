@@ -4,7 +4,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis.asyncio import Redis
 
-from digestify_api.infrastructure.models import Message
+from digestify_api.infrastructure.message import Message
 
 _logger = logging.getLogger(__name__)
 

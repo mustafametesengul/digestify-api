@@ -1,4 +1,7 @@
-from digestify_api.infrastructure import Channel, Database, MessageBroker, OutboxRelay
+from digestify_api.infrastructure.channel import Channel
+from digestify_api.infrastructure.database import Database
+from digestify_api.infrastructure.message_broker import MessageBroker
+from digestify_api.infrastructure.outbox import OutboxRelay
 
 database = Database()
 message_broker = MessageBroker()

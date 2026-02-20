@@ -5,8 +5,8 @@ from typing import Awaitable, Callable, TypeVar
 
 from pydantic import BaseModel
 
-from digestify_api.infrastructure.channel import Channel
-from digestify_api.infrastructure.models import Command, Event, Message, Reply
+from digestify_api.infrastructure.channel import Channel, Command, Event, Reply
+from digestify_api.infrastructure.message import Message
 
 
 @dataclass

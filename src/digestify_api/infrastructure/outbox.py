@@ -1,27 +1,18 @@
-from datetime import datetime
+import asyncio
+from datetime import datetime, timezone
 from uuid import UUID
 
 from asyncpg import Connection
 
-from digestify_api.infrastructure.models import Message
+from digestify_api.infrastructure.database import Database
+from digestify_api.infrastructure.message import Message
+from digestify_api.infrastructure.message_broker import MessageBroker
 
 
-async def create_messaging_tables(connection: Connection) -> None:
+async def create_outbox_table(connection: Connection) -> None:
     await connection.execute(
         """
-        CREATE TABLE messages (
-            id UUID PRIMARY KEY,
-            channel TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            type TEXT NOT NULL,
-            payload JSONB NOT NULL,
-            scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL
-        );
-
-        CREATE INDEX ix_messages_scheduled_at ON messages (scheduled_at);
-        CREATE INDEX ix_messages_type ON messages (type);
-
-        CREATE TABLE outbox (
+          CREATE TABLE outbox (
             id UUID PRIMARY KEY,
             channel TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -32,32 +23,7 @@ async def create_messaging_tables(connection: Connection) -> None:
 
         CREATE INDEX ix_outbox_scheduled_at ON outbox (scheduled_at);
         CREATE INDEX ix_outbox_type ON outbox (type);
-
-        CREATE TABLE handled_messages (
-            message_id UUID NOT NULL,
-            handler_name TEXT NOT NULL,
-            handled_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            PRIMARY KEY (message_id, handler_name)
-        );
-
-        CREATE INDEX ix_handled_messages_handled_at ON handled_messages (handled_at);
         """
-    )
-
-
-async def create_message(conn: Connection, message: Message) -> None:
-    await conn.execute(
-        """
-        INSERT INTO messages
-        (id, channel, type, payload, scheduled_at, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        """,
-        message.id,
-        message.channel,
-        message.type,
-        message.payload,
-        message.scheduled_at,
-        message.created_at,
     )
 
 
@@ -105,3 +71,35 @@ async def delete_outbox_message(conn: Connection, message_id: UUID) -> None:
         """,
         message_id,
     )
+
+
+migrations = [create_outbox_table]
+
+
+class OutboxRelay:
+    def __init__(
+        self,
+        database: Database,
+        message_broker: MessageBroker,
+        batch_size: int = 10,
+        poll_interval: float = 1.0,
+    ) -> None:
+        self._database = database
+        self._message_broker = message_broker
+        self._batch_size = batch_size
+        self._poll_interval = poll_interval
+
+    async def run(self) -> None:
+        while True:
+            now = datetime.now(timezone.utc)
+            async with self._database.transaction() as connection:
+                messages = await get_outbox_messages(
+                    connection,
+                    now,
+                    limit=self._batch_size,
+                )
+                print(f"Found {len(messages)} pending messages")
+                for message in messages:
+                    await self._message_broker.publish_message(message)
+                    await delete_outbox_message(connection, message.id)
+            await asyncio.sleep(self._poll_interval)

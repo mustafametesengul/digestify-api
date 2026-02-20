@@ -1,7 +1,30 @@
-from asyncpg import Connection
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
 
-from digestify_api.infrastructure.models import Command, Event, Message, Reply
-from digestify_api.infrastructure.queries import create_message, create_outbox_message
+from asyncpg import Connection
+from pydantic import BaseModel, Field
+
+from digestify_api.infrastructure.message import Message, create_message
+from digestify_api.infrastructure.outbox import create_outbox_message
+
+
+class Event(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class Command(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    reply_to: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    scheduled_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class Reply(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    reply_to: str
+    command_id: UUID
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Channel:

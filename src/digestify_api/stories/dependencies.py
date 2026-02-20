@@ -1,9 +1,9 @@
-from digestify_api.infrastructure import Channel, Database, MessageBroker
+from digestify_api import infrastructure
 
-database = Database()
-message_broker = MessageBroker()
-channel = Channel()
+database = infrastructure.database.Database()
+message_broker = infrastructure.message_broker.MessageBroker()
+channel = infrastructure.channel.Channel()
 
 
-def get_database() -> Database:
+def get_database() -> infrastructure.database.Database:
     return database

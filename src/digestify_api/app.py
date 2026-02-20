@@ -4,10 +4,23 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api import identity, stories
-from digestify_api.app.settings import AppSettings
-from digestify_api.infrastructure import MessageBroker, StreamConsumer
+from digestify_api import identity, infrastructure, stories
+
+
+class AppSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="DIGESTIFY_API_",
+    )
+
+    debug: bool = Field(default=False)
+    host: str = Field(default="localhost")
+    port: int = Field(default=8000)
+
 
 settings = AppSettings()
 
@@ -17,8 +30,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await identity.database.init_pool()
     await stories.database.init_pool()
 
-    message_broker = MessageBroker()
-    consumer = StreamConsumer(message_broker)
+    broker = infrastructure.message_broker.MessageBroker()
+    consumer = infrastructure.stream_consumer.StreamConsumer(broker)
     consumer.add_registry(stories.handler_registry, "stories")
 
     tasks = [
@@ -37,7 +50,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await stories.database.close_pool()
 
 
-def main() -> None:
+def run_app() -> None:
     app = FastAPI(
         title="Digestify API",
         lifespan=lifespan,
@@ -50,4 +63,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_app()
