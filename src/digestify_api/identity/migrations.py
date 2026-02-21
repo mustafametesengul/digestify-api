@@ -1,4 +1,4 @@
-from digestify_api.identity.queries import create_tables
-from digestify_api.infrastructure import message, outbox
+from digestify_api import infrastructure
+from digestify_api.identity import queries
 
-migrations = [create_tables] + outbox.migrations + message.migrations
+migrations = infrastructure.migrations + [queries.create_tables]

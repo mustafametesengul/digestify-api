@@ -11,7 +11,7 @@ class HandledMessage(BaseModel):
     handled_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-async def create_handled_messages_tables(connection: Connection) -> None:
+async def create_handled_messages_table(connection: Connection) -> None:
     await connection.execute(
         """
         CREATE TABLE handled_messages (
@@ -41,4 +41,4 @@ async def create_handled_message(
     )
 
 
-migrations = [create_handled_messages_tables]
+migrations = [create_handled_messages_table]

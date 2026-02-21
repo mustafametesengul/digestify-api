@@ -5,8 +5,15 @@ from uuid import uuid4
 from asyncpg import UniqueViolationError
 from fastapi import APIRouter, Depends
 
-from digestify_api.identity import dependencies, exceptions, models, password, queries
-from digestify_api.infrastructure import database, jwt
+from digestify_api import infrastructure
+from digestify_api.identity import (
+    dependencies,
+    exceptions,
+    jwt,
+    models,
+    password,
+    queries,
+)
 
 router = APIRouter()
 
@@ -24,13 +31,14 @@ async def sign_in_anonymously(
 
 @router.post("/sign_up_with_username", status_code=201)
 async def sign_up_with_username(
-    db: Annotated[database.Database, Depends(dependencies.get_database)],
+    database: Annotated[infrastructure.Database, Depends(dependencies.get_database)],
     jwt_service: Annotated[jwt.JWTService, Depends(jwt.get_jwt_service)],
+    channel: Annotated[infrastructure.Channel, Depends(dependencies.get_channel)],
     payload: models.SignUpWithUsernameRequest,
 ) -> jwt.TokenResponse:
     now = datetime.now(timezone.utc)
 
-    async with db.transaction() as connection:
+    async with database.transaction() as connection:
         password_hash = await password.hash_password(payload.password)
 
         user = models.User(
@@ -54,7 +62,7 @@ async def sign_up_with_username(
             version=user.version,
         )
 
-        await dependencies.channel.save_event(connection, event)
+        await channel.save_event(connection, event)
 
         token_payload = jwt.TokenPayload(id=user.id, is_anonymous=False)
         return jwt_service.generate_tokens(token_payload)
@@ -62,11 +70,11 @@ async def sign_up_with_username(
 
 @router.post("/sign_in_with_username")
 async def sign_in_with_username(
-    db: Annotated[database.Database, Depends(dependencies.get_database)],
+    database: Annotated[infrastructure.Database, Depends(dependencies.get_database)],
     jwt_service: Annotated[jwt.JWTService, Depends(jwt.get_jwt_service)],
     payload: models.SignInWithUsernameRequest,
 ) -> jwt.TokenResponse:
-    async with db.transaction() as connection:
+    async with database.transaction() as connection:
         user = await queries.get_user_by_username(connection, payload.username)
         if user is None or user.password_hash is None:
             raise jwt.InvalidCredentials()

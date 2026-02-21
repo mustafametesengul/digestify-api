@@ -1,27 +1,20 @@
-from digestify_api.infrastructure import (
-    channel,
-    database,
-    handled_message,
-    handler_registry,
-    jwt,
-    message,
-    message_broker,
-    migrations,
-    moderation,
-    outbox,
-    stream_consumer,
-)
+from digestify_api.infrastructure.channel import Channel, Command, Event, Reply
+from digestify_api.infrastructure.database import Database
+from digestify_api.infrastructure.dependencies import migrations
+from digestify_api.infrastructure.handler_registry import HandlerRegistry
+from digestify_api.infrastructure.message_broker import MessageBroker
+from digestify_api.infrastructure.outbox import OutboxRelay
+from digestify_api.infrastructure.stream_consumer import StreamConsumer
 
 __all__ = [
-    "message_broker",
-    "stream_consumer",
-    "channel",
-    "outbox",
-    "database",
-    "message",
-    "jwt",
+    "Database",
+    "Channel",
+    "Event",
+    "Command",
+    "Reply",
+    "HandlerRegistry",
+    "OutboxRelay",
+    "MessageBroker",
+    "StreamConsumer",
     "migrations",
-    "handled_message",
-    "handler_registry",
-    "moderation",
 ]
