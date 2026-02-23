@@ -57,7 +57,7 @@ async def sign_up_with_username(
             raise exceptions.UserAlreadyExists()
 
         event = models.UserSignedUp(
-            user_id=user.id,
+            id=user.id,
             username=user.username,
             version=user.version,
         )
@@ -101,3 +101,26 @@ async def refresh_token(
     )
 
     return jwt_service.generate_tokens(token_payload)
+
+
+@router.post("/discard_user")
+async def discard_user(
+    database: Annotated[infrastructure.Database, Depends(dependencies.get_database)],
+    channel: Annotated[infrastructure.Channel, Depends(dependencies.get_channel)],
+    token_payload: Annotated[models.User, Depends(jwt.get_token_payload)],
+) -> None:
+    now = datetime.now(timezone.utc)
+
+    async with database.transaction() as connection:
+        user = await queries.get_user(connection, token_payload.id, lock=True)
+        user.discarded = True
+        user.updated_at = now
+        user.version += 1
+        await queries.update_user(connection, user)
+
+        event = models.UserDiscarded(
+            id=user.id,
+            version=user.version,
+        )
+
+        await channel.save_event(connection, event)

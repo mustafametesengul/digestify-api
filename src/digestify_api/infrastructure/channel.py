@@ -11,6 +11,8 @@ from digestify_api.infrastructure.outbox import create_outbox_message
 class Event(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    producer: str | None = None
+    version: int | None = None
 
 
 class Command(BaseModel):
@@ -52,6 +54,8 @@ class Channel:
             payload=event.model_dump_json(),
             created_at=event.created_at,
             scheduled_at=event.created_at,
+            producer=event.producer,
+            version=event.version,
         )
         await self._save_message(connection, message)
 

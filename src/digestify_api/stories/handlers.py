@@ -2,7 +2,10 @@ from digestify_api import identity
 from digestify_api.infrastructure import HandlerRegistry
 from digestify_api.stories import dependencies
 
-handler_registry = HandlerRegistry(channel=dependencies.channel)
+handler_registry = HandlerRegistry(
+    channel=dependencies.channel,
+    database=dependencies.database,
+)
 
 
 @handler_registry.event(channel=identity.channel)

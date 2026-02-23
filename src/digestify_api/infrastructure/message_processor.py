@@ -11,7 +11,7 @@ from digestify_api.infrastructure.message_broker import MessageBroker
 _logger = getLogger(__name__)
 
 
-class StreamConsumer:
+class MessageProcessor:
     def __init__(self, message_broker: MessageBroker) -> None:
         self._message_broker = message_broker
         self._registries: dict[str, HandlerRegistry] = {}
@@ -31,10 +31,39 @@ class StreamConsumer:
         )
         await self._message_broker.create_consumer_group(stream_name, group_name)
 
+        iteration = 0
+        autoclaim_start_id = "0-0"
         while True:
-            messages = await self._message_broker.consume_stream(
-                stream_name, group_name, consumer_name
-            )
+            iteration += 1
+            is_autoclaim = False
+            messages = []
+
+            # Check pending messages every 10 iterations
+            if iteration % 10 == 0:
+                (
+                    autoclaim_start_id,
+                    messages,
+                ) = await self._message_broker.autoclaim_messages(
+                    stream_name,
+                    group_name,
+                    consumer_name,
+                    start_id=autoclaim_start_id,
+                    count=1,
+                )
+                is_autoclaim = True
+
+                await self._message_broker.delete_ghost_consumers(
+                    stream_name,
+                    group_name,
+                )
+
+            if not messages:
+                # If we didn't autoclaim any messages, check for new messages
+                messages = await self._message_broker.consume_stream(
+                    stream_name, group_name, consumer_name, start_id=">"
+                )
+                is_autoclaim = False
+
             if not messages:
                 continue
 
@@ -51,6 +80,9 @@ class StreamConsumer:
                 await self._message_broker.acknowledge_message(
                     stream_name, group_name, message_id
                 )
+                if is_autoclaim:
+                    # If we successfully processed a pending message, check for more pending messages
+                    iteration = 9
             except Exception:
                 _logger.exception("Error while handling message")
 

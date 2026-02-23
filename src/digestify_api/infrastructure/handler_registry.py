@@ -6,6 +6,7 @@ from typing import Awaitable, Callable, TypeVar
 from pydantic import BaseModel
 
 from digestify_api.infrastructure.channel import Channel, Command, Event, Reply
+from digestify_api.infrastructure.database import Database
 from digestify_api.infrastructure.message import Message
 
 
@@ -22,9 +23,10 @@ T_Handler = TypeVar("T_Handler", bound=Handler)
 
 
 class HandlerRegistry:
-    def __init__(self, channel: Channel) -> None:
+    def __init__(self, channel: Channel, database: Database) -> None:
         self._handlers: list[HandlerBinding] = []
         self._channel = channel
+        self._database = database
 
     def _register(
         self,

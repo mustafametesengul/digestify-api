@@ -3,8 +3,8 @@ from digestify_api.infrastructure.database import Database
 from digestify_api.infrastructure.dependencies import migrations
 from digestify_api.infrastructure.handler_registry import HandlerRegistry
 from digestify_api.infrastructure.message_broker import MessageBroker
+from digestify_api.infrastructure.message_processor import MessageProcessor
 from digestify_api.infrastructure.outbox import OutboxRelay
-from digestify_api.infrastructure.stream_consumer import StreamConsumer
 
 __all__ = [
     "Database",
@@ -15,6 +15,6 @@ __all__ = [
     "HandlerRegistry",
     "OutboxRelay",
     "MessageBroker",
-    "StreamConsumer",
+    "MessageProcessor",
     "migrations",
 ]

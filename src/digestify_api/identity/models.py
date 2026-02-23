@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from digestify_api.infrastructure import channel
+from digestify_api.infrastructure import Event
 
 
 class UserResponse(BaseModel):
@@ -33,7 +33,12 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
-class UserSignedUp(channel.Event):
-    user_id: UUID
+class UserSignedUp(Event):
+    id: UUID
     username: str | None
+    version: int
+
+
+class UserDiscarded(Event):
+    id: UUID
     version: int
