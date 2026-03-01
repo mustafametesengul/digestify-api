@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends
 
 from digestify_api import identity, infrastructure
-from digestify_api.topics import dependencies, exceptions, queries, schemas
+from digestify_api.topics import dependencies, exceptions, models, queries, schemas
 
 router = APIRouter()
 
@@ -80,7 +80,7 @@ async def create(
             schedule_date = now_in_tz.date()
         schedule = datetime.combine(schedule_date, payload.schedule_time, tzinfo=tz)
 
-        topic = schemas.topics.Topic(
+        topic = models.Topic(
             id=uuid4(),
             user_id=auth.id,
             discarded=False,
@@ -99,7 +99,7 @@ async def create(
             schedule_date=schedule_date,
         )
 
-        await queries.topics.create(connection, topic)
+        await queries.create_topic(connection, topic)
 
         follow = schemas.follows.Follow(
             user_id=auth.id,

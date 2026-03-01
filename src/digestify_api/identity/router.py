@@ -9,6 +9,7 @@ from digestify_api import infrastructure
 from digestify_api.identity import (
     dependencies,
     exceptions,
+    models,
     password,
     queries,
     schemas,
@@ -45,7 +46,7 @@ async def sign_up_with_username(
 
         password_hash = await password.hash_password(payload.password)
 
-        user = queries.User(
+        user = models.User(
             id=uuid4(),
             username=payload.username,
             password_hash=password_hash,

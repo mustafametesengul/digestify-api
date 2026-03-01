@@ -1,18 +1,8 @@
-from datetime import datetime
 from uuid import UUID
 
 from asyncpg import Connection
-from pydantic import BaseModel
 
-
-class User(BaseModel):
-    id: UUID
-    username: str | None
-    password_hash: str | None
-    created_at: datetime
-    updated_at: datetime | None
-    version: int
-    is_deleted: bool
+from digestify_api.identity.models import User
 
 
 async def create_tables(connection: Connection) -> None:
@@ -22,14 +12,14 @@ async def create_tables(connection: Connection) -> None:
             id UUID PRIMARY KEY,
             username TEXT UNIQUE,
             password_hash TEXT,
-            discarded BOOLEAN NOT NULL,
+            is_deleted BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE,
             version INTEGER NOT NULL
         );
 
         CREATE INDEX ix_users_username ON users (username);
-        CREATE INDEX ix_users_discarded ON users (discarded);
+        CREATE INDEX ix_users_is_deleted ON users (is_deleted);
         """
     )
 
@@ -38,7 +28,7 @@ async def create_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         INSERT INTO users
-        (id, username, password_hash, discarded, created_at, updated_at, version)
+        (id, username, password_hash, is_deleted, created_at, updated_at, version)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         """,
         user.id,
@@ -55,7 +45,7 @@ async def update_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         UPDATE users
-        SET discarded = $2,
+        SET is_deleted = $2,
             updated_at = $3,
             version = $4
             WHERE id = $1

@@ -1,6 +1,6 @@
 from digestify_api import identity
 from digestify_api.infrastructure import HandlerRegistry
-from digestify_api.topics import dependencies, queries, schemas
+from digestify_api.topics import dependencies, models, queries
 
 handler_registry = HandlerRegistry(
     channel=dependencies.channel,
@@ -14,7 +14,7 @@ async def handle_user_signed_up(event: identity.UserSignedUp) -> None:
     async with database.transaction():
         user = await queries.get_user(database, event.user_id, lock=True)
         if user is None:
-            user = queries.User(
+            user = models.User(
                 id=event.user_id,
                 created_topics_count=0,
                 identity_version=event.version,
@@ -39,7 +39,7 @@ async def handle_user_deleted(event: identity.UserDeleted) -> None:
     async with database.transaction():
         user = await queries.get_user(database, event.user_id, lock=True)
         if user is None:
-            user = schemas.User(
+            user = models.User(
                 id=event.user_id,
                 created_topics_count=0,
                 identity_version=event.version,
