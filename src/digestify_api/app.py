@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api import identity, infrastructure, stories
+from digestify_api import identity, infrastructure, topics
 
 
 class AppSettings(BaseSettings):
@@ -28,11 +28,11 @@ settings = AppSettings()
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await identity.database.init_pool()
-    await stories.database.init_pool()
+    await topics.database.init_pool()
 
     broker = infrastructure.message_broker.MessageBroker()
     consumer = infrastructure.stream_consumer.StreamConsumer(broker)
-    consumer.add_registry(stories.handler_registry, "stories")
+    consumer.add_registry(topics.handler_registry, "stories")
 
     tasks = [
         asyncio.create_task(identity.outbox_publisher.run()),
@@ -47,7 +47,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
         await asyncio.gather(*tasks, return_exceptions=True)
         await identity.database.close_pool()
-        await stories.database.close_pool()
+        await topics.database.close_pool()
 
 
 def run_app() -> None:

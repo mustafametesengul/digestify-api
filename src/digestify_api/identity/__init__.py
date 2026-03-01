@@ -1,7 +1,12 @@
-from digestify_api.identity.dependencies import channel, database, outbox_publisher
+from digestify_api.identity.dependencies import (
+    channel,
+    database,
+    get_user_claims,
+    outbox_publisher,
+)
 from digestify_api.identity.migrations import migrations
-from digestify_api.identity.models import UserSignedUp
 from digestify_api.identity.router import router
+from digestify_api.identity.schemas import UserClaims, UserDeleted, UserSignedUp
 
 __all__ = [
     "database",
@@ -10,4 +15,7 @@ __all__ = [
     "outbox_publisher",
     "UserSignedUp",
     "channel",
+    "UserClaims",
+    "UserDeleted",
+    "get_user_claims",
 ]

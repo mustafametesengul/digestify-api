@@ -12,8 +12,6 @@ class Message(BaseModel):
     payload: str
     created_at: datetime
     scheduled_at: datetime
-    producer: str | None = None
-    version: int | None = None
 
 
 async def create_messages_table(connection: Connection) -> None:
@@ -25,9 +23,7 @@ async def create_messages_table(connection: Connection) -> None:
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             type TEXT NOT NULL,
             payload JSONB NOT NULL,
-            scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            producer TEXT,
-            version INT
+            scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL
         );
 
         CREATE INDEX ix_messages_scheduled_at ON messages (scheduled_at);
@@ -40,8 +36,8 @@ async def create_message(conn: Connection, message: Message) -> None:
     await conn.execute(
         """
         INSERT INTO messages
-        (id, channel, type, payload, scheduled_at, created_at, producer, version)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (id, channel, type, payload, scheduled_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         """,
         message.id,
         message.channel,
@@ -49,8 +45,6 @@ async def create_message(conn: Connection, message: Message) -> None:
         message.payload,
         message.scheduled_at,
         message.created_at,
-        message.producer,
-        message.version,
     )
 
 

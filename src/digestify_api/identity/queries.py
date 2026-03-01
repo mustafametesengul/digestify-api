@@ -1,8 +1,18 @@
+from datetime import datetime
 from uuid import UUID
 
 from asyncpg import Connection
+from pydantic import BaseModel
 
-from digestify_api.identity.models import User
+
+class User(BaseModel):
+    id: UUID
+    username: str | None
+    password_hash: str | None
+    created_at: datetime
+    updated_at: datetime | None
+    version: int
+    is_deleted: bool
 
 
 async def create_tables(connection: Connection) -> None:
@@ -34,7 +44,7 @@ async def create_user(conn: Connection, user: User) -> None:
         user.id,
         user.username,
         user.password_hash,
-        user.discarded,
+        user.is_deleted,
         user.created_at,
         user.updated_at,
         user.version,
@@ -51,7 +61,7 @@ async def update_user(conn: Connection, user: User) -> None:
             WHERE id = $1
         """,
         user.id,
-        user.discarded,
+        user.is_deleted,
         user.updated_at,
         user.version,
     )
