@@ -4,29 +4,33 @@ from uuid import UUID
 from asyncpg import Connection
 from pydantic import BaseModel
 
-from digestify_api.membership import schemas
+from digestify_api.membership import UserTier
 
 
 class User(BaseModel):
     id: UUID
-    tier: schemas.UserTier
+    created_topics_count: int
+    active_topics_count: int
+    identity_version: int
+    membership_version: int
+    tier: UserTier | None
+    is_deleted: bool
     created_at: datetime
     updated_at: datetime | None
-    version: int
 
 
 async def create_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         INSERT INTO users
-        (id, tier, created_at, updated_at, version)
+        (id, created_topics_count, active_topics_count, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5)
         """,
         user.id,
-        user.tier,
+        user.created_topics_count,
+        user.active_topics_count,
         user.created_at,
         user.updated_at,
-        user.version,
     )
 
 
@@ -34,17 +38,17 @@ async def update_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         UPDATE users
-        SET tier = $2,
-            created_at = $3,
-            updated_at = $4,
-            version = $5
+        SET created_topics_count = $2,
+            active_topics_count = $3,
+            created_at = $4,
+            updated_at = $5
         WHERE id = $1
         """,
         user.id,
-        user.tier,
+        user.created_topics_count,
+        user.active_topics_count,
         user.created_at,
         user.updated_at,
-        user.version,
     )
 
 
@@ -54,7 +58,9 @@ async def get_user(conn: Connection, user_id: UUID, lock: bool = False) -> User 
         query += " FOR UPDATE"
 
     row = await conn.fetchrow(query, user_id)
+
     if row is None:
         return None
 
-    return User.model_validate(dict(row))
+    user = User.model_validate(dict(row))
+    return user

@@ -1,14 +1,26 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
+from typing import Annotated, Literal
 from uuid import UUID
 
 import jwt
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.identity import schemas
+
+class UserClaims(BaseModel):
+    id: UUID
+    is_anonymous: bool
+
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: Literal["Bearer"] = "Bearer"
 
 
 class TokenPurpose(StrEnum):
@@ -35,7 +47,7 @@ class TokenManager:
     def __init__(self, settings: TokenManagerSettings | None = None) -> None:
         self._settings = settings or TokenManagerSettings()
 
-    def generate(self, user_claims: schemas.UserClaims) -> schemas.Token:
+    def generate(self, user_claims: UserClaims) -> Token:
         access_token_expire = datetime.now(timezone.utc) + timedelta(
             minutes=self._settings.access_token_expire_minutes
         )
@@ -66,7 +78,7 @@ class TokenManager:
             algorithm=self._settings.algorithm,
         )
 
-        return schemas.Token(
+        return Token(
             access_token=access_token,
             refresh_token=refresh_token,
         )
@@ -75,7 +87,7 @@ class TokenManager:
         self,
         token: str,
         purpose: TokenPurpose = TokenPurpose.ACCESS,
-    ) -> schemas.UserClaims:
+    ) -> UserClaims:
         """Verify JWT using the secret key."""
         payload = jwt.decode(
             token,
@@ -95,7 +107,23 @@ class TokenManager:
         if payload_token_type != purpose.value:
             raise InvalidTokenError("Invalid token type")
 
-        return schemas.UserClaims(
+        return UserClaims(
             id=UUID(payload_sub),
             is_anonymous=payload_anon,
         )
+
+
+token_manager = TokenManager()
+security = HTTPBearer()
+
+
+def get_token_manager() -> TokenManager:
+    return token_manager
+
+
+def get_user_claims(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> UserClaims:
+    token_manager = get_token_manager()
+    token = credentials.credentials
+    return token_manager.decode(token, purpose=TokenPurpose.ACCESS)

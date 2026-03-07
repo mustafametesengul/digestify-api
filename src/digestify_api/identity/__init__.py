@@ -1,12 +1,13 @@
-from digestify_api.identity.dependencies import (
+from digestify_api.identity.bootstrap import (
     channel,
     database,
-    get_user_claims,
+    migrations,
     outbox_publisher,
+    router,
 )
-from digestify_api.identity.migrations import migrations
-from digestify_api.identity.router import router
-from digestify_api.identity.schemas import UserClaims, UserDeleted, UserSignedUp
+from digestify_api.identity.delete_account import UserDeleted
+from digestify_api.identity.sign_up_with_username import UserSignedUp
+from digestify_api.identity.tokens import UserClaims, get_user_claims
 
 __all__ = [
     "database",

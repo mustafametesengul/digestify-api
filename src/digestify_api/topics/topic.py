@@ -1,8 +1,47 @@
+from datetime import date, datetime, time
+from enum import StrEnum
 from uuid import UUID
 
 from asyncpg import Connection
+from pydantic import BaseModel, Field, field_validator
+from pydantic_extra_types.timezone_name import TimeZoneName
 
-from digestify_api.topics.models import Story, Topic, User
+
+class Schedule(BaseModel):
+    schedule_time: time = Field(..., json_schema_extra={"example": "17:04:13"})
+    schedule_timezone: TimeZoneName
+
+    @field_validator("schedule_time")
+    @classmethod
+    def validate_schedule_time_is_naive(cls, schedule_time: time) -> time:
+        if schedule_time.tzinfo is not None:
+            raise ValueError(
+                "schedule_time must not include a UTC offset. "
+                "Provide local time and use schedule_timezone for timezone."
+            )
+        return schedule_time
+
+
+class Language(StrEnum):
+    EN_US = "en-US"
+    TR_TR = "tr-TR"
+
+
+class Topic(BaseModel):
+    id: UUID
+    user_id: UUID
+    name: str
+    description: str
+    language: Language
+    image_url: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime | None
+    schedule_time: time
+    schedule_timezone: TimeZoneName
+    schedule_version: int
+    last_execution_date: date
+    is_deleted: bool
 
 
 async def create_topic(conn: Connection, topic: Topic) -> None:
@@ -79,83 +118,3 @@ async def get_topic(
 
     topic = Topic.model_validate(dict(row))
     return topic
-
-
-async def create_story(conn: Connection, story: Story) -> None:
-    await conn.execute(
-        """
-        INSERT INTO stories
-        (id, is_deleted, created_at, updated_at, topic_id,
-        title, image_url, content, language)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        """,
-        story.id,
-        story.is_deleted,
-        story.created_at,
-        story.updated_at,
-        story.topic_id,
-        story.title,
-        story.image_url,
-        story.content,
-        story.language,
-    )
-
-
-async def get_story(
-    conn: Connection,
-    story_id: UUID,
-    lock: bool = False,
-) -> Story | None:
-    query = "SELECT * FROM stories WHERE id = $1"
-    if lock:
-        query += " FOR UPDATE"
-
-    row = await conn.fetchrow(query, story_id)
-    if row is None:
-        return None
-
-    return Story.model_validate(dict(row))
-
-
-async def create_user(conn: Connection, user: User) -> None:
-    await conn.execute(
-        """
-        INSERT INTO users
-        (id, created_topics_count, created_at, updated_at)
-        VALUES ($1, $2, $3, $4)
-        """,
-        user.id,
-        user.created_topics_count,
-        user.created_at,
-        user.updated_at,
-    )
-
-
-async def update_user(conn: Connection, user: User) -> None:
-    await conn.execute(
-        """
-        UPDATE users
-        SET created_topics_count = $2,
-            created_at = $3,
-            updated_at = $4
-        WHERE id = $1
-        """,
-        user.id,
-        user.created_topics_count,
-        user.created_at,
-        user.updated_at,
-    )
-
-
-async def get_user(conn: Connection, user_id: UUID, lock: bool = False) -> User | None:
-    query = "SELECT * FROM users WHERE id = $1"
-    if lock:
-        query += " FOR UPDATE"
-
-    row = await conn.fetchrow(query, user_id)
-
-    if row is None:
-        return None
-
-    user = User.model_validate(dict(row))
-    return user
