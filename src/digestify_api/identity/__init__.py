@@ -1,8 +1,8 @@
 from digestify_api.identity.bootstrap import (
-    channel,
     database,
+    events,
     migrations,
-    outbox_publisher,
+    outbox_relay,
     router,
 )
 from digestify_api.identity.delete_account import UserDeleted
@@ -13,9 +13,9 @@ __all__ = [
     "database",
     "router",
     "migrations",
-    "outbox_publisher",
+    "outbox_relay",
     "UserSignedUp",
-    "channel",
+    "events",
     "UserClaims",
     "UserDeleted",
     "get_user_claims",

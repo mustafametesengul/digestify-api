@@ -3,22 +3,20 @@ from fastapi import APIRouter
 from digestify_api.infrastructure import (
     Channel,
     Database,
-    HandlerRegistry,
     MessageBroker,
+    OperationRegistry,
 )
 
 message_broker = MessageBroker()
 
-channel = Channel()
+events = Channel()
+commands = Channel()
 
 router = APIRouter()
 
 database = Database()
 
-handler_registry = HandlerRegistry(
-    channel=channel,
-    database=database,
-)
+operation_registry = OperationRegistry()
 
 
 def get_database() -> Database:

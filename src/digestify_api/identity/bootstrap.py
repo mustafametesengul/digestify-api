@@ -9,11 +9,11 @@ router = APIRouter()
 database = Database()
 
 message_broker = MessageBroker()
-outbox_publisher = OutboxRelay(
+outbox_relay = OutboxRelay(
     database=database,
     message_broker=message_broker,
 )
-channel = Channel()
+events = Channel()
 
 
 migrations = infrastructure.migrations + [create_tables]
@@ -23,5 +23,5 @@ def get_database() -> Database:
     return database
 
 
-def get_channel() -> Channel:
-    return channel
+def get_events_channel() -> Channel:
+    return events

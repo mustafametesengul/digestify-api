@@ -6,7 +6,7 @@ from asyncpg import UniqueViolationError
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.bootstrap import get_channel, get_database, router
+from digestify_api.identity.bootstrap import get_database, get_events_channel, router
 from digestify_api.identity.password import hash_password
 from digestify_api.identity.tokens import (
     Token,
@@ -15,7 +15,7 @@ from digestify_api.identity.tokens import (
     get_token_manager,
 )
 from digestify_api.identity.user import User, create_user
-from digestify_api.infrastructure import Channel, Database, Event
+from digestify_api.infrastructure import Channel, Database, Event, enqueue_message
 
 
 class SignUpWithUsername(BaseModel):
@@ -41,7 +41,7 @@ class UserAlreadyExists(HTTPException):
 async def sign_up_with_username(
     database: Annotated[Database, Depends(get_database)],
     token_manager: Annotated[TokenManager, Depends(get_token_manager)],
-    channel: Annotated[Channel, Depends(get_channel)],
+    events_channel: Annotated[Channel, Depends(get_events_channel)],
     payload: SignUpWithUsername,
 ) -> Token:
     async with database.transaction() as connection:
@@ -70,7 +70,7 @@ async def sign_up_with_username(
             version=user.version,
         )
 
-        await channel.save_event(connection, event)
+        await enqueue_message(events_channel, connection, event)
 
         token_payload = UserClaims(id=user.id, is_anonymous=False)
         return token_manager.generate(token_payload)

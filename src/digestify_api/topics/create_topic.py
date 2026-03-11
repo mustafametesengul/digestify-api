@@ -7,9 +7,10 @@ from fastapi import Depends
 from pydantic import BaseModel, Field
 
 from digestify_api.identity import UserClaims, get_user_claims
+from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
+from digestify_api.topics.bootstrap import Database, commands, get_database, router
 from digestify_api.topics.fetch_and_save_stories import FetchAndSaveStories
-from digestify_api.topics.infrastructure import Database, channel, get_database, router
 from digestify_api.topics.topic import Language, Schedule, Topic, create_topic
 from digestify_api.topics.user import get_user
 
@@ -82,7 +83,7 @@ async def create_topic_(
             schedule_time=payload.schedule_time,
             schedule_timezone=payload.schedule_timezone,
             schedule_version=1,
-            last_execution_date=schedule_date,
+            last_execution_date=None,
             is_deleted=False,
         )
 
@@ -96,5 +97,6 @@ async def create_topic_(
             schedule_version=topic.schedule_version,
             schedule_time=topic.schedule_time,
             schedule_timezone=topic.schedule_timezone,
+            schedule_date=schedule_date,
         )
-        await channel.save_command(connection, command)
+        await enqueue_message(commands, connection, command)

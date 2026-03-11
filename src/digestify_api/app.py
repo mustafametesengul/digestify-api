@@ -32,10 +32,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
     broker = infrastructure.message_broker.MessageBroker()
     consumer = infrastructure.stream_consumer.StreamConsumer(broker)
-    consumer.add_registry(topics.handler_registry, "stories")
+    consumer.add_registry(topics.operation_registry, "stories")
 
     tasks = [
-        asyncio.create_task(identity.outbox_publisher.run()),
+        asyncio.create_task(identity.outbox_relay.run()),
         asyncio.create_task(consumer.run()),
     ]
 

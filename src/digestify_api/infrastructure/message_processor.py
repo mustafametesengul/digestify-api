@@ -2,11 +2,11 @@ import asyncio
 from logging import getLogger
 from uuid import uuid4
 
-from digestify_api.infrastructure.handler_registry import (
-    HandlerBinding,
-    HandlerRegistry,
-)
 from digestify_api.infrastructure.message_broker import MessageBroker
+from digestify_api.infrastructure.operation_registry import (
+    OperationBinding,
+    OperationRegistry,
+)
 
 _logger = getLogger(__name__)
 
@@ -14,16 +14,18 @@ _logger = getLogger(__name__)
 class MessageProcessor:
     def __init__(self, message_broker: MessageBroker) -> None:
         self._message_broker = message_broker
-        self._registries: dict[str, HandlerRegistry] = {}
+        self._registries: dict[str, OperationRegistry] = {}
 
-    def add_registry(self, registry: HandlerRegistry, service_name: str) -> None:
+    def add_registry(self, registry: OperationRegistry, service_name: str) -> None:
         if service_name in self._registries:
             raise ValueError(f"Registry for service {service_name} already exists")
         self._registries[service_name] = registry
 
-    async def _consume_stream(self, handler_binding: HandlerBinding) -> None:
-        stream_name = handler_binding.channel.get_name()
-        group_name = handler_binding.handler_name
+    async def _consume_stream(self, handler_binding: OperationBinding) -> None:
+        stream_name = handler_binding.operation.channel.address
+        if not stream_name:
+            raise ValueError("Channel address cannot be empty")
+        group_name = handler_binding.operation.name
         consumer_name = uuid4().hex
 
         _logger.info(
@@ -76,7 +78,7 @@ class MessageProcessor:
                 continue
 
             try:
-                await handler_binding.handler(message)
+                await handler_binding.callable(message)
                 await self._message_broker.acknowledge_message(
                     stream_name, group_name, message_id
                 )
@@ -89,7 +91,7 @@ class MessageProcessor:
     async def run(self) -> None:
         tasks: list[asyncio.Task[None]] = []
         for registry in self._registries.values():
-            for handler_binding in registry.handlers:
+            for handler_binding in registry.operations:
                 task = asyncio.create_task(self._consume_stream(handler_binding))
                 tasks.append(task)
         await asyncio.gather(*tasks)

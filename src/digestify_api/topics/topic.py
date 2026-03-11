@@ -40,7 +40,7 @@ class Topic(BaseModel):
     schedule_time: time
     schedule_timezone: TimeZoneName
     schedule_version: int
-    last_execution_date: date
+    last_execution_date: date | None
     is_deleted: bool
 
 

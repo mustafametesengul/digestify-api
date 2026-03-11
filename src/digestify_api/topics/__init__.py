@@ -1,4 +1,4 @@
-from digestify_api.topics.handle_user_signed_up import handler_registry
-from digestify_api.topics.infrastructure import database
+from digestify_api.topics.bootstrap import database
+from digestify_api.topics.handle_user_signed_up import operation_registry
 
-__all__ = ["database", "handler_registry"]
+__all__ = ["database", "operation_registry"]
