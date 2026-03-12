@@ -27,12 +27,15 @@ settings = AppSettings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await identity.database.init_pool()
-    await topics.database.init_pool()
+    await identity.database.connect("identity")
+    await topics.database.connect("topics")
+
+    await infrastructure.apply_migrations(identity.database, identity.migrations)
+    await infrastructure.apply_migrations(topics.database, topics.migrations)
 
     message_broker = infrastructure.MessageBroker()
     message_processor = infrastructure.MessageProcessor(message_broker)
-    message_processor.add_registry(topics.operation_registry, "stories")
+    message_processor.add_registry(topics.operation_registry, "topics")
 
     tasks = [
         asyncio.create_task(identity.outbox_relay.run()),
@@ -46,8 +49,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             task.cancel()
 
         await asyncio.gather(*tasks, return_exceptions=True)
-        await identity.database.close_pool()
-        await topics.database.close_pool()
+        await identity.database.close()
+        await topics.database.close()
 
 
 def run_app() -> None:

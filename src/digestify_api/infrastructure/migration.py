@@ -1,6 +1,11 @@
+from collections.abc import Awaitable, Callable, Sequence
+from types import FunctionType
+
 from asyncpg import Connection
 
 from digestify_api.infrastructure.database import Database
+
+MigrationFunc = Callable[[Connection], Awaitable[None]]
 
 
 async def create_schema(conn: Connection, schema: str) -> None:
@@ -45,9 +50,10 @@ async def get_applied_migrations_(db: Database) -> set[str]:
         return rows
 
 
-async def apply_migrations(db: Database, migrations: list) -> None:
+async def apply_migrations(db: Database, migrations: Sequence[MigrationFunc]) -> None:
     async with db.transaction() as conn:
-        await create_schema(conn, db.schema)
+        if db.schema is not None:
+            await create_schema(conn, db.schema)
 
     async with db.transaction() as conn:
         await create_schema_migrations_table(conn)
@@ -55,11 +61,14 @@ async def apply_migrations(db: Database, migrations: list) -> None:
     applied = await get_applied_migrations_(db)
 
     for migration in migrations:
+        if not isinstance(migration, FunctionType):
+            raise TypeError(f"Expected a function, got {type(migration)}")
+
         version = migration.__name__
 
         if version in applied:
             continue
 
         async with db.transaction() as conn:
-            await migration(connection=conn)
+            await migration(conn)
             await update_schema_migrations(conn, version=version)

@@ -34,10 +34,14 @@ class Database:
     @property
     def schema(self) -> str:
         if self._schema is None:
-            raise RuntimeError("Database schema is not set. Call init_pool first.")
+            raise RuntimeError("Database schema is not set")
         return self._schema
 
-    async def init_pool(self, schema: str | None = None) -> None:
+    @schema.setter
+    def schema(self, value: str) -> None:
+        self._schema = value
+
+    async def connect(self, schema: str | None = None) -> None:
         dsn = (
             f"postgresql://"
             f"{self._settings.user}:{self._settings.password.get_secret_value()}"
@@ -59,7 +63,7 @@ class Database:
 
             self._pool = pool
 
-    async def close_pool(self) -> None:
+    async def close(self) -> None:
         async with self._lock:
             if self._pool is not None:
                 await self._pool.close()
@@ -69,12 +73,11 @@ class Database:
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
         if self._pool is None or self._schema is None:
-            raise RuntimeError(
-                "Database pool is not initialized. Call init_pool first."
-            )
+            raise RuntimeError("Database is not initialized")
         async with self._pool.acquire() as connection:
             if not isinstance(connection, asyncpg.Connection):
-                raise RuntimeError("Failed to acquire a valid database connection.")
-            await connection.execute(f"SET search_path TO {self._schema}")
+                raise TypeError("Expected asyncpg.Connection from the pool")
+            if self._schema:
+                await connection.execute(f"SET search_path TO {self._schema}")
             async with connection.transaction():
                 yield connection

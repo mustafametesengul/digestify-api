@@ -13,11 +13,13 @@ from digestify_api.infrastructure.handled_message import (
 )
 from digestify_api.infrastructure.message_broker import MessageBroker
 from digestify_api.infrastructure.message_processor import MessageProcessor
+from digestify_api.infrastructure.migration import apply_migrations
 from digestify_api.infrastructure.operation_registry import OperationRegistry
 from digestify_api.infrastructure.outbox import OutboxRelay
 
 __all__ = [
     "Database",
+    "apply_migrations",
     "Channel",
     "Event",
     "Command",

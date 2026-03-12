@@ -19,6 +19,24 @@ class Story(BaseModel):
     is_deleted: bool
 
 
+async def create_tables(connection: Connection) -> None:
+    await connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS stories (
+            id UUID PRIMARY KEY,
+            topic_id UUID NOT NULL,
+            title TEXT NOT NULL,
+            image_url TEXT,
+            content TEXT NOT NULL,
+            language TEXT NOT NULL,
+            is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ NOT NULL,
+            updated_at TIMESTAMPTZ
+        );
+        """
+    )
+
+
 async def create_story(conn: Connection, story: Story) -> None:
     await conn.execute(
         """

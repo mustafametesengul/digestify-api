@@ -25,6 +25,15 @@ class MessageBrokerSettings(BaseSettings):
 class MessageBroker:
     def __init__(self, settings: MessageBrokerSettings | None = None) -> None:
         self._settings = settings or MessageBrokerSettings()
+        self._redis: Redis | None = None
+
+    @property
+    def redis(self) -> Redis:
+        if self._redis is None:
+            raise RuntimeError("Message broker is not initialized")
+        return self._redis
+
+    async def connect(self) -> None:
         self._redis = Redis(
             host=self._settings.host,
             port=self._settings.port,
@@ -32,13 +41,16 @@ class MessageBroker:
             db=self._settings.db,
         )
 
+    async def close(self) -> None:
+        await self.redis.close()
+
     async def create_consumer_group(
         self,
         stream_name: str,
         group_name: str,
     ) -> None:
         try:
-            await self._redis.xgroup_create(
+            await self.redis.xgroup_create(
                 stream_name,
                 group_name,
                 id="0",
@@ -50,7 +62,7 @@ class MessageBroker:
             )
 
     async def publish_message(self, message: Message) -> None:
-        await self._redis.xadd(
+        await self.redis.xadd(
             name=message.channel,
             fields={"message": message.model_dump_json()},
         )
@@ -64,7 +76,7 @@ class MessageBroker:
         block: int = 1000,
         start_id: str = ">",
     ) -> list[tuple[str, str, Message]]:
-        entries = await self._redis.xreadgroup(
+        entries = await self.redis.xreadgroup(
             group_name,
             consumer_name,
             streams={stream_name: start_id},
@@ -115,7 +127,7 @@ class MessageBroker:
         start_id: str = "0-0",
         count: int = 1,
     ) -> tuple[str, list[tuple[str, str, Message]]]:
-        result = await self._redis.xautoclaim(
+        result = await self.redis.xautoclaim(
             name=stream_name,
             groupname=group_name,
             consumername=consumer_name,
@@ -164,7 +176,7 @@ class MessageBroker:
         group_name: str,
         message_id: str,
     ) -> None:
-        await self._redis.xack(stream_name, group_name, message_id)
+        await self.redis.xack(stream_name, group_name, message_id)
 
     async def delete_ghost_consumers(
         self,
@@ -173,14 +185,14 @@ class MessageBroker:
         min_idle_time: int = 60000,
     ) -> None:
         try:
-            consumers = await self._redis.xinfo_consumers(stream_name, group_name)
+            consumers = await self.redis.xinfo_consumers(stream_name, group_name)
             for consumer in consumers:
                 idle = consumer.get("idle", 0)
                 pending = consumer.get("pending", 0)
                 name = consumer.get("name")
 
                 if pending == 0 and idle > min_idle_time:
-                    await self._redis.xgroup_delconsumer(stream_name, group_name, name)
+                    await self.redis.xgroup_delconsumer(stream_name, group_name, name)
         except Exception as e:
             _logger.warning(
                 f"Failed to delete ghost consumers for stream {stream_name} and group {group_name}: {e}"

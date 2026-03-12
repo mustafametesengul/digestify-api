@@ -8,8 +8,8 @@ from digestify_api.infrastructure.message import Message, create_message
 from digestify_api.infrastructure.outbox import create_outbox_message
 
 
-class Channel:
-    address: str | None
+class Channel(BaseModel):
+    address: str | None = None
 
 
 class Event(BaseModel):
