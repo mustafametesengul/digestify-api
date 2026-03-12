@@ -1,7 +1,7 @@
 import inspect
 from dataclasses import dataclass
 from types import FunctionType
-from typing import Awaitable, Callable, cast
+from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
@@ -74,7 +74,7 @@ class OperationRegistry:
             )
 
             self._operations.append(operation_binding)
-            return cast(OperationCallable[T], operation)
+            return operation
 
         return decorator
 

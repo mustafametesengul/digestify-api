@@ -1,3 +1,4 @@
+from digestify_api.infrastructure.bootstrap import migrations
 from digestify_api.infrastructure.channel import (
     Channel,
     Command,
@@ -6,7 +7,6 @@ from digestify_api.infrastructure.channel import (
     enqueue_message,
 )
 from digestify_api.infrastructure.database import Database
-from digestify_api.infrastructure.dependencies import migrations
 from digestify_api.infrastructure.handled_message import (
     HandledMessage,
     create_handled_message,

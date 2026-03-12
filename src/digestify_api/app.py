@@ -30,13 +30,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await identity.database.init_pool()
     await topics.database.init_pool()
 
-    broker = infrastructure.message_broker.MessageBroker()
-    consumer = infrastructure.stream_consumer.StreamConsumer(broker)
-    consumer.add_registry(topics.operation_registry, "stories")
+    message_broker = infrastructure.MessageBroker()
+    message_processor = infrastructure.MessageProcessor(message_broker)
+    message_processor.add_registry(topics.operation_registry, "stories")
 
     tasks = [
         asyncio.create_task(identity.outbox_relay.run()),
-        asyncio.create_task(consumer.run()),
+        asyncio.create_task(message_processor.run()),
     ]
 
     try:
