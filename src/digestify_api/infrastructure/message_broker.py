@@ -1,4 +1,6 @@
 import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Self
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,7 +11,7 @@ from digestify_api.infrastructure.message import Message
 _logger = logging.getLogger(__name__)
 
 
-class MessageBrokerSettings(BaseSettings):
+class DSNSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -23,26 +25,23 @@ class MessageBrokerSettings(BaseSettings):
 
 
 class MessageBroker:
-    def __init__(self, settings: MessageBrokerSettings | None = None) -> None:
-        self._settings = settings or MessageBrokerSettings()
-        self._redis: Redis | None = None
+    def __init__(self, redis: Redis) -> None:
+        self._redis = redis
 
-    @property
-    def redis(self) -> Redis:
-        if self._redis is None:
-            raise RuntimeError("Message broker is not initialized")
-        return self._redis
-
-    async def connect(self) -> None:
-        self._redis = Redis(
-            host=self._settings.host,
-            port=self._settings.port,
-            password=self._settings.password.get_secret_value(),
-            db=self._settings.db,
-        )
-
-    async def close(self) -> None:
-        await self.redis.close()
+    @classmethod
+    @asynccontextmanager
+    async def open(
+        cls,
+        dsn_settings: DSNSettings | None = None,
+    ) -> AsyncIterator[Self]:
+        dsn_settings = dsn_settings or DSNSettings()
+        async with Redis(
+            host=dsn_settings.host,
+            port=dsn_settings.port,
+            password=dsn_settings.password.get_secret_value(),
+            db=dsn_settings.db,
+        ) as redis:
+            yield cls(redis=redis)
 
     async def create_consumer_group(
         self,
@@ -50,7 +49,7 @@ class MessageBroker:
         group_name: str,
     ) -> None:
         try:
-            await self.redis.xgroup_create(
+            await self._redis.xgroup_create(
                 stream_name,
                 group_name,
                 id="0",
@@ -62,7 +61,7 @@ class MessageBroker:
             )
 
     async def publish_message(self, message: Message) -> None:
-        await self.redis.xadd(
+        await self._redis.xadd(
             name=message.channel,
             fields={"message": message.model_dump_json()},
         )
@@ -76,7 +75,7 @@ class MessageBroker:
         block: int = 1000,
         start_id: str = ">",
     ) -> list[tuple[str, str, Message]]:
-        entries = await self.redis.xreadgroup(
+        entries = await self._redis.xreadgroup(
             group_name,
             consumer_name,
             streams={stream_name: start_id},
@@ -127,7 +126,7 @@ class MessageBroker:
         start_id: str = "0-0",
         count: int = 1,
     ) -> tuple[str, list[tuple[str, str, Message]]]:
-        result = await self.redis.xautoclaim(
+        result = await self._redis.xautoclaim(
             name=stream_name,
             groupname=group_name,
             consumername=consumer_name,
@@ -176,7 +175,7 @@ class MessageBroker:
         group_name: str,
         message_id: str,
     ) -> None:
-        await self.redis.xack(stream_name, group_name, message_id)
+        await self._redis.xack(stream_name, group_name, message_id)
 
     async def delete_ghost_consumers(
         self,
@@ -185,14 +184,14 @@ class MessageBroker:
         min_idle_time: int = 60000,
     ) -> None:
         try:
-            consumers = await self.redis.xinfo_consumers(stream_name, group_name)
+            consumers = await self._redis.xinfo_consumers(stream_name, group_name)
             for consumer in consumers:
                 idle = consumer.get("idle", 0)
                 pending = consumer.get("pending", 0)
                 name = consumer.get("name")
 
                 if pending == 0 and idle > min_idle_time:
-                    await self.redis.xgroup_delconsumer(stream_name, group_name, name)
+                    await self._redis.xgroup_delconsumer(stream_name, group_name, name)
         except Exception as e:
             _logger.warning(
                 f"Failed to delete ghost consumers for stream {stream_name} and group {group_name}: {e}"

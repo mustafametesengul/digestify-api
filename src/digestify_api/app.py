@@ -26,31 +26,22 @@ settings = AppSettings()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await identity.database.connect("identity")
-    await topics.database.connect("topics")
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async with identity.Context.open(name="identity") as identity_context:
+        identity_context.add_registery(identity.router, "identity")
 
-    await infrastructure.apply_migrations(identity.database, identity.migrations)
-    await infrastructure.apply_migrations(topics.database, topics.migrations)
+        tasks = [
+            asyncio.create_task(identity_context.run()),
+        ]
 
-    message_broker = infrastructure.MessageBroker()
-    message_processor = infrastructure.MessageProcessor(message_broker)
-    message_processor.add_registry(topics.operation_registry, "topics")
+        app.state.identity_context = identity_context
 
-    tasks = [
-        asyncio.create_task(identity.outbox_relay.run()),
-        asyncio.create_task(message_processor.run()),
-    ]
-
-    try:
         yield
-    finally:
+
         for task in tasks:
             task.cancel()
 
-        await asyncio.gather(*tasks, return_exceptions=True)
-        await identity.database.close()
-        await topics.database.close()
+        await asyncio.gather(*tasks)
 
 
 def run_app() -> None:

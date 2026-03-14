@@ -1,5 +1,6 @@
 import asyncio
 from logging import getLogger
+from typing import Sequence
 from uuid import uuid4
 
 from digestify_api.infrastructure.message_broker import MessageBroker
@@ -12,14 +13,13 @@ _logger = getLogger(__name__)
 
 
 class MessageProcessor:
-    def __init__(self, message_broker: MessageBroker) -> None:
+    def __init__(
+        self,
+        message_broker: MessageBroker,
+        registries: Sequence[OperationRegistry],
+    ) -> None:
         self._message_broker = message_broker
-        self._registries: dict[str, OperationRegistry] = {}
-
-    def add_registry(self, registry: OperationRegistry, service_name: str) -> None:
-        if service_name in self._registries:
-            raise ValueError(f"Registry for service {service_name} already exists")
-        self._registries[service_name] = registry
+        self._registries = registries
 
     async def _consume_stream(self, handler_binding: OperationBinding) -> None:
         stream_name = handler_binding.operation.channel.address
@@ -90,7 +90,7 @@ class MessageProcessor:
 
     async def run(self) -> None:
         tasks: list[asyncio.Task[None]] = []
-        for registry in self._registries.values():
+        for registry in self._registries:
             for handler_binding in registry.operations:
                 task = asyncio.create_task(self._consume_stream(handler_binding))
                 tasks.append(task)

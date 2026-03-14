@@ -1,13 +1,12 @@
-import asyncio
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import AsyncIterator, Self
 
 import asyncpg
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class DatabaseSettings(BaseSettings):
+class DSNSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -21,63 +20,50 @@ class DatabaseSettings(BaseSettings):
     db: str = Field(default="db")
 
 
+class PoolSettings(BaseSettings):
+    min_size: int = Field(default=5)
+    max_size: int = Field(default=20)
+    command_timeout: int = Field(default=60)
+
+
 class Database:
-    def __init__(
-        self,
-        settings: DatabaseSettings | None = None,
-    ) -> None:
-        self._pool: asyncpg.Pool | None = None
-        self._lock = asyncio.Lock()
-        self._settings = settings or DatabaseSettings()
-        self._schema: str | None = None
-
-    @property
-    def schema(self) -> str:
-        if self._schema is None:
-            raise RuntimeError("Database schema is not set")
-        return self._schema
-
-    @schema.setter
-    def schema(self, value: str) -> None:
-        self._schema = value
-
-    async def connect(self, schema: str | None = None) -> None:
-        dsn = (
-            f"postgresql://"
-            f"{self._settings.user}:{self._settings.password.get_secret_value()}"
-            f"@{self._settings.host}:{self._settings.port}/{self._settings.db}"
-        )
-
-        async with self._lock:
-            self._schema = schema
-
-            if self._pool is not None:
-                return
-
-            pool = await asyncpg.create_pool(
-                dsn=dsn,
-                min_size=5,
-                max_size=20,
-                command_timeout=60,
-            )
-
-            self._pool = pool
-
-    async def close(self) -> None:
-        async with self._lock:
-            if self._pool is not None:
-                await self._pool.close()
-                self._pool = None
-                self._schema = None
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self._pool = pool
 
     @asynccontextmanager
-    async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
-        if self._pool is None or self._schema is None:
-            raise RuntimeError("Database is not initialized")
+    async def connection(self) -> AsyncIterator[asyncpg.Connection]:
         async with self._pool.acquire() as connection:
             if not isinstance(connection, asyncpg.Connection):
                 raise TypeError("Expected asyncpg.Connection from the pool")
-            if self._schema:
-                await connection.execute(f"SET search_path TO {self._schema}")
+            yield connection
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[asyncpg.Connection]:
+        async with self.connection() as connection:
             async with connection.transaction():
                 yield connection
+
+    @classmethod
+    @asynccontextmanager
+    async def open(
+        cls,
+        dsn_settings: DSNSettings | None = None,
+        pool_settings: PoolSettings | None = None,
+        schema: str | None = None,
+    ) -> AsyncIterator[Self]:
+        dsn_settings = dsn_settings or DSNSettings()
+        pool_settings = pool_settings or PoolSettings()
+        dsn = (
+            f"postgresql://"
+            f"{dsn_settings.user}:{dsn_settings.password.get_secret_value()}"
+            f"@{dsn_settings.host}:{dsn_settings.port}/{dsn_settings.db}"
+        )
+
+        async with asyncpg.create_pool(
+            dsn=dsn,
+            min_size=pool_settings.min_size,
+            max_size=pool_settings.max_size,
+            command_timeout=pool_settings.command_timeout,
+            server_settings={"search_path": schema} if schema else None,
+        ) as pool:
+            yield cls(pool)
