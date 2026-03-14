@@ -13,9 +13,9 @@ from digestify_api.infrastructure import (
     create_handled_message,
     enqueue_message,
 )
-from digestify_api.topics.bootstrap import commands, get_database
-from digestify_api.topics.story import Story, create_story
-from digestify_api.topics.topic import Topic, get_topic, update_topic
+from digestify_api.news.dependencies import NewsContext, message_router
+from digestify_api.news.story import Story, create_story
+from digestify_api.news.topic import Topic, get_topic, update_topic
 
 
 class FetchAndSaveStories(Command):
@@ -77,14 +77,18 @@ async def _validate_and_fetch_topic(
             schedule_date=next_schedule_date,
             scheduled_at=scheduled_at,
         )
-        await enqueue_message(commands, connection, new_command)
+        await enqueue_message(message_router.commands, connection, new_command)
 
         await create_handled_message(connection, handled_message)
         return
 
 
-async def fetch_and_save_stories(payload: FetchAndSaveStories) -> None:
-    database = get_database()
+@message_router.receive(channel=message_router.commands)
+async def fetch_and_save_stories(
+    context: NewsContext,
+    payload: FetchAndSaveStories,
+) -> None:
+    database = context.database
 
     handled_message = HandledMessage(
         message_id=payload.id,
@@ -156,4 +160,4 @@ async def fetch_and_save_stories(payload: FetchAndSaveStories) -> None:
             schedule_date=next_schedule_date,
             scheduled_at=scheduled_at,
         )
-        await enqueue_message(commands, connection, new_command)
+        await enqueue_message(message_router.commands, connection, new_command)

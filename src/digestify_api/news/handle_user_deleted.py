@@ -1,9 +1,9 @@
 from digestify_api import identity
-from digestify_api.topics.bootstrap import get_database, operation_registry
-from digestify_api.topics.user import User, create_user, get_user, update_user
+from digestify_api.news.dependencies import message_router
+from digestify_api.news.user import User, create_user, get_user, update_user
 
 
-@operation_registry.receive(channel=identity.events)
+@message_router.receive(channel=identity.message_router.events)
 async def handle_user_deleted(event: identity.UserDeleted) -> None:
     database = get_database()
     async with database.transaction() as connection:

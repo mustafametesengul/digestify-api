@@ -1,12 +1,10 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Literal
 from uuid import UUID
 
 import jwt
-from fastapi import Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -111,19 +109,3 @@ class TokenManager:
             id=UUID(payload_sub),
             is_anonymous=payload_anon,
         )
-
-
-token_manager = TokenManager()
-security = HTTPBearer()
-
-
-def get_token_manager() -> TokenManager:
-    return token_manager
-
-
-def get_user_claims(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-) -> UserClaims:
-    token_manager = get_token_manager()
-    token = credentials.credentials
-    return token_manager.decode(token, purpose=TokenPurpose.ACCESS)

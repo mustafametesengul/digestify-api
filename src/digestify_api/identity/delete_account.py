@@ -4,10 +4,16 @@ from uuid import UUID
 
 from fastapi import Depends
 
-from digestify_api.identity.bootstrap import get_database, get_events_channel, router
-from digestify_api.identity.tokens import UserClaims, get_user_claims
+from digestify_api.identity.context import IdentityContext
+from digestify_api.identity.dependencies import (
+    get_context,
+    get_user_claims,
+    message_router,
+    router,
+)
+from digestify_api.identity.token_manager import UserClaims
 from digestify_api.identity.user import get_user, update_user
-from digestify_api.infrastructure import Channel, Database, Event, enqueue_message
+from digestify_api.infrastructure import Event, enqueue_message
 
 
 class UserDeleted(Event):
@@ -17,11 +23,10 @@ class UserDeleted(Event):
 
 @router.post("/delete_account")
 async def delete_account(
-    database: Annotated[Database, Depends(get_database)],
-    events_channel: Annotated[Channel, Depends(get_events_channel)],
+    context: Annotated[IdentityContext, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
 ) -> None:
-    async with database.transaction() as connection:
+    async with context.database.transaction() as connection:
         now = datetime.now(timezone.utc)
         user = await get_user(connection, user_claims.id, lock=True)
         if user is None:
@@ -38,4 +43,4 @@ async def delete_account(
             version=user.version,
         )
 
-        await enqueue_message(events_channel, connection, event)
+        await enqueue_message(message_router.events, connection, event)

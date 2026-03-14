@@ -4,7 +4,7 @@ from uuid import UUID
 from asyncpg import Connection
 from pydantic import BaseModel
 
-from digestify_api.topics.topic import Language
+from digestify_api.news.topic import Language
 
 
 class Story(BaseModel):

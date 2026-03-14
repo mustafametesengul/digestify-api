@@ -2,38 +2,35 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Self
 
-from digestify_api.identity.token_manager import TokenManager
 from digestify_api.infrastructure import (
     Database,
     MessageBroker,
+    MessageProcessor,
     MessageRouter,
     OutboxRelay,
 )
 
 
-class IdentityContext:
+class NewsContext:
     def __init__(
         self,
         database: Database,
         message_broker: MessageBroker,
+        message_processor: MessageProcessor,
         outbox_relay: OutboxRelay,
-        token_manager: TokenManager,
     ) -> None:
         self._database = database
         self._message_broker = message_broker
+        self._message_processor = message_processor
         self._outbox_relay = outbox_relay
-        self._token_manager = token_manager
 
     @property
     def database(self) -> Database:
         return self._database
 
-    @property
-    def token_manager(self) -> TokenManager:
-        return self._token_manager
-
     async def run(self) -> None:
         tasks = [
+            self._message_processor.run(),
             self._outbox_relay.run(),
         ]
         await asyncio.gather(*tasks)
@@ -41,9 +38,7 @@ class IdentityContext:
     @classmethod
     @asynccontextmanager
     async def open(
-        cls,
-        name: str,
-        message_router: MessageRouter,
+        cls, name: str, message_router: MessageRouter
     ) -> AsyncIterator[Self]:
         async with (
             Database.open(schema=name) as database,
@@ -56,11 +51,14 @@ class IdentityContext:
                 message_broker=message_broker,
             )
 
-            token_manager = TokenManager()
+            message_processor = MessageProcessor(
+                message_broker=message_broker,
+                message_router=message_router,
+            )
 
             yield cls(
                 database=database,
                 message_broker=message_broker,
+                message_processor=message_processor,
                 outbox_relay=outbox_relay,
-                token_manager=token_manager,
             )

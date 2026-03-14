@@ -3,16 +3,11 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.bootstrap import get_database, router
+from digestify_api.identity.context import IdentityContext
+from digestify_api.identity.dependencies import get_context, router
 from digestify_api.identity.password import verify_password
-from digestify_api.identity.tokens import (
-    Token,
-    TokenManager,
-    UserClaims,
-    get_token_manager,
-)
+from digestify_api.identity.token_manager import Token, UserClaims
 from digestify_api.identity.user import get_user_by_username
-from digestify_api.infrastructure import Database
 
 
 class SignInWithUsername(BaseModel):
@@ -31,11 +26,10 @@ class InvalidCredentials(HTTPException):
 
 @router.post("/sign_in_with_username")
 async def sign_in_with_username(
-    database: Annotated[Database, Depends(get_database)],
-    token_manager: Annotated[TokenManager, Depends(get_token_manager)],
+    context: Annotated[IdentityContext, Depends(get_context)],
     payload: SignInWithUsername,
 ) -> Token:
-    async with database.transaction() as connection:
+    async with context.database.transaction() as connection:
         user = await get_user_by_username(connection, payload.username)
         if user is None or user.password_hash is None:
             raise InvalidCredentials()
@@ -49,4 +43,4 @@ async def sign_in_with_username(
             raise InvalidCredentials()
 
         token_payload = UserClaims(id=user.id, is_anonymous=False)
-        return token_manager.generate(token_payload)
+        return context.token_manager.generate(token_payload)

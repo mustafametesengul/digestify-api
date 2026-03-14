@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api import identity, infrastructure, topics
+from digestify_api import identity, infrastructure, news
 
 
 class AppSettings(BaseSettings):
@@ -27,9 +27,15 @@ settings = AppSettings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    async with identity.Context.open(name="identity") as identity_context:
-        identity_context.add_registery(identity.router, "identity")
-
+    async with identity.IdentityContext.open(
+        name="identity",
+        message_router=identity.message_router,
+    ) as identity_context:
+        message_processor = infrastructure.MessageProcessor(
+            context=identity_context,
+            message_broker=identity_context.message_broker,
+            message_router=identity_context.message_router,
+        )
         tasks = [
             asyncio.create_task(identity_context.run()),
         ]

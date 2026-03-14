@@ -1,12 +1,11 @@
 import asyncio
 from logging import getLogger
-from typing import Sequence
 from uuid import uuid4
 
 from digestify_api.infrastructure.message_broker import MessageBroker
-from digestify_api.infrastructure.operation_registry import (
+from digestify_api.infrastructure.message_router import (
+    MessageRouter,
     OperationBinding,
-    OperationRegistry,
 )
 
 _logger = getLogger(__name__)
@@ -15,11 +14,13 @@ _logger = getLogger(__name__)
 class MessageProcessor:
     def __init__(
         self,
+        context: object,
         message_broker: MessageBroker,
-        registries: Sequence[OperationRegistry],
+        message_router: MessageRouter,
     ) -> None:
+        self._context = context
         self._message_broker = message_broker
-        self._registries = registries
+        self._message_router = message_router
 
     async def _consume_stream(self, handler_binding: OperationBinding) -> None:
         stream_name = handler_binding.operation.channel.address
@@ -90,8 +91,7 @@ class MessageProcessor:
 
     async def run(self) -> None:
         tasks: list[asyncio.Task[None]] = []
-        for registry in self._registries:
-            for handler_binding in registry.operations:
-                task = asyncio.create_task(self._consume_stream(handler_binding))
-                tasks.append(task)
+        for handler_binding in self._message_router.operations:
+            task = asyncio.create_task(self._consume_stream(handler_binding))
+            tasks.append(task)
         await asyncio.gather(*tasks)

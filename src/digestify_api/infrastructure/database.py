@@ -26,6 +26,14 @@ class PoolSettings(BaseSettings):
     command_timeout: int = Field(default=60)
 
 
+def get_dsn(settings: DSNSettings) -> str:
+    return (
+        f"postgresql://"
+        f"{settings.user}:{settings.password.get_secret_value()}"
+        f"@{settings.host}:{settings.port}/{settings.db}"
+    )
+
+
 class Database:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
@@ -53,12 +61,7 @@ class Database:
     ) -> AsyncIterator[Self]:
         dsn_settings = dsn_settings or DSNSettings()
         pool_settings = pool_settings or PoolSettings()
-        dsn = (
-            f"postgresql://"
-            f"{dsn_settings.user}:{dsn_settings.password.get_secret_value()}"
-            f"@{dsn_settings.host}:{dsn_settings.port}/{dsn_settings.db}"
-        )
-
+        dsn = get_dsn(dsn_settings)
         async with asyncpg.create_pool(
             dsn=dsn,
             min_size=pool_settings.min_size,

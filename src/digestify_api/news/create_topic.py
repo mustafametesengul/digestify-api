@@ -9,10 +9,15 @@ from pydantic import BaseModel, Field
 from digestify_api.identity import UserClaims, get_user_claims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
-from digestify_api.topics.bootstrap import Database, commands, get_database, router
-from digestify_api.topics.fetch_and_save_stories import FetchAndSaveStories
-from digestify_api.topics.topic import Language, Schedule, Topic, create_topic
-from digestify_api.topics.user import get_user
+from digestify_api.news.dependencies import (
+    NewsContext,
+    get_context,
+    message_router,
+    router,
+)
+from digestify_api.news.fetch_and_save_stories import FetchAndSaveStories
+from digestify_api.news.topic import Language, Schedule, Topic, create_topic
+from digestify_api.news.user import get_user
 
 
 class CreateTopic(Schedule):
@@ -33,13 +38,13 @@ class TopicPublic(BaseModel):
 @router.post("/create_topic", status_code=201)
 async def create_topic_(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
-    database: Annotated[Database, Depends(get_database)],
+    context: Annotated[NewsContext, Depends(get_context)],
     payload: CreateTopic,
 ) -> None:
     if user_claims.is_anonymous:
         raise ValueError("Authentication required")
 
-    async with database.transaction() as connection:
+    async with context.database.transaction() as connection:
         now = datetime.now(UTC)
 
         user = await get_user(connection, user_claims.id, lock=True)
@@ -99,4 +104,4 @@ async def create_topic_(
             schedule_timezone=topic.schedule_timezone,
             schedule_date=schedule_date,
         )
-        await enqueue_message(commands, connection, command)
+        await enqueue_message(message_router.events, connection, command)

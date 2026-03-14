@@ -1,7 +1,6 @@
 import inspect
 from dataclasses import dataclass
-from types import FunctionType
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable, TypeVar
 
 from pydantic import BaseModel
 
@@ -21,21 +20,41 @@ class OperationBinding:
     callable: Callable[[Message], Awaitable[None]]
 
 
-type OperationCallable[T: BaseModel] = Callable[[T], Awaitable[None]]
+F = TypeVar("F", bound=Callable[..., Any])
 
 
-class OperationRegistry:
+class MessageRouter:
     def __init__(self) -> None:
         self._operations: list[OperationBinding] = []
+        self._events = Channel()
+        self._commands = Channel()
+        self._replies = Channel()
 
-    def receive[T: BaseModel](
+    @property
+    def events(self) -> Channel:
+        return self._events
+
+    @property
+    def commands(self) -> Channel:
+        return self._commands
+
+    @property
+    def replies(self) -> Channel:
+        return self._replies
+
+    def set_name(self, name: str) -> None:
+        self._events.address = f"{name}-events"
+        self._commands.address = f"{name}-commands"
+        self._replies.address = f"{name}-replies"
+
+    def receive(
         self,
         channel: Channel,
         check_duplicates: bool = True,
-    ) -> Callable[[OperationCallable[T]], OperationCallable[T]]:
-        def decorator(operation: OperationCallable[T]) -> OperationCallable[T]:
-            if not isinstance(operation, FunctionType):
-                raise TypeError("Operation must be a function")
+    ) -> Callable[[F], F]:
+        def decorator(operation: F) -> F:
+            # if not callable(operation):
+            #     raise TypeError("Operation must be a callable (function or method)")
 
             sig = inspect.signature(operation)
             params = list(sig.parameters.values())

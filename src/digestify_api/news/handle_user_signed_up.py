@@ -1,6 +1,6 @@
 from digestify_api import identity
-from digestify_api.topics.bootstrap import get_database, operation_registry
-from digestify_api.topics.user import User, create_user, get_user, update_user
+from digestify_api.news.dependencies import get_database, operation_registry
+from digestify_api.news.user import User, create_user, get_user, update_user
 
 
 @operation_registry.receive(channel=identity.events)

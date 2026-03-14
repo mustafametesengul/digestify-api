@@ -6,26 +6,26 @@ from digestify_api.infrastructure.channel import (
     Reply,
     enqueue_message,
 )
-from digestify_api.infrastructure.database import Database, DatabaseDSN
+from digestify_api.infrastructure.database import Database, DSNSettings
 from digestify_api.infrastructure.handled_message import (
     HandledMessage,
     create_handled_message,
 )
 from digestify_api.infrastructure.message_broker import MessageBroker
 from digestify_api.infrastructure.message_processor import MessageProcessor
+from digestify_api.infrastructure.message_router import MessageRouter
 from digestify_api.infrastructure.migration import apply_migrations
-from digestify_api.infrastructure.operation_registry import OperationRegistry
 from digestify_api.infrastructure.outbox import OutboxRelay
 
 __all__ = [
     "Database",
-    "DatabaseDSN",
+    "DSNSettings",
     "apply_migrations",
     "Channel",
     "Event",
     "Command",
     "Reply",
-    "OperationRegistry",
+    "MessageRouter",
     "OutboxRelay",
     "MessageBroker",
     "MessageProcessor",
