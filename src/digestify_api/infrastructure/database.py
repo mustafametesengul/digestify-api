@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Self
+from typing import AsyncIterator
 
 import asyncpg
 from pydantic import Field, SecretStr
@@ -51,22 +51,21 @@ class Database:
             async with connection.transaction():
                 yield connection
 
-    @classmethod
-    @asynccontextmanager
-    async def open(
-        cls,
-        dsn_settings: DSNSettings | None = None,
-        pool_settings: PoolSettings | None = None,
-        schema: str | None = None,
-    ) -> AsyncIterator[Self]:
-        dsn_settings = dsn_settings or DSNSettings()
-        pool_settings = pool_settings or PoolSettings()
-        dsn = get_dsn(dsn_settings)
-        async with asyncpg.create_pool(
-            dsn=dsn,
-            min_size=pool_settings.min_size,
-            max_size=pool_settings.max_size,
-            command_timeout=pool_settings.command_timeout,
-            server_settings={"search_path": schema} if schema else None,
-        ) as pool:
-            yield cls(pool)
+
+@asynccontextmanager
+async def create_database(
+    dsn_settings: DSNSettings | None = None,
+    pool_settings: PoolSettings | None = None,
+    schema: str | None = None,
+) -> AsyncIterator[Database]:
+    dsn_settings = dsn_settings or DSNSettings()
+    pool_settings = pool_settings or PoolSettings()
+    dsn = get_dsn(dsn_settings)
+    async with asyncpg.create_pool(
+        dsn=dsn,
+        min_size=pool_settings.min_size,
+        max_size=pool_settings.max_size,
+        command_timeout=pool_settings.command_timeout,
+        server_settings={"search_path": schema} if schema else None,
+    ) as pool:
+        yield Database(pool)

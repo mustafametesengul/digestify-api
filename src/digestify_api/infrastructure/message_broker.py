@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Self
+from typing import AsyncIterator
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,21 +27,6 @@ class DSNSettings(BaseSettings):
 class MessageBroker:
     def __init__(self, redis: Redis) -> None:
         self._redis = redis
-
-    @classmethod
-    @asynccontextmanager
-    async def open(
-        cls,
-        dsn_settings: DSNSettings | None = None,
-    ) -> AsyncIterator[Self]:
-        dsn_settings = dsn_settings or DSNSettings()
-        async with Redis(
-            host=dsn_settings.host,
-            port=dsn_settings.port,
-            password=dsn_settings.password.get_secret_value(),
-            db=dsn_settings.db,
-        ) as redis:
-            yield cls(redis=redis)
 
     async def create_consumer_group(
         self,
@@ -196,3 +181,17 @@ class MessageBroker:
             _logger.warning(
                 f"Failed to delete ghost consumers for stream {stream_name} and group {group_name}: {e}"
             )
+
+
+@asynccontextmanager
+async def create_message_broker(
+    dsn_settings: DSNSettings | None = None,
+) -> AsyncIterator[MessageBroker]:
+    dsn_settings = dsn_settings or DSNSettings()
+    async with Redis(
+        host=dsn_settings.host,
+        port=dsn_settings.port,
+        password=dsn_settings.password.get_secret_value(),
+        db=dsn_settings.db,
+    ) as redis:
+        yield MessageBroker(redis=redis)

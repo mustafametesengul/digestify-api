@@ -1,4 +1,4 @@
-from digestify_api.identity.context import IdentityContext
+from digestify_api.identity.context import Context, lifespan
 from digestify_api.identity.delete_account import UserDeleted
 from digestify_api.identity.dependencies import get_user_claims, message_router, router
 from digestify_api.identity.sign_up_with_username import UserSignedUp
@@ -11,5 +11,6 @@ __all__ = [
     "UserClaims",
     "UserDeleted",
     "get_user_claims",
-    "IdentityContext",
+    "Context",
+    "lifespan",
 ]

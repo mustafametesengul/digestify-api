@@ -1,17 +1,20 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Self
+from typing import AsyncIterator
 
 from digestify_api.identity.token_manager import TokenManager
 from digestify_api.infrastructure import (
     Database,
     MessageBroker,
+    MessageProcessor,
     MessageRouter,
     OutboxRelay,
+    create_database,
+    create_message_broker,
 )
 
 
-class IdentityContext:
+class Context:
     def __init__(
         self,
         database: Database,
@@ -32,35 +35,46 @@ class IdentityContext:
     def token_manager(self) -> TokenManager:
         return self._token_manager
 
-    async def run(self) -> None:
+
+@asynccontextmanager
+async def lifespan(
+    name: str,
+    message_router: MessageRouter,
+) -> AsyncIterator[Context]:
+    async with (
+        create_database(schema=name) as database,
+        create_message_broker() as message_broker,
+    ):
+        message_router.set_name(name)
+
+        outbox_relay = OutboxRelay(
+            database=database,
+            message_broker=message_broker,
+        )
+
+        token_manager = TokenManager()
+
+        context = Context(
+            database=database,
+            message_broker=message_broker,
+            outbox_relay=outbox_relay,
+            token_manager=token_manager,
+        )
+
+        message_processor = MessageProcessor(
+            context=context,
+            message_broker=message_broker,
+            message_router=message_router,
+        )
+
         tasks = [
-            self._outbox_relay.run(),
+            asyncio.create_task(message_processor.run()),
+            asyncio.create_task(outbox_relay.run()),
         ]
+
+        yield context
+
+        for task in tasks:
+            task.cancel()
+
         await asyncio.gather(*tasks)
-
-    @classmethod
-    @asynccontextmanager
-    async def open(
-        cls,
-        name: str,
-        message_router: MessageRouter,
-    ) -> AsyncIterator[Self]:
-        async with (
-            Database.open(schema=name) as database,
-            MessageBroker.open() as message_broker,
-        ):
-            message_router.set_name(name)
-
-            outbox_relay = OutboxRelay(
-                database=database,
-                message_broker=message_broker,
-            )
-
-            token_manager = TokenManager()
-
-            yield cls(
-                database=database,
-                message_broker=message_broker,
-                outbox_relay=outbox_relay,
-                token_manager=token_manager,
-            )

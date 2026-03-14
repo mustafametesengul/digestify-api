@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -7,7 +6,7 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api import identity, infrastructure, news
+from digestify_api import identity
 
 
 class AppSettings(BaseSettings):
@@ -27,27 +26,12 @@ settings = AppSettings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    async with identity.IdentityContext.open(
+    async with identity.lifespan(
         name="identity",
         message_router=identity.message_router,
     ) as identity_context:
-        message_processor = infrastructure.MessageProcessor(
-            context=identity_context,
-            message_broker=identity_context.message_broker,
-            message_router=identity_context.message_router,
-        )
-        tasks = [
-            asyncio.create_task(identity_context.run()),
-        ]
-
         app.state.identity_context = identity_context
-
         yield
-
-        for task in tasks:
-            task.cancel()
-
-        await asyncio.gather(*tasks)
 
 
 def run_app() -> None:
