@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api import identity
+from digestify_api import identity, news
 
 
 class AppSettings(BaseSettings):
@@ -42,6 +42,7 @@ def run_app() -> None:
     )
 
     app.include_router(identity.router)
+    app.include_router(news.router)
 
     uvicorn.run(app, host=settings.host, port=settings.port)
 

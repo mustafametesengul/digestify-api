@@ -10,7 +10,7 @@ from digestify_api.identity import UserClaims, get_user_claims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
 from digestify_api.news.dependencies import (
-    NewsContext,
+    Context,
     get_context,
     message_router,
     router,
@@ -38,7 +38,7 @@ class TopicPublic(BaseModel):
 @router.post("/create_topic", status_code=201)
 async def create_topic_(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
-    context: Annotated[NewsContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: CreateTopic,
 ) -> None:
     if user_claims.is_anonymous:

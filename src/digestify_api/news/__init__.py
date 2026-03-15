@@ -1,4 +1,4 @@
-from digestify_api.news.dependencies import database, migrations
-from digestify_api.news.handle_user_signed_up import operation_registry
+from digestify_api.news.context import Context, lifespan
+from digestify_api.news.dependencies import message_router, router
 
-__all__ = ["database", "operation_registry", "migrations"]
+__all__ = ["lifespan", "Context", "message_router", "router"]

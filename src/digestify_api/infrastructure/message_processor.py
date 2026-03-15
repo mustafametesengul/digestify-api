@@ -1,6 +1,9 @@
 import asyncio
+import inspect
 from logging import getLogger
 from uuid import uuid4
+
+from pydantic import BaseModel
 
 from digestify_api.infrastructure.message_broker import MessageBroker
 from digestify_api.infrastructure.message_router import (
@@ -79,7 +82,19 @@ class MessageProcessor:
                 continue
 
             try:
-                await handler_binding.callable(message)
+                sig = inspect.signature(handler_binding.callable)
+                kwargs = {}
+                for param_name, param in sig.parameters.items():
+                    if isinstance(param.annotation, type) and issubclass(
+                        param.annotation, BaseModel
+                    ):
+                        payload = param.annotation.model_validate_json(message.payload)
+                        kwargs[param_name] = payload
+                    elif isinstance(self._context, param.annotation):
+                        kwargs[param_name] = self._context
+
+                await handler_binding.callable(**kwargs)
+
                 await self._message_broker.acknowledge_message(
                     stream_name, group_name, message_id
                 )

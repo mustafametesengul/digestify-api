@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from digestify_api.identity import UserClaims, get_user_claims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.news.dependencies import (
-    NewsContext,
+    Context,
     get_context,
     message_router,
     router,
@@ -29,7 +29,7 @@ class NewSchedule(BaseModel):
 @router.post("/change_schedule", status_code=200)
 async def change_schedule(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
-    context: Annotated[NewsContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: ChangeTopicSchedule,
 ) -> NewSchedule:
     if user_claims.is_anonymous:
