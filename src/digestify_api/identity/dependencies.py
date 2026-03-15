@@ -6,11 +6,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from digestify_api.identity.context import Context
 from digestify_api.identity.token_manager import TokenPurpose, UserClaims
 
-security = HTTPBearer()
-
 
 def get_context(request: Request) -> Context:
     return request.app.state.identity_context
+
+
+security = HTTPBearer()
 
 
 def get_user_claims(
