@@ -7,8 +7,9 @@ from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from digestify_api.identity.context import Context
-from digestify_api.identity.dependencies import get_context, message_router, router
+from digestify_api.identity.dependencies import get_context
 from digestify_api.identity.password import hash_password
+from digestify_api.identity.router import message_router, router
 from digestify_api.identity.token_manager import Token, UserClaims
 from digestify_api.identity.user import User, create_user
 from digestify_api.infrastructure import Event, enqueue_message

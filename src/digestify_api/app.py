@@ -26,11 +26,12 @@ settings = AppSettings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    async with identity.lifespan(
-        name="identity",
-        message_router=identity.message_router,
-    ) as identity_context:
+    async with (
+        identity.create_context(name="identity") as identity_context,
+        news.create_context(name="news") as news_context,
+    ):
         app.state.identity_context = identity_context
+        app.state.news_context = news_context
         yield
 
 

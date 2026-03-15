@@ -1,15 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from digestify_api.identity.context import Context
 from digestify_api.identity.token_manager import TokenPurpose, UserClaims
-from digestify_api.infrastructure import MessageRouter
-
-router = APIRouter()
-message_router = MessageRouter()
-
 
 security = HTTPBearer()
 

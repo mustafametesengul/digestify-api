@@ -2,12 +2,12 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+from digestify_api.identity.router import message_router
 from digestify_api.identity.token_manager import TokenManager
 from digestify_api.infrastructure import (
     Database,
     MessageBroker,
     MessageProcessor,
-    MessageRouter,
     OutboxRelay,
     create_database,
     create_message_broker,
@@ -37,10 +37,7 @@ class Context:
 
 
 @asynccontextmanager
-async def lifespan(
-    name: str,
-    message_router: MessageRouter,
-) -> AsyncIterator[Context]:
+async def create_context(name: str) -> AsyncIterator[Context]:
     async with (
         create_database(schema=name) as database,
         create_message_broker() as message_broker,
@@ -77,4 +74,4 @@ async def lifespan(
         for task in tasks:
             task.cancel()
 
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)

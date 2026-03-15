@@ -6,11 +6,11 @@ from digestify_api.infrastructure import (
     Database,
     MessageBroker,
     MessageProcessor,
-    MessageRouter,
     OutboxRelay,
     create_database,
     create_message_broker,
 )
+from digestify_api.news.dependencies import message_router
 
 
 class Context:
@@ -30,7 +30,7 @@ class Context:
 
 
 @asynccontextmanager
-async def lifespan(name: str, message_router: MessageRouter) -> AsyncIterator[Context]:
+async def create_context(name: str) -> AsyncIterator[Context]:
     async with (
         create_database(schema=name) as database,
         create_message_broker() as message_broker,

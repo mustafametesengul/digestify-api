@@ -4,7 +4,8 @@ from uuid import uuid4
 from fastapi import Depends
 
 from digestify_api.identity.context import Context
-from digestify_api.identity.dependencies import get_context, router
+from digestify_api.identity.dependencies import get_context
+from digestify_api.identity.router import router
 from digestify_api.identity.token_manager import Token, UserClaims
 
 
