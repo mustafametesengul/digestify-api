@@ -1,24 +1,33 @@
-from digestify_api.identity.token_manager import TokenManager
+from dataclasses import dataclass
+from typing import Annotated
+
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from digestify_api.identity.token_decoder import TokenDecoder
+from digestify_api.identity.token_generator import TokenGenerator, UserClaims
 from digestify_api.infrastructure import Database, MessageBroker, OutboxRelay
 
 
+@dataclass
 class Context:
-    def __init__(
-        self,
-        database: Database,
-        message_broker: MessageBroker,
-        outbox_relay: OutboxRelay,
-        token_manager: TokenManager,
-    ) -> None:
-        self._database = database
-        self._message_broker = message_broker
-        self._outbox_relay = outbox_relay
-        self._token_manager = token_manager
+    database: Database
+    message_broker: MessageBroker
+    outbox_relay: OutboxRelay
+    token_generator: TokenGenerator
+    token_decoder: TokenDecoder
 
-    @property
-    def database(self) -> Database:
-        return self._database
 
-    @property
-    def token_manager(self) -> TokenManager:
-        return self._token_manager
+def get_context(request: Request) -> Context:
+    return request.app.state.identity_context
+
+
+security = HTTPBearer()
+
+
+def get_user_claims(
+    context: Annotated[Context, Depends(get_context)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> UserClaims:
+    token = credentials.credentials
+    return context.token_decoder.decode(token)

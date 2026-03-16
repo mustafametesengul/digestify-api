@@ -3,10 +3,9 @@ from uuid import uuid4
 
 from fastapi import Depends
 
-from digestify_api.identity.context import Context
-from digestify_api.identity.dependencies import get_context
+from digestify_api.identity.context import Context, get_context
 from digestify_api.identity.router import router
-from digestify_api.identity.token_manager import Token, UserClaims
+from digestify_api.identity.token_generator import Token, UserClaims
 
 
 @router.post("/sign_in_anonymously", status_code=201)
@@ -17,4 +16,4 @@ async def sign_in_anonymously(
         id=uuid4(),
         is_anonymous=True,
     )
-    return context.token_manager.generate(user_claims)
+    return context.token_generator.generate(user_claims)

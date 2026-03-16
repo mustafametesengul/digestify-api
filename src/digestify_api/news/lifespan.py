@@ -2,16 +2,15 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from digestify_api.identity.context import Context
-from digestify_api.identity.router import message_router
-from digestify_api.identity.token_decoder import TokenDecoder
-from digestify_api.identity.token_generator import TokenGenerator
+from digestify_api.identity import TokenDecoder
 from digestify_api.infrastructure import (
     MessageProcessor,
     OutboxRelay,
     create_database,
     create_message_broker,
 )
+from digestify_api.news.context import Context
+from digestify_api.news.router import message_router
 
 
 @asynccontextmanager
@@ -27,14 +26,12 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
             message_broker=message_broker,
         )
 
-        token_generator = TokenGenerator()
         token_decoder = TokenDecoder()
 
         context = Context(
             database=database,
             message_broker=message_broker,
             outbox_relay=outbox_relay,
-            token_generator=token_generator,
             token_decoder=token_decoder,
         )
 

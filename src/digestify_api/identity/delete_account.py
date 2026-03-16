@@ -4,10 +4,9 @@ from uuid import UUID
 
 from fastapi import Depends
 
-from digestify_api.identity.context import Context
-from digestify_api.identity.dependencies import get_context, get_user_claims
+from digestify_api.identity.context import Context, get_context, get_user_claims
 from digestify_api.identity.router import message_router, router
-from digestify_api.identity.token_manager import UserClaims
+from digestify_api.identity.token_generator import UserClaims
 from digestify_api.identity.user import get_user, update_user
 from digestify_api.infrastructure import Event, enqueue_message
 

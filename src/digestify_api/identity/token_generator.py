@@ -5,9 +5,13 @@ from typing import Literal
 from uuid import UUID
 
 import jwt
-from jwt import InvalidTokenError
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class TokenPurpose(StrEnum):
+    ACCESS = "access"
+    REFRESH = "refresh"
 
 
 class UserClaims(BaseModel):
@@ -21,12 +25,7 @@ class Token(BaseModel):
     token_type: Literal["Bearer"] = "Bearer"
 
 
-class TokenPurpose(StrEnum):
-    ACCESS = "access"
-    REFRESH = "refresh"
-
-
-class TokenManagerSettings(BaseSettings):
+class TokenGeneratorSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -41,9 +40,9 @@ class TokenManagerSettings(BaseSettings):
     refresh_token_expire_days: int = 7
 
 
-class TokenManager:
-    def __init__(self, settings: TokenManagerSettings | None = None) -> None:
-        self._settings = settings or TokenManagerSettings()
+class TokenGenerator:
+    def __init__(self, settings: TokenGeneratorSettings | None = None) -> None:
+        self._settings = settings or TokenGeneratorSettings()
 
     def generate(self, user_claims: UserClaims) -> Token:
         access_token_expire = datetime.now(timezone.utc) + timedelta(
@@ -79,33 +78,4 @@ class TokenManager:
         return Token(
             access_token=access_token,
             refresh_token=refresh_token,
-        )
-
-    def decode(
-        self,
-        token: str,
-        purpose: TokenPurpose = TokenPurpose.ACCESS,
-    ) -> UserClaims:
-        """Verify JWT using the secret key."""
-        payload = jwt.decode(
-            token,
-            self._settings.secret_key.get_secret_value(),
-            algorithms=[self._settings.algorithm],
-        )
-        payload_token_type = payload.get("type")
-        payload_sub = payload.get("sub")
-        payload_anon = payload.get("anon")
-        if (
-            not isinstance(payload_sub, str)
-            or not isinstance(payload_anon, bool)
-            or not isinstance(payload_token_type, str)
-        ):
-            raise TypeError("Invalid token payload")
-
-        if payload_token_type != purpose.value:
-            raise InvalidTokenError("Invalid token type")
-
-        return UserClaims(
-            id=UUID(payload_sub),
-            is_anonymous=payload_anon,
         )

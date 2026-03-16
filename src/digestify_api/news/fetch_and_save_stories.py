@@ -13,7 +13,8 @@ from digestify_api.infrastructure import (
     create_handled_message,
     enqueue_message,
 )
-from digestify_api.news.dependencies import Context, message_router
+from digestify_api.news.context import Context
+from digestify_api.news.router import message_router
 from digestify_api.news.story import Story, create_story
 from digestify_api.news.topic import Topic, get_topic, update_topic
 

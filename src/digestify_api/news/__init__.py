@@ -1,4 +1,4 @@
-from digestify_api.news.context import Context, create_context
-from digestify_api.news.dependencies import message_router, router
+from digestify_api.news.lifespan import lifespan
+from digestify_api.news.router import message_router, router
 
-__all__ = ["create_context", "Context", "message_router", "router"]
+__all__ = ["lifespan", "message_router", "router"]

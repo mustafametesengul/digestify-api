@@ -6,11 +6,10 @@ from asyncpg import UniqueViolationError
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.context import Context
-from digestify_api.identity.dependencies import get_context
+from digestify_api.identity.context import Context, get_context
 from digestify_api.identity.password import hash_password
 from digestify_api.identity.router import message_router, router
-from digestify_api.identity.token_manager import Token, UserClaims
+from digestify_api.identity.token_generator import Token, UserClaims
 from digestify_api.identity.user import User, create_user
 from digestify_api.infrastructure import Event, enqueue_message
 
@@ -68,4 +67,4 @@ async def sign_up_with_username(
         await enqueue_message(message_router.events, connection, event)
 
         token_payload = UserClaims(id=user.id, is_anonymous=False)
-        return context.token_manager.generate(token_payload)
+        return context.token_generator.generate(token_payload)

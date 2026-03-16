@@ -3,11 +3,10 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.context import Context
-from digestify_api.identity.dependencies import get_context
+from digestify_api.identity.context import Context, get_context
 from digestify_api.identity.password import verify_password
 from digestify_api.identity.router import router
-from digestify_api.identity.token_manager import Token, UserClaims
+from digestify_api.identity.token_generator import Token, UserClaims
 from digestify_api.identity.user import get_user_by_username
 
 
@@ -44,4 +43,4 @@ async def sign_in_with_username(
             raise InvalidCredentials()
 
         token_payload = UserClaims(id=user.id, is_anonymous=False)
-        return context.token_manager.generate(token_payload)
+        return context.token_generator.generate(token_payload)

@@ -6,16 +6,11 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends
 from pydantic import BaseModel, Field
 
-from digestify_api.identity import UserClaims, get_user_claims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
-from digestify_api.news.dependencies import (
-    Context,
-    get_context,
-    message_router,
-    router,
-)
+from digestify_api.news.context import Context, UserClaims, get_context, get_user_claims
 from digestify_api.news.fetch_and_save_stories import FetchAndSaveStories
+from digestify_api.news.router import message_router, router
 from digestify_api.news.topic import Language, Schedule, Topic, create_topic
 from digestify_api.news.user import get_user
 
