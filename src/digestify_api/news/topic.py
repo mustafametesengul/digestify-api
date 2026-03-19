@@ -44,29 +44,6 @@ class Topic(BaseModel):
     is_deleted: bool
 
 
-async def create_tables(connection: Connection) -> None:
-    await connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS topics (
-            id UUID PRIMARY KEY,
-            user_id UUID NOT NULL,
-            name TEXT NOT NULL,
-            description TEXT NOT NULL,
-            language TEXT NOT NULL,
-            image_url TEXT,
-            is_active BOOLEAN NOT NULL,
-            is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-            created_at TIMESTAMPTZ NOT NULL,
-            updated_at TIMESTAMPTZ,
-            schedule_time TIME NOT NULL,
-            schedule_timezone TEXT NOT NULL,
-            schedule_version INT NOT NULL,
-            last_execution_date DATE
-        );
-        """
-    )
-
-
 async def create_topic(conn: Connection, topic: Topic) -> None:
     await conn.execute(
         """

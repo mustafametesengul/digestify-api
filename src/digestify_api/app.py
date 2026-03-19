@@ -42,8 +42,8 @@ def run_app() -> None:
         debug=settings.debug,
     )
 
-    app.include_router(identity.router)
-    app.include_router(news.router)
+    app.include_router(identity.router, prefix="/identity", tags=["identity"])
+    app.include_router(news.router, prefix="/news", tags=["news"])
 
     uvicorn.run(app, host=settings.host, port=settings.port)
 

@@ -6,10 +6,12 @@ from digestify_api.identity import TokenDecoder
 from digestify_api.infrastructure import (
     MessageProcessor,
     OutboxRelay,
+    apply_migrations,
     create_database,
     create_message_broker,
 )
 from digestify_api.news.context import Context
+from digestify_api.news.migrations import migrations
 from digestify_api.news.router import message_router
 
 
@@ -19,6 +21,8 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
         create_database(schema=name) as database,
         create_message_broker() as message_broker,
     ):
+        await apply_migrations(schema=name, migrations=migrations)
+
         message_router.set_name(name)
 
         outbox_relay = OutboxRelay(

@@ -11,21 +11,6 @@ class HandledMessage(BaseModel):
     handled_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-async def create_handled_messages_table(connection: Connection) -> None:
-    await connection.execute(
-        """
-        CREATE TABLE handled_messages (
-            message_id UUID NOT NULL,
-            handler_name TEXT NOT NULL,
-            handled_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            PRIMARY KEY (message_id, handler_name)
-        );
-
-        CREATE INDEX ix_handled_messages_handled_at ON handled_messages (handled_at);
-        """
-    )
-
-
 async def create_handled_message(
     conn: Connection, handled_message: HandledMessage
 ) -> None:
@@ -39,6 +24,3 @@ async def create_handled_message(
         handled_message.handler_name,
         handled_message.handled_at,
     )
-
-
-migrations = [create_handled_messages_table]

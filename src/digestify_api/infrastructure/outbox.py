@@ -12,7 +12,7 @@ from digestify_api.infrastructure.message_broker import MessageBroker
 async def create_outbox_table(connection: Connection) -> None:
     await connection.execute(
         """
-          CREATE TABLE outbox (
+        CREATE TABLE outbox (
             id UUID PRIMARY KEY,
             channel TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -98,7 +98,6 @@ class OutboxRelay:
                     now,
                     limit=self._batch_size,
                 )
-                print(f"Found {len(messages)} pending messages")
                 for message in messages:
                     await self._message_broker.publish_message(message)
                     await delete_outbox_message(connection, message.id)

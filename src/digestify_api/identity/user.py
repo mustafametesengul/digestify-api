@@ -15,25 +15,6 @@ class User(BaseModel):
     is_deleted: bool
 
 
-async def create_tables(connection: Connection) -> None:
-    await connection.execute(
-        """
-        CREATE TABLE users (
-            id UUID PRIMARY KEY,
-            username TEXT UNIQUE,
-            password_hash TEXT,
-            is_deleted BOOLEAN NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE,
-            version INTEGER NOT NULL
-        );
-
-        CREATE INDEX ix_users_username ON users (username);
-        CREATE INDEX ix_users_is_deleted ON users (is_deleted);
-        """
-    )
-
-
 async def create_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """

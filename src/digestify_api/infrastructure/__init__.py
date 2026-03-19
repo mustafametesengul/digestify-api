@@ -1,4 +1,3 @@
-from digestify_api.infrastructure.bootstrap import migrations
 from digestify_api.infrastructure.channel import (
     Channel,
     Command,
@@ -17,7 +16,8 @@ from digestify_api.infrastructure.message_broker import (
 )
 from digestify_api.infrastructure.message_processor import MessageProcessor
 from digestify_api.infrastructure.message_router import MessageRouter
-from digestify_api.infrastructure.migration import apply_migrations
+from digestify_api.infrastructure.migrations import migrations
+from digestify_api.infrastructure.migrator import apply_migrations
 from digestify_api.infrastructure.outbox import OutboxRelay
 
 __all__ = [

@@ -81,6 +81,12 @@ class MessageProcessor:
                 )
                 continue
 
+            if message.type != handler_binding.operation.message_type:
+                await self._message_broker.acknowledge_message(
+                    stream_name, group_name, message_id
+                )
+                continue
+
             try:
                 sig = inspect.signature(handler_binding.callable)
                 kwargs = {}

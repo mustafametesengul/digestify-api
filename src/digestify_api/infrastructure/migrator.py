@@ -46,25 +46,30 @@ async def update_schema_migrations(
 
 
 async def apply_migrations(
-    db: DSNSettings, schema: str, migrations: Sequence[MigrationFunc]
+    schema: str,
+    migrations: Sequence[MigrationFunc],
+    dsn_settings: DSNSettings | None = None,
 ) -> None:
-    dsn = get_dsn(db)
+    dsn_settings = dsn_settings or DSNSettings()
+    dsn = get_dsn(dsn_settings)
     connection = await asyncpg.connect(dsn)
 
     if not isinstance(connection, Connection):
         raise TypeError("Expected asyncpg.Connection")
 
     await create_schema(connection, schema)
+
+    await connection.execute(f"SET search_path TO {schema}")
+
     await create_schema_migrations_table(connection)
 
     applied = await get_applied_migrations(connection)
 
-    for i, migration in enumerate(migrations):
+    for migration in migrations:
         if not isinstance(migration, FunctionType):
             raise TypeError(f"Expected a function, got {type(migration)}")
 
-        version = f"{migration.__name__}_{i}"
-
+        version = f"{migration.__name__}"
         if version in applied:
             continue
 

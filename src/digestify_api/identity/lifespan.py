@@ -3,12 +3,14 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from digestify_api.identity.context import Context
+from digestify_api.identity.migrations import migrations
 from digestify_api.identity.router import message_router
 from digestify_api.identity.token_decoder import TokenDecoder
 from digestify_api.identity.token_generator import TokenGenerator
 from digestify_api.infrastructure import (
     MessageProcessor,
     OutboxRelay,
+    apply_migrations,
     create_database,
     create_message_broker,
 )
@@ -20,6 +22,8 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
         create_database(schema=name) as database,
         create_message_broker() as message_broker,
     ):
+        await apply_migrations(schema=name, migrations=migrations)
+
         message_router.set_name(name)
 
         outbox_relay = OutboxRelay(

@@ -19,24 +19,6 @@ class User(BaseModel):
     updated_at: datetime | None
 
 
-async def create_tables(connection: Connection) -> None:
-    await connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id UUID PRIMARY KEY,
-            created_topics_count INTEGER NOT NULL,
-            active_topics_count INTEGER NOT NULL,
-            identity_version INTEGER NOT NULL DEFAULT 0,
-            membership_version INTEGER NOT NULL DEFAULT 0,
-            tier TEXT,
-            is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-            created_at TIMESTAMPTZ NOT NULL,
-            updated_at TIMESTAMPTZ
-        );
-        """
-    )
-
-
 async def create_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
