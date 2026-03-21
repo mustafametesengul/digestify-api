@@ -6,8 +6,9 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends
 from pydantic import BaseModel
 
+from digestify_api.identity import UserClaims, UserRole
 from digestify_api.infrastructure import enqueue_message
-from digestify_api.news.context import Context, UserClaims, get_context, get_user_claims
+from digestify_api.news.context import Context, get_context, get_user_claims
 from digestify_api.news.fetch_and_save_stories import FetchAndSaveStories
 from digestify_api.news.router import message_router, router
 from digestify_api.news.topic import Schedule, get_topic, update_topic
@@ -27,7 +28,7 @@ async def change_schedule(
     context: Annotated[Context, Depends(get_context)],
     payload: ChangeTopicSchedule,
 ) -> NewSchedule:
-    if user_claims.is_anonymous:
+    if user_claims.role is UserRole.ANONYMOUS:
         raise ValueError("Authentication required")
 
     async with context.database.transaction() as connection:

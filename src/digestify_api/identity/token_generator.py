@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from pydantic import BaseModel, Field, SecretStr
@@ -14,9 +14,15 @@ class TokenPurpose(StrEnum):
     REFRESH = "refresh"
 
 
+class UserRole(StrEnum):
+    ANONYMOUS = "anonymous"
+    PERMANENT = "permanent"
+    ADMIN = "admin"
+
+
 class UserClaims(BaseModel):
-    id: UUID
-    is_anonymous: bool
+    id: UUID = Field(default_factory=uuid4)
+    role: UserRole
 
 
 class Token(BaseModel):
@@ -51,7 +57,7 @@ class TokenGenerator:
         to_encode = {
             "sub": str(user_claims.id),
             "exp": access_token_expire,
-            "anon": user_claims.is_anonymous,
+            "role": user_claims.role.value,
             "type": TokenPurpose.ACCESS.value,
         }
         access_token = jwt.encode(
@@ -66,7 +72,7 @@ class TokenGenerator:
         to_encode = {
             "sub": str(user_claims.id),
             "exp": refresh_token_expire,
-            "anon": user_claims.is_anonymous,
+            "role": user_claims.role.value,
             "type": TokenPurpose.REFRESH.value,
         }
         refresh_token = jwt.encode(

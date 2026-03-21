@@ -1,18 +1,20 @@
 from digestify_api import identity
-from digestify_api.infrastructure import HandledMessage, create_handled_message
+from digestify_api.infrastructure.handled_message import (
+    HandledMessage,
+    create_handled_message,
+)
 from digestify_api.news.context import Context
 from digestify_api.news.router import message_router
 from digestify_api.news.user import User, create_user, get_user, update_user
 
 
 @message_router.receive(channel=identity.message_router.events)
-async def handle_user_signed_up(context: Context, event: identity.UserSignedUp) -> None:
-    print(f"Handling UserSignedUp event: {event}")
+async def handle_user_deletion(context: Context, event: identity.UserDeleted) -> None:
     database = context.database
     async with database.transaction() as connection:
         handled_message = HandledMessage(
             message_id=event.id,
-            handler_name="handle_user_signed_up",
+            handler_name="handle_user_deletion",
         )
 
         user = await get_user(connection, event.user_id, lock=True)
@@ -24,7 +26,7 @@ async def handle_user_signed_up(context: Context, event: identity.UserSignedUp) 
                 identity_version=event.version,
                 membership_version=0,
                 tier=None,
-                is_deleted=False,
+                is_deleted=True,
                 created_at=event.created_at,
                 updated_at=None,
             )
@@ -33,9 +35,10 @@ async def handle_user_signed_up(context: Context, event: identity.UserSignedUp) 
             return
 
         if user.identity_version >= event.version:
+            await create_handled_message(connection, handled_message)
             return
 
         user.identity_version = event.version
-        user.is_deleted = False
+        user.is_deleted = True
         await update_user(connection, user)
         await create_handled_message(connection, handled_message)

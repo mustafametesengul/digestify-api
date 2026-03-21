@@ -5,7 +5,7 @@ import jwt
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.identity.token_generator import TokenPurpose, UserClaims
+from digestify_api.identity.token_generator import TokenPurpose, UserClaims, UserRole
 
 
 class TokenDecoderSettings(BaseSettings):
@@ -30,7 +30,6 @@ class TokenDecoder:
         token: str,
         purpose: TokenPurpose = TokenPurpose.ACCESS,
     ) -> UserClaims:
-        """Verify JWT using the secret key."""
         payload = jwt.decode(
             token,
             self._settings.secret_key.get_secret_value(),
@@ -38,10 +37,10 @@ class TokenDecoder:
         )
         payload_token_type = payload.get("type")
         payload_sub = payload.get("sub")
-        payload_anon = payload.get("anon")
+        payload_role = payload.get("role")
         if (
             not isinstance(payload_sub, str)
-            or not isinstance(payload_anon, bool)
+            or not isinstance(payload_role, str)
             or not isinstance(payload_token_type, str)
         ):
             raise TypeError("Invalid token payload")
@@ -52,5 +51,5 @@ class TokenDecoder:
 
         return UserClaims(
             id=UUID(payload_sub),
-            is_anonymous=payload_anon,
+            role=UserRole(payload_role),
         )

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from digestify_api.identity.context import Context, get_context
 from digestify_api.identity.password import hash_password
 from digestify_api.identity.router import message_router, router
-from digestify_api.identity.token_generator import Token, UserClaims
+from digestify_api.identity.token_generator import Token, UserClaims, UserRole
 from digestify_api.identity.user import User, create_user
 from digestify_api.infrastructure import Event, enqueue_message
 
@@ -66,5 +66,5 @@ async def sign_up_with_username(
 
         await enqueue_message(message_router.events, connection, event)
 
-        token_payload = UserClaims(id=user.id, is_anonymous=False)
+        token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
         return context.token_generator.generate(token_payload)

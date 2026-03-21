@@ -9,7 +9,7 @@ from digestify_api.identity.sign_up_with_username import (
     sign_up_with_username,
 )
 from digestify_api.identity.token_decoder import TokenDecoder
-from digestify_api.identity.token_generator import UserClaims
+from digestify_api.identity.token_generator import UserClaims, UserRole
 
 __all__ = [
     "router",
@@ -18,6 +18,7 @@ __all__ = [
     "UserSignedUp",
     "UserClaims",
     "UserDeleted",
+    "UserRole",
     "lifespan",
     "sign_in_anonymously",
     "sign_in_with_username",
