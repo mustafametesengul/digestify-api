@@ -10,8 +10,8 @@ from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
 from digestify_api.news.context import Context, get_context, get_user_claims
-from digestify_api.news.fetch_and_save_stories import FetchAndSaveStories
 from digestify_api.news.router import message_router, router
+from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Language, Schedule, Topic, create_topic
 from digestify_api.news.user import get_user
 
@@ -96,7 +96,7 @@ async def create_topic_(
 
         scheduled_at = max(schedule - timedelta(minutes=10), now)
 
-        command = FetchAndSaveStories(
+        command = FetchStories(
             topic_id=topic.id,
             scheduled_at=scheduled_at,
             schedule_version=topic.schedule_version,

@@ -19,7 +19,7 @@ from digestify_api.news.story import Story, create_story
 from digestify_api.news.topic import Topic, get_topic, update_topic
 
 
-class FetchAndSaveStories(Command):
+class FetchStories(Command):
     topic_id: UUID
     schedule_version: int
     schedule_time: time
@@ -29,7 +29,7 @@ class FetchAndSaveStories(Command):
 
 async def _validate_and_fetch_topic(
     connection: asyncpg.Connection,
-    payload: FetchAndSaveStories,
+    payload: FetchStories,
     handled_message: HandledMessage,
     now: datetime,
 ) -> Topic | None:
@@ -70,7 +70,7 @@ async def _validate_and_fetch_topic(
         )
         scheduled_at = max(schedule - timedelta(minutes=10), now)
 
-        new_command = FetchAndSaveStories(
+        new_command = FetchStories(
             topic_id=payload.topic_id,
             schedule_version=payload.schedule_version,
             schedule_time=topic.schedule_time,
@@ -85,9 +85,9 @@ async def _validate_and_fetch_topic(
 
 
 @message_router.receive(channel=message_router.commands)
-async def fetch_and_save_stories(
+async def fetch_stories(
     context: Context,
-    payload: FetchAndSaveStories,
+    payload: FetchStories,
 ) -> None:
     database = context.database
 
@@ -153,7 +153,7 @@ async def fetch_and_save_stories(
         )
         scheduled_at = max(schedule - timedelta(minutes=10), now)
 
-        new_command = FetchAndSaveStories(
+        new_command = FetchStories(
             topic_id=payload.topic_id,
             schedule_version=payload.schedule_version,
             schedule_time=topic.schedule_time,

@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.news.context import Context, get_context, get_user_claims
-from digestify_api.news.fetch_and_save_stories import FetchAndSaveStories
 from digestify_api.news.router import message_router, router
+from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Schedule, get_topic, update_topic
 
 
@@ -62,7 +62,7 @@ async def change_schedule(
 
         scheduled_at = max(schedule - timedelta(minutes=10), now)
 
-        command = FetchAndSaveStories(
+        command = FetchStories(
             topic_id=topic.id,
             schedule_version=topic.schedule_version,
             schedule_time=topic.schedule_time,
