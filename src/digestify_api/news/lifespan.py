@@ -10,9 +10,9 @@ from digestify_api.infrastructure import (
     create_database,
     create_message_broker,
 )
-from digestify_api.news.context import Context
+from digestify_api.news.dependencies import Context
 from digestify_api.news.migrations import migrations
-from digestify_api.news.router import message_router
+from digestify_api.news.routers import message_router
 
 
 @asynccontextmanager

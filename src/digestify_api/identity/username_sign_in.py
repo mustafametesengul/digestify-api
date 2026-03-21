@@ -3,14 +3,14 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.context import Context, get_context
+from digestify_api.identity.dependencies import Context, get_context
 from digestify_api.identity.password import verify_password
-from digestify_api.identity.router import router
-from digestify_api.identity.token_generator import Token, UserClaims, UserRole
+from digestify_api.identity.routers import api_router
+from digestify_api.identity.token_generation import Token, UserClaims, UserRole
 from digestify_api.identity.user import get_user_by_username
 
 
-class SignInWithUsername(BaseModel):
+class SignInWithUsernameRequest(BaseModel):
     username: str = Field(..., min_length=4, max_length=32)
     password: str = Field(..., min_length=8)
 
@@ -24,10 +24,10 @@ class InvalidCredentials(HTTPException):
         )
 
 
-@router.post("/sign-in-with-username")
+@api_router.post("/sign-in-with-username")
 async def sign_in_with_username(
     context: Annotated[Context, Depends(get_context)],
-    payload: SignInWithUsername,
+    payload: SignInWithUsernameRequest,
 ) -> Token:
     async with context.database.transaction() as connection:
         user = await get_user_by_username(connection, payload.username)

@@ -8,8 +8,8 @@ from pydantic import BaseModel
 
 from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
-from digestify_api.news.context import Context, get_context, get_user_claims
-from digestify_api.news.router import message_router, router
+from digestify_api.news.dependencies import Context, get_context, get_user_claims
+from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Schedule, get_topic, update_topic
 
@@ -22,7 +22,7 @@ class NewSchedule(BaseModel):
     next_planned_execution: datetime
 
 
-@router.post("/change-schedule", status_code=200)
+@api_router.post("/change-schedule", status_code=200)
 async def change_schedule(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],

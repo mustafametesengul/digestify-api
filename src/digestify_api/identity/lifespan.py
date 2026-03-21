@@ -2,11 +2,11 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from digestify_api.identity.context import Context
+from digestify_api.identity.dependencies import Context
 from digestify_api.identity.migrations import migrations
-from digestify_api.identity.router import message_router
-from digestify_api.identity.token_decoder import TokenDecoder
-from digestify_api.identity.token_generator import TokenGenerator
+from digestify_api.identity.routers import message_router
+from digestify_api.identity.token_generation import TokenGenerator
+from digestify_api.identity.token_verification import TokenDecoder
 from digestify_api.infrastructure import (
     MessageProcessor,
     OutboxRelay,

@@ -2,5 +2,5 @@ from fastapi import APIRouter
 
 from digestify_api.infrastructure import MessageRouter
 
-router = APIRouter()
+api_router = APIRouter()
 message_router = MessageRouter()

@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
-from digestify_api.news.context import Context, get_context, get_user_claims
-from digestify_api.news.router import message_router, router
+from digestify_api.news.dependencies import Context, get_context, get_user_claims
+from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import (
     Language,
@@ -39,7 +39,7 @@ class TopicPublic(BaseModel):
     next_planned_execution: datetime
 
 
-@router.post("/create-topic", status_code=201)
+@api_router.post("/create-topic", status_code=201)
 async def create_topic(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],

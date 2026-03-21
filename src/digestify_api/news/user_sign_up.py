@@ -1,7 +1,7 @@
 from digestify_api import identity
 from digestify_api.infrastructure import HandledMessage, create_handled_message
-from digestify_api.news.context import Context
-from digestify_api.news.router import message_router
+from digestify_api.news.dependencies import Context
+from digestify_api.news.routers import message_router
 from digestify_api.news.user import User, create_user, get_user, update_user
 
 

@@ -4,8 +4,8 @@ from typing import Annotated
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from digestify_api.identity.token_decoder import TokenDecoder
-from digestify_api.identity.token_generator import TokenGenerator, UserClaims
+from digestify_api.identity.token_generation import TokenGenerator, UserClaims
+from digestify_api.identity.token_verification import TokenDecoder
 from digestify_api.infrastructure import Database
 
 
