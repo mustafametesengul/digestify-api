@@ -1,14 +1,12 @@
-import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis.asyncio import Redis
+from redis.exceptions import ResponseError
 
 from digestify_api.infrastructure.message import Message
-
-_logger = logging.getLogger(__name__)
 
 
 class DSNSettings(BaseSettings):
@@ -33,12 +31,16 @@ class MessageBroker:
         stream_name: str,
         group_name: str,
     ) -> None:
-        await self._redis.xgroup_create(
-            stream_name,
-            group_name,
-            id="0",
-            mkstream=True,
-        )
+        try:
+            await self._redis.xgroup_create(
+                stream_name,
+                group_name,
+                id="0",
+                mkstream=True,
+            )
+        except ResponseError as e:
+            if "BUSYGROUP" not in str(e):
+                raise
 
     async def publish_message(self, message: Message) -> None:
         await self._redis.xadd(
@@ -71,24 +73,20 @@ class MessageBroker:
         for stream, messages in entries:
             if not isinstance(stream, bytes):
                 msg = "Stream name must be bytes"
-                _logger.exception(msg)
                 raise TypeError(msg)
 
             for message_id, fields in messages:
                 if not isinstance(fields, dict):
                     msg = "Message fields must be a dictionary"
-                    _logger.exception(msg)
                     raise TypeError(msg)
 
                 message_data = fields.get(b"message")
                 if not isinstance(message_data, bytes):
                     msg = "Message data must be bytes"
-                    _logger.exception(msg)
                     raise TypeError(msg)
 
                 if not isinstance(message_id, bytes):
                     msg = "Message ID must be bytes"
-                    _logger.exception(msg)
                     raise TypeError(msg)
 
                 message = Message.model_validate_json(message_data.decode())
@@ -128,18 +126,15 @@ class MessageBroker:
         for message_id, fields in messages:
             if not isinstance(fields, dict):
                 msg = "Message fields must be a dictionary"
-                _logger.exception(msg)
                 raise TypeError(msg)
 
             message_data = fields.get(b"message")
             if not isinstance(message_data, bytes):
                 msg = "Message data must be bytes"
-                _logger.exception(msg)
                 raise TypeError(msg)
 
             if not isinstance(message_id, bytes):
                 msg = "Message ID must be bytes"
-                _logger.exception(msg)
                 raise TypeError(msg)
 
             message = Message.model_validate_json(message_data.decode())

@@ -35,11 +35,29 @@ class MessageProcessor:
         _logger.info(
             f"Starting consumer {consumer_name} for stream {stream_name} and group {group_name}"
         )
-        try:
-            await self._message_broker.create_consumer_group(stream_name, group_name)
-        except Exception:
-            _logger.warning(
-                f"Consumer group {group_name} already exists for stream {stream_name}"
+        await self._message_broker.create_consumer_group(stream_name, group_name)
+
+        sig = inspect.signature(handler_binding.callable)
+
+        payload_param_name: str | None = None
+        payload_param_type: type[BaseModel] | None = None
+        context_param_name: str | None = None
+
+        for param_name, param in sig.parameters.items():
+            if isinstance(param.annotation, type) and issubclass(
+                param.annotation, BaseModel
+            ):
+                payload_param_name = param_name
+                payload_param_type = param.annotation
+            elif isinstance(self._context, param.annotation):
+                context_param_name = param_name
+        if (
+            payload_param_name is None
+            or payload_param_type is None
+            or context_param_name is None
+        ):
+            raise ValueError(
+                f"Handler {handler_binding.callable} must have one parameter that is a subclass of BaseModel and one parameter that matches the context type"
             )
 
         iteration = 0
@@ -92,28 +110,22 @@ class MessageProcessor:
                 )
                 continue
 
-            try:
-                sig = inspect.signature(handler_binding.callable)
-                kwargs = {}
-                for param_name, param in sig.parameters.items():
-                    if isinstance(param.annotation, type) and issubclass(
-                        param.annotation, BaseModel
-                    ):
-                        payload = param.annotation.model_validate_json(message.payload)
-                        kwargs[param_name] = payload
-                    elif isinstance(self._context, param.annotation):
-                        kwargs[param_name] = self._context
+            kwargs: dict[str, object] = {}
+            if payload_param_name:
+                payload = payload_param_type.model_validate_json(message.payload)
+                kwargs[payload_param_name] = payload
+            if context_param_name:
+                kwargs[context_param_name] = self._context
 
-                await handler_binding.callable(**kwargs)
+            await handler_binding.callable(**kwargs)
 
-                await self._message_broker.acknowledge_message(
-                    stream_name, group_name, message_id
-                )
-                if is_autoclaim:
-                    # If we successfully processed a pending message, check for more pending messages
-                    iteration = 9
-            except Exception:
-                _logger.exception("Error while handling message")
+            await self._message_broker.acknowledge_message(
+                stream_name, group_name, message_id
+            )
+            if is_autoclaim:
+                # If we successfully processed a pending message, check for more
+                # pending messages
+                iteration = 9
 
     async def _safe_consume_stream(self, handler_binding: OperationBinding) -> None:
         try:

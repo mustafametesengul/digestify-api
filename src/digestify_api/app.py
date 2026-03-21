@@ -21,9 +21,6 @@ class AppSettings(BaseSettings):
     port: int = Field(default=8000)
 
 
-settings = AppSettings()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with (
@@ -35,7 +32,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
 
 
-def run_app() -> None:
+def run_app(settings: AppSettings | None = None) -> None:
+    settings = settings or AppSettings()
+
     app = FastAPI(
         title="Digestify API",
         lifespan=lifespan,

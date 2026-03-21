@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -7,7 +8,6 @@ from asyncpg import Connection
 from digestify_api.infrastructure.database import Database
 from digestify_api.infrastructure.message import Message
 from digestify_api.infrastructure.message_broker import MessageBroker
-import logging
 
 _logger = logging.getLogger(__name__)
 

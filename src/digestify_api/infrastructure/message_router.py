@@ -42,9 +42,9 @@ class MessageRouter:
         return self._replies
 
     def set_name(self, name: str) -> None:
-        self._events.address = f"{name}-events"
-        self._commands.address = f"{name}-commands"
-        self._replies.address = f"{name}-replies"
+        self._events.address = f"{name}:events"
+        self._commands.address = f"{name}:commands"
+        self._replies.address = f"{name}:replies"
 
     def receive(
         self,
@@ -64,7 +64,10 @@ class MessageRouter:
                     break
 
             if message_type_cls is None:
-                msg = "Operation must have at least one argument that is a subclass of BaseModel"
+                msg = (
+                    "Operation must have at least one argument that is a "
+                    "subclass of BaseModel"
+                )
                 raise TypeError(msg)
 
             operation_name = operation.__name__
@@ -77,7 +80,10 @@ class MessageRouter:
                     for o in self._operations
                 )
                 if already_exists:
-                    msg = f"Operation for {message_type} on channel {channel} already exists"
+                    msg = (
+                        f"Operation for {message_type} on channel "
+                        f"{channel} already exists"
+                    )
                     raise ValueError(msg)
 
             operation_binding = OperationBinding(
