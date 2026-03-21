@@ -36,8 +36,6 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
 
         context = Context(
             database=database,
-            message_broker=message_broker,
-            outbox_relay=outbox_relay,
             token_generator=token_generator,
             token_decoder=token_decoder,
         )

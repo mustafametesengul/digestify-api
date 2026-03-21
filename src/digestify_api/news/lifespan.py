@@ -32,12 +32,7 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
 
         token_decoder = TokenDecoder()
 
-        context = Context(
-            database=database,
-            message_broker=message_broker,
-            outbox_relay=outbox_relay,
-            token_decoder=token_decoder,
-        )
+        context = Context(database=database, token_decoder=token_decoder)
 
         message_processor = MessageProcessor(
             context=context,

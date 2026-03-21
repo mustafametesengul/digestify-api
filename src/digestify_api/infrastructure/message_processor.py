@@ -35,7 +35,12 @@ class MessageProcessor:
         _logger.info(
             f"Starting consumer {consumer_name} for stream {stream_name} and group {group_name}"
         )
-        await self._message_broker.create_consumer_group(stream_name, group_name)
+        try:
+            await self._message_broker.create_consumer_group(stream_name, group_name)
+        except Exception:
+            _logger.warning(
+                f"Consumer group {group_name} already exists for stream {stream_name}"
+            )
 
         iteration = 0
         autoclaim_start_id = "0-0"
@@ -110,9 +115,20 @@ class MessageProcessor:
             except Exception:
                 _logger.exception("Error while handling message")
 
+    async def _safe_consume_stream(self, handler_binding: OperationBinding) -> None:
+        try:
+            await self._consume_stream(handler_binding)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _logger.exception(
+                f"Consumer task for {handler_binding.operation.name} crashed"
+            )
+            raise
+
     async def run(self) -> None:
         tasks: list[asyncio.Task[None]] = []
         for handler_binding in self._message_router.operations:
-            task = asyncio.create_task(self._consume_stream(handler_binding))
+            task = asyncio.create_task(self._safe_consume_stream(handler_binding))
             tasks.append(task)
         await asyncio.gather(*tasks)

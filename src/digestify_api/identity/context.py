@@ -6,14 +6,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from digestify_api.identity.token_decoder import TokenDecoder
 from digestify_api.identity.token_generator import TokenGenerator, UserClaims
-from digestify_api.infrastructure import Database, MessageBroker, OutboxRelay
+from digestify_api.infrastructure import Database
 
 
 @dataclass
 class Context:
     database: Database
-    message_broker: MessageBroker
-    outbox_relay: OutboxRelay
     token_generator: TokenGenerator
     token_decoder: TokenDecoder
 

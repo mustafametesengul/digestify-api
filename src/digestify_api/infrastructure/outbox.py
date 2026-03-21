@@ -7,6 +7,9 @@ from asyncpg import Connection
 from digestify_api.infrastructure.database import Database
 from digestify_api.infrastructure.message import Message
 from digestify_api.infrastructure.message_broker import MessageBroker
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 async def create_outbox_table(connection: Connection) -> None:
@@ -90,15 +93,21 @@ class OutboxRelay:
         self._poll_interval = poll_interval
 
     async def run(self) -> None:
-        while True:
-            now = datetime.now(timezone.utc)
-            async with self._database.transaction() as connection:
-                messages = await get_outbox_messages(
-                    connection,
-                    now,
-                    limit=self._batch_size,
-                )
-                for message in messages:
-                    await self._message_broker.publish_message(message)
-                    await delete_outbox_message(connection, message.id)
-            await asyncio.sleep(self._poll_interval)
+        try:
+            while True:
+                now = datetime.now(timezone.utc)
+                async with self._database.transaction() as connection:
+                    messages = await get_outbox_messages(
+                        connection,
+                        now,
+                        limit=self._batch_size,
+                    )
+                    for message in messages:
+                        await self._message_broker.publish_message(message)
+                        await delete_outbox_message(connection, message.id)
+                await asyncio.sleep(self._poll_interval)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _logger.exception("OutboxRelay background task crashed")
+            raise

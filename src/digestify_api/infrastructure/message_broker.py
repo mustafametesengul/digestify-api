@@ -33,17 +33,12 @@ class MessageBroker:
         stream_name: str,
         group_name: str,
     ) -> None:
-        try:
-            await self._redis.xgroup_create(
-                stream_name,
-                group_name,
-                id="0",
-                mkstream=True,
-            )
-        except Exception:
-            _logger.warning(
-                f"Consumer group {group_name} already exists for stream {stream_name}"
-            )
+        await self._redis.xgroup_create(
+            stream_name,
+            group_name,
+            id="0",
+            mkstream=True,
+        )
 
     async def publish_message(self, message: Message) -> None:
         await self._redis.xadd(
@@ -168,19 +163,26 @@ class MessageBroker:
         group_name: str,
         min_idle_time: int = 60000,
     ) -> None:
-        try:
-            consumers = await self._redis.xinfo_consumers(stream_name, group_name)
-            for consumer in consumers:
-                idle = consumer.get("idle", 0)
-                pending = consumer.get("pending", 0)
-                name = consumer.get("name")
+        consumers = await self._redis.xinfo_consumers(stream_name, group_name)
+        for consumer in consumers:
+            if not isinstance(consumer, dict):
+                msg = "Consumer info must be a dictionary"
+                raise TypeError(msg)
+            idle = consumer.get("idle", 0)
+            if not isinstance(idle, int):
+                msg = "Consumer idle time must be an integer"
+                raise TypeError(msg)
+            pending = consumer.get("pending", 0)
+            if not isinstance(pending, int):
+                msg = "Consumer pending count must be an integer"
+                raise TypeError(msg)
+            name = consumer.get("name")
+            if not isinstance(name, bytes):
+                msg = "Consumer name must be bytes"
+                raise TypeError(msg)
 
-                if pending == 0 and idle > min_idle_time:
-                    await self._redis.xgroup_delconsumer(stream_name, group_name, name)
-        except Exception as e:
-            _logger.warning(
-                f"Failed to delete ghost consumers for stream {stream_name} and group {group_name}: {e}"
-            )
+            if pending == 0 and idle > min_idle_time:
+                await self._redis.xgroup_delconsumer(stream_name, group_name, name)
 
 
 @asynccontextmanager

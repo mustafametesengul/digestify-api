@@ -5,14 +5,12 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from digestify_api.identity import TokenDecoder, UserClaims
-from digestify_api.infrastructure import Database, MessageBroker, OutboxRelay
+from digestify_api.infrastructure import Database
 
 
 @dataclass
 class Context:
     database: Database
-    message_broker: MessageBroker
-    outbox_relay: OutboxRelay
     token_decoder: TokenDecoder
 
 

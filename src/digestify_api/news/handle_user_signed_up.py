@@ -7,6 +7,7 @@ from digestify_api.news.user import User, create_user, get_user, update_user
 
 @message_router.receive(channel=identity.message_router.events)
 async def handle_user_signed_up(context: Context, event: identity.UserSignedUp) -> None:
+    print(f"Handling UserSignedUp event: {event}")
     database = context.database
     async with database.transaction() as connection:
         handled_message = HandledMessage(
