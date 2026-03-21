@@ -58,8 +58,8 @@ class MessageProcessor:
             or context_param_name is None
         ):
             raise ValueError(
-                f"Handler {handler_binding.callable} requires a BaseModel parameter "
-                f"and a context parameter."
+                f"Handler {handler_binding.operation.name} requires a "
+                f"BaseModel parameter and a context parameter."
             )
 
         iteration = 0

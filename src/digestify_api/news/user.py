@@ -23,7 +23,9 @@ async def create_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         INSERT INTO users
-        (id, created_topics_count, active_topics_count, identity_version, membership_version, tier, is_deleted, created_at, updated_at)
+        (id, created_topics_count, active_topics_count,
+        identity_version, membership_version, tier, is_deleted,
+        created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         """,
         user.id,

@@ -3,10 +3,10 @@ from typing import Annotated
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity import UserClaims, UserRole
+from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.membership import UserTier
 from digestify_api.news.context import Context, get_context, get_user_claims
@@ -37,30 +37,33 @@ async def create_topic_(
     context: Annotated[Context, Depends(get_context)],
     payload: CreateTopic,
 ) -> None:
-    if user_claims.role is UserRole.ANONYMOUS:
-        raise ValueError("Authentication required")
-
     async with context.database.transaction() as connection:
         now = datetime.now(UTC)
 
         user = await get_user(connection, user_claims.id, lock=True)
         if user is None:
-            raise ValueError("User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
 
         if user.tier is UserTier.FREE:
-            raise ValueError(
-                "Free tier users cannot create topics. Please upgrade your subscription to create topics."
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Free tier users cannot create topics. "
+                "Please upgrade your subscription to create topics.",
             )
 
         if user.created_topics_count >= 50:
-            raise ValueError(
-                "You have reached the maximum number of created topics (50)."
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You have reached the maximum number of created topics (50).",
             )
 
         if user.active_topics_count >= 5 and user.tier is UserTier.PREMIUM:
-            raise ValueError(
-                "Premium tier users can have up to 5 active topics. "
-                "Please deactivate some topics to create new ones."
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Premium tier users can have up to 5 active topics. "
+                "Please deactivate some topics to create new ones.",
             )
 
         tz = ZoneInfo(payload.schedule_timezone)

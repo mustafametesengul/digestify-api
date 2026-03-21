@@ -3,10 +3,10 @@ from typing import Annotated
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
-from digestify_api.identity import UserClaims, UserRole
+from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
 from digestify_api.news.context import Context, get_context, get_user_claims
 from digestify_api.news.fetch_and_save_stories import FetchAndSaveStories
@@ -28,15 +28,14 @@ async def change_schedule(
     context: Annotated[Context, Depends(get_context)],
     payload: ChangeTopicSchedule,
 ) -> NewSchedule:
-    if user_claims.role is UserRole.ANONYMOUS:
-        raise ValueError("Authentication required")
-
     async with context.database.transaction() as connection:
         now = datetime.now(UTC)
 
         topic = await get_topic(connection, payload.topic_id, lock=True)
         if topic is None or topic.user_id != user_claims.id:
-            raise ValueError("Topic not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found"
+            )
 
         tz = ZoneInfo(payload.schedule_timezone)
         now_in_tz = now.astimezone(tz)
