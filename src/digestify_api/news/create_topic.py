@@ -29,6 +29,7 @@ class TopicPublic(BaseModel):
     description: str
     language: Language
     image_url: str | None
+    next_planned_execution: datetime
 
 
 @router.post("/create_topic", status_code=201)
@@ -36,7 +37,7 @@ async def create_topic_(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],
     payload: CreateTopic,
-) -> None:
+) -> TopicPublic:
     async with context.database.transaction() as connection:
         now = datetime.now(UTC)
 
@@ -104,3 +105,14 @@ async def create_topic_(
             schedule_date=schedule_date,
         )
         await enqueue_message(message_router.events, connection, command)
+
+        topic_public = TopicPublic(
+            id=topic.id,
+            user_id=topic.user_id,
+            name=topic.name,
+            description=topic.description,
+            language=topic.language,
+            image_url=topic.image_url,
+            next_planned_execution=schedule,
+        )
+        return topic_public

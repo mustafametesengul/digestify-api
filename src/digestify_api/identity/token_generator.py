@@ -1,4 +1,3 @@
-import secrets
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from typing import Literal
@@ -38,9 +37,7 @@ class TokenGeneratorSettings(BaseSettings):
         env_prefix="DIGESTIFY_API_",
     )
 
-    secret_key: SecretStr = Field(
-        default_factory=lambda: SecretStr(secrets.token_urlsafe(32))
-    )
+    secret_key: SecretStr = Field(default=...)
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7

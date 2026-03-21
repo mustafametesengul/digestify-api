@@ -1,4 +1,3 @@
-import secrets
 from uuid import UUID
 
 import jwt
@@ -15,9 +14,7 @@ class TokenDecoderSettings(BaseSettings):
         env_prefix="DIGESTIFY_API_",
     )
 
-    secret_key: SecretStr = Field(
-        default_factory=lambda: SecretStr(secrets.token_urlsafe(32))
-    )
+    secret_key: SecretStr = Field(default=...)
     algorithm: str = "HS256"
 
 
