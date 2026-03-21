@@ -33,7 +33,8 @@ class MessageProcessor:
         consumer_name = uuid4().hex
 
         _logger.info(
-            f"Starting consumer {consumer_name} for stream {stream_name} and group {group_name}"
+            f"Starting consumer {consumer_name} for stream {stream_name} "
+            f"and group {group_name}"
         )
         await self._message_broker.create_consumer_group(stream_name, group_name)
 
@@ -57,7 +58,8 @@ class MessageProcessor:
             or context_param_name is None
         ):
             raise ValueError(
-                f"Handler {handler_binding.callable} must have one parameter that is a subclass of BaseModel and one parameter that matches the context type"
+                f"Handler {handler_binding.callable} requires a BaseModel parameter "
+                f"and a context parameter."
             )
 
         iteration = 0
