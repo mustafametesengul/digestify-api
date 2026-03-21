@@ -6,7 +6,7 @@ from digestify_api.identity.dependencies import Context
 from digestify_api.identity.migrations import migrations
 from digestify_api.identity.routers import message_router
 from digestify_api.identity.token_generation import TokenGenerator
-from digestify_api.identity.token_verification import TokenDecoder
+from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.infrastructure import (
     MessageProcessor,
     OutboxRelay,
@@ -32,12 +32,12 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
         )
 
         token_generator = TokenGenerator()
-        token_decoder = TokenDecoder()
+        token_verifier = TokenVerifier()
 
         context = Context(
             database=database,
             token_generator=token_generator,
-            token_decoder=token_decoder,
+            token_verifier=token_verifier,
         )
 
         message_processor = MessageProcessor(

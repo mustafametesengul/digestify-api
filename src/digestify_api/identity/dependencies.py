@@ -5,7 +5,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from digestify_api.identity.token_generation import TokenGenerator, UserClaims
-from digestify_api.identity.token_verification import TokenDecoder
+from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.infrastructure import Database
 
 
@@ -13,7 +13,7 @@ from digestify_api.infrastructure import Database
 class Context:
     database: Database
     token_generator: TokenGenerator
-    token_decoder: TokenDecoder
+    token_verifier: TokenVerifier
 
 
 def get_context(request: Request) -> Context:
@@ -28,4 +28,4 @@ def get_user_claims(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> UserClaims:
     token = credentials.credentials
-    return context.token_decoder.decode(token)
+    return context.token_verifier.verify(token)

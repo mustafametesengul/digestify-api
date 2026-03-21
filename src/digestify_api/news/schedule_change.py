@@ -14,11 +14,11 @@ from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Schedule, get_topic, update_topic
 
 
-class ChangeSchedule(Schedule):
+class ChangeScheduleRequest(Schedule):
     topic_id: UUID
 
 
-class NewSchedule(BaseModel):
+class ChangeScheduleResponse(BaseModel):
     next_planned_execution: datetime
 
 
@@ -26,8 +26,8 @@ class NewSchedule(BaseModel):
 async def change_schedule(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],
-    payload: ChangeSchedule,
-) -> NewSchedule:
+    payload: ChangeScheduleRequest,
+) -> ChangeScheduleResponse:
     async with context.database.transaction() as connection:
         now = datetime.now(UTC)
 
@@ -72,5 +72,5 @@ async def change_schedule(
         )
         await enqueue_message(message_router.events, connection, command)
 
-        new_schedule = NewSchedule(next_planned_execution=schedule)
-        return new_schedule
+        response = ChangeScheduleResponse(next_planned_execution=schedule)
+        return response

@@ -17,7 +17,7 @@ async def refresh_token(
     context: Annotated[Context, Depends(get_context)],
     payload: RefreshTokenRequest,
 ) -> Token:
-    user_claims = context.token_decoder.decode(
+    user_claims = context.token_verifier.verify(
         payload.refresh_token,
         purpose=TokenPurpose.REFRESH,
     )

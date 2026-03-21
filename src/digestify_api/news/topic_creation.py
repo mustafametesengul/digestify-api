@@ -23,13 +23,13 @@ from digestify_api.news.topic import (
 from digestify_api.news.user import get_user
 
 
-class CreateTopic(Schedule):
+class CreateTopicRequest(Schedule):
     name: str = Field(..., min_length=3, max_length=50)
     description: str = Field(..., min_length=0, max_length=300)
     language: Language
 
 
-class TopicPublic(BaseModel):
+class CreateTopicResponse(BaseModel):
     id: UUID
     user_id: UUID
     name: str
@@ -43,8 +43,8 @@ class TopicPublic(BaseModel):
 async def create_topic(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],
-    payload: CreateTopic,
-) -> TopicPublic:
+    payload: CreateTopicRequest,
+) -> CreateTopicResponse:
     async with context.database.transaction() as connection:
         now = datetime.now(UTC)
 
@@ -113,7 +113,7 @@ async def create_topic(
         )
         await enqueue_message(message_router.events, connection, command)
 
-        topic_public = TopicPublic(
+        response = CreateTopicResponse(
             id=topic.id,
             user_id=topic.user_id,
             name=topic.name,
@@ -122,4 +122,4 @@ async def create_topic(
             image_url=topic.image_url,
             next_planned_execution=schedule,
         )
-        return topic_public
+        return response

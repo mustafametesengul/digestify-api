@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from digestify_api.identity.token_generation import TokenPurpose, UserClaims, UserRole
 
 
-class TokenDecoderSettings(BaseSettings):
+class TokenVerifierSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -18,11 +18,11 @@ class TokenDecoderSettings(BaseSettings):
     algorithm: str = "HS256"
 
 
-class TokenDecoder:
-    def __init__(self, settings: TokenDecoderSettings | None = None) -> None:
-        self._settings = settings or TokenDecoderSettings()
+class TokenVerifier:
+    def __init__(self, settings: TokenVerifierSettings | None = None) -> None:
+        self._settings = settings or TokenVerifierSettings()
 
-    def decode(
+    def verify(
         self,
         token: str,
         purpose: TokenPurpose = TokenPurpose.ACCESS,
