@@ -14,7 +14,7 @@ from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Schedule, get_topic, update_topic
 
 
-class ChangeTopicSchedule(Schedule):
+class ChangeSchedule(Schedule):
     topic_id: UUID
 
 
@@ -22,11 +22,11 @@ class NewSchedule(BaseModel):
     next_planned_execution: datetime
 
 
-@router.post("/change_schedule", status_code=200)
+@router.post("/change-schedule", status_code=200)
 async def change_schedule(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],
-    payload: ChangeTopicSchedule,
+    payload: ChangeSchedule,
 ) -> NewSchedule:
     async with context.database.transaction() as connection:
         now = datetime.now(UTC)

@@ -12,7 +12,7 @@ class RefreshToken(BaseModel):
     refresh_token: str
 
 
-@router.post("/refresh_token")
+@router.post("/refresh-token")
 async def refresh_token(
     context: Annotated[Context, Depends(get_context)],
     payload: RefreshToken,

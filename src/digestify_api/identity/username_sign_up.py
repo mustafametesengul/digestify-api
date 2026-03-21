@@ -33,7 +33,7 @@ class UserAlreadyExists(HTTPException):
         )
 
 
-@router.post("/sign_up_with_username", status_code=201)
+@router.post("/sign-up-with-username", status_code=201)
 async def sign_up_with_username(
     context: Annotated[Context, Depends(get_context)],
     payload: SignUpWithUsername,

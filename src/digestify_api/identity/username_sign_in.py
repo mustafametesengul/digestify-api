@@ -24,7 +24,7 @@ class InvalidCredentials(HTTPException):
         )
 
 
-@router.post("/sign_in_with_username")
+@router.post("/sign-in-with-username")
 async def sign_in_with_username(
     context: Annotated[Context, Depends(get_context)],
     payload: SignInWithUsername,

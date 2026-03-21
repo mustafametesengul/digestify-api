@@ -16,7 +16,7 @@ class UserDeleted(Event):
     version: int
 
 
-@router.post("/delete_account")
+@router.post("/delete-account")
 async def delete_account(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],

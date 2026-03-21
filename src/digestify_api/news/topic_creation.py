@@ -12,7 +12,14 @@ from digestify_api.membership import UserTier
 from digestify_api.news.context import Context, get_context, get_user_claims
 from digestify_api.news.router import message_router, router
 from digestify_api.news.story_fetching import FetchStories
-from digestify_api.news.topic import Language, Schedule, Topic, create_topic
+from digestify_api.news.topic import (
+    Language,
+    Schedule,
+    Topic,
+)
+from digestify_api.news.topic import (
+    create_topic as create_topic_in_db,
+)
 from digestify_api.news.user import get_user
 
 
@@ -32,8 +39,8 @@ class TopicPublic(BaseModel):
     next_planned_execution: datetime
 
 
-@router.post("/create_topic", status_code=201)
-async def create_topic_(
+@router.post("/create-topic", status_code=201)
+async def create_topic(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
     context: Annotated[Context, Depends(get_context)],
     payload: CreateTopic,
@@ -92,7 +99,7 @@ async def create_topic_(
             is_deleted=False,
         )
 
-        await create_topic(connection, topic)
+        await create_topic_in_db(connection, topic)
 
         scheduled_at = max(schedule - timedelta(minutes=10), now)
 
