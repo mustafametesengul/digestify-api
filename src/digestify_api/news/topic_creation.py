@@ -111,7 +111,7 @@ async def create_topic(
             schedule_timezone=topic.schedule_timezone,
             schedule_date=schedule_date,
         )
-        await enqueue_message(message_router.events, connection, command)
+        await enqueue_message(message_router.commands, connection, command)
 
         response = CreateTopicResponse(
             id=topic.id,
