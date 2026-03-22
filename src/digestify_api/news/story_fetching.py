@@ -44,7 +44,7 @@ async def _validate_and_fetch_topic(
         or not topic.is_active
     ):
         await create_handled_message(connection, handled_message)
-        return
+        return None
 
     next_schedule_date: date | None = None
 
@@ -81,7 +81,9 @@ async def _validate_and_fetch_topic(
         await enqueue_message(message_router.commands, connection, new_command)
 
         await create_handled_message(connection, handled_message)
-        return
+        return None
+
+    return topic
 
 
 @message_router.receive(channel=message_router.commands)

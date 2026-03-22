@@ -12,7 +12,6 @@ async def create_initial_tables(connection: Connection) -> None:
             active_topics_count INTEGER NOT NULL,
             identity_version INTEGER NOT NULL DEFAULT 0,
             membership_version INTEGER NOT NULL DEFAULT 0,
-            tier TEXT,
             is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
             created_at TIMESTAMPTZ NOT NULL,
             updated_at TIMESTAMPTZ
