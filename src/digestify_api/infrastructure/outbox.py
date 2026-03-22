@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from asyncpg import Connection
@@ -95,7 +95,7 @@ class OutboxRelay:
     async def run(self) -> None:
         try:
             while True:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 async with self._database.transaction() as connection:
                     messages = await get_outbox_messages(
                         connection,

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Literal
 from uuid import UUID
@@ -48,7 +48,7 @@ class TokenGenerator:
         self._settings = settings or TokenGeneratorSettings()
 
     def generate(self, user_claims: UserClaims) -> TokenPair:
-        access_token_expire = datetime.now(timezone.utc) + timedelta(
+        access_token_expire = datetime.now(UTC) + timedelta(
             minutes=self._settings.access_token_expire_minutes
         )
         to_encode = {
@@ -63,7 +63,7 @@ class TokenGenerator:
             algorithm=self._settings.algorithm,
         )
 
-        refresh_token_expire = datetime.now(timezone.utc) + timedelta(
+        refresh_token_expire = datetime.now(UTC) + timedelta(
             days=self._settings.refresh_token_expire_days
         )
         to_encode = {

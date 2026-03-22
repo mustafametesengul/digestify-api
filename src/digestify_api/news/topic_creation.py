@@ -8,8 +8,7 @@ from pydantic import BaseModel, Field
 
 from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
-from digestify_api.membership import UserTier
-from digestify_api.news.dependencies import NewsContext, get_context, get_user_claims
+from digestify_api.news.dependencies import Context, get_context, get_user_claims
 from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import (
@@ -42,7 +41,7 @@ class CreateTopicResponse(BaseModel):
 @api_router.post("/create-topic", status_code=201)
 async def create_topic(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
-    context: Annotated[NewsContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: CreateTopicRequest,
 ) -> CreateTopicResponse:
     async with context.database.transaction() as connection:
@@ -54,24 +53,10 @@ async def create_topic(
                 status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
-        if user.tier is UserTier.FREE:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Free tier users cannot create topics. "
-                "Please upgrade your subscription to create topics.",
-            )
-
         if user.created_topics_count >= 50:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You have reached the maximum number of created topics (50).",
-            )
-
-        if user.active_topics_count >= 5 and user.tier is UserTier.PREMIUM:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Premium tier users can have up to 5 active topics. "
-                "Please deactivate some topics to create new ones.",
             )
 
         tz = ZoneInfo(payload.schedule_timezone)

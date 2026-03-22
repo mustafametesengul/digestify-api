@@ -13,7 +13,7 @@ from digestify_api.infrastructure import (
     create_handled_message,
     enqueue_message,
 )
-from digestify_api.news.dependencies import NewsContext
+from digestify_api.news.dependencies import Context
 from digestify_api.news.routers import message_router
 from digestify_api.news.story import Story, create_story
 from digestify_api.news.topic import Topic, get_topic, update_topic
@@ -86,7 +86,7 @@ async def _validate_and_fetch_topic(
 
 @message_router.receive(channel=message_router.commands)
 async def fetch_stories(
-    context: NewsContext,
+    context: Context,
     payload: FetchStories,
 ) -> None:
     database = context.database

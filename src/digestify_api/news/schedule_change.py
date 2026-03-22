@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
-from digestify_api.news.dependencies import NewsContext, get_context, get_user_claims
+from digestify_api.news.dependencies import Context, get_context, get_user_claims
 from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Schedule, get_topic, update_topic
@@ -25,7 +25,7 @@ class ChangeScheduleResponse(BaseModel):
 @api_router.post("/change-schedule", status_code=200)
 async def change_schedule(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
-    context: Annotated[NewsContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: ChangeScheduleRequest,
 ) -> ChangeScheduleResponse:
     async with context.database.transaction() as connection:
@@ -70,7 +70,7 @@ async def change_schedule(
             scheduled_at=scheduled_at,
             schedule_date=schedule_date,
         )
-        await enqueue_message(message_router.events, connection, command)
+        await enqueue_message(message_router.commands, connection, command)
 
         response = ChangeScheduleResponse(next_planned_execution=schedule)
         return response

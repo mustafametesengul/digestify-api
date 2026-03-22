@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -39,7 +39,7 @@ async def sign_up_with_username(
     payload: SignUpWithUsernameRequest,
 ) -> TokenPair:
     async with context.database.transaction() as connection:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         password_hash = await hash_password(payload.password)
 

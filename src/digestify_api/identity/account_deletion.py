@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -26,7 +26,7 @@ async def delete_account(
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
 ) -> None:
     async with context.database.transaction() as connection:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user = await get_user(connection, user_claims.id, lock=True)
         if user is None or user.is_deleted:
             return

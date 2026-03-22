@@ -3,14 +3,14 @@ from digestify_api.infrastructure.handled_message import (
     HandledMessage,
     create_handled_message,
 )
-from digestify_api.news.dependencies import NewsContext
+from digestify_api.news.dependencies import Context
 from digestify_api.news.routers import message_router
 from digestify_api.news.user import User, create_user, get_user, update_user
 
 
 @message_router.receive(channel=identity.message_router.events)
 async def handle_user_deletion(
-    context: NewsContext, event: identity.AccountDeleted
+    context: Context, event: identity.AccountDeleted
 ) -> None:
     database = context.database
     async with database.transaction() as connection:
@@ -27,7 +27,6 @@ async def handle_user_deletion(
                 active_topics_count=0,
                 identity_version=event.version,
                 membership_version=0,
-                tier=None,
                 is_deleted=True,
                 created_at=event.created_at,
                 updated_at=None,

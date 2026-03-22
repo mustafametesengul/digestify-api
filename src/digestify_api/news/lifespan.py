@@ -10,13 +10,13 @@ from digestify_api.infrastructure import (
     create_database,
     create_message_broker,
 )
-from digestify_api.news.dependencies import NewsContext
+from digestify_api.news.dependencies import Context
 from digestify_api.news.migrations import migrations
 from digestify_api.news.routers import message_router
 
 
 @asynccontextmanager
-async def lifespan(name: str) -> AsyncIterator[NewsContext]:
+async def lifespan(name: str) -> AsyncIterator[Context]:
     async with (
         create_database(schema=name) as database,
         create_message_broker() as message_broker,
@@ -32,7 +32,7 @@ async def lifespan(name: str) -> AsyncIterator[NewsContext]:
 
         token_verifier = TokenVerifier()
 
-        context = NewsContext(database=database, token_verifier=token_verifier)
+        context = Context(database=database, token_verifier=token_verifier)
 
         message_processor = MessageProcessor(
             context=context,
