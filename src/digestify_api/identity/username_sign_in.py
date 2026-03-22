@@ -3,16 +3,16 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.dependencies import Context, get_context
+from digestify_api.identity.dependencies import IdentityContext, get_context
 from digestify_api.identity.password import verify_password
 from digestify_api.identity.routers import api_router
-from digestify_api.identity.token_generation import Token, UserClaims, UserRole
+from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
 from digestify_api.identity.user import get_user_by_username
 
 
 class SignInWithUsernameRequest(BaseModel):
     username: str = Field(..., min_length=4, max_length=32)
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=8, max_length=128)
 
 
 class InvalidCredentials(HTTPException):
@@ -26,9 +26,9 @@ class InvalidCredentials(HTTPException):
 
 @api_router.post("/sign-in-with-username")
 async def sign_in_with_username(
-    context: Annotated[Context, Depends(get_context)],
+    context: Annotated[IdentityContext, Depends(get_context)],
     payload: SignInWithUsernameRequest,
-) -> Token:
+) -> TokenPair:
     async with context.database.connection() as connection:
         user = await get_user_by_username(connection, payload.username)
         if user is None or user.is_deleted or user.password_hash is None:

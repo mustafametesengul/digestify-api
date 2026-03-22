@@ -10,22 +10,22 @@ from digestify_api.infrastructure import Database
 
 
 @dataclass
-class Context:
+class IdentityContext:
     database: Database
     token_generator: TokenGenerator
     token_verifier: TokenVerifier
 
 
-def get_context(request: Request) -> Context:
+def get_context(request: Request) -> IdentityContext:
     return request.app.state.identity_context
 
 
-security = HTTPBearer()
+http_bearer = HTTPBearer()
 
 
 def get_user_claims(
-    context: Annotated[Context, Depends(get_context)],
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    context: Annotated[IdentityContext, Depends(get_context)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
     token = credentials.credentials
     return context.token_verifier.verify(token)

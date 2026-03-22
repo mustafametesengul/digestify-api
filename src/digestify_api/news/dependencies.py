@@ -9,16 +9,16 @@ from digestify_api.infrastructure import Database
 
 
 @dataclass
-class Context:
+class NewsContext:
     database: Database
     token_verifier: TokenVerifier
 
 
-def get_context(request: Request) -> Context:
+def get_context(request: Request) -> NewsContext:
     return request.app.state.news_context
 
 
-security = HTTPBearer()
+http_bearer = HTTPBearer()
 
 
 class InvalidCredentials(HTTPException):
@@ -31,8 +31,8 @@ class InvalidCredentials(HTTPException):
 
 
 def get_user_claims(
-    context: Annotated[Context, Depends(get_context)],
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    context: Annotated[NewsContext, Depends(get_context)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
     token = credentials.credentials
     user_claims = context.token_verifier.verify(token)

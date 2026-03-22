@@ -24,7 +24,7 @@ class UserClaims(BaseModel):
     role: UserRole
 
 
-class Token(BaseModel):
+class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
     token_type: Literal["Bearer"] = "Bearer"
@@ -47,7 +47,7 @@ class TokenGenerator:
     def __init__(self, settings: TokenGeneratorSettings | None = None) -> None:
         self._settings = settings or TokenGeneratorSettings()
 
-    def generate(self, user_claims: UserClaims) -> Token:
+    def generate(self, user_claims: UserClaims) -> TokenPair:
         access_token_expire = datetime.now(timezone.utc) + timedelta(
             minutes=self._settings.access_token_expire_minutes
         )
@@ -78,7 +78,7 @@ class TokenGenerator:
             algorithm=self._settings.algorithm,
         )
 
-        return Token(
+        return TokenPair(
             access_token=access_token,
             refresh_token=refresh_token,
         )

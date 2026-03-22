@@ -1,12 +1,14 @@
 from digestify_api import identity
 from digestify_api.infrastructure import HandledMessage, create_handled_message
-from digestify_api.news.dependencies import Context
+from digestify_api.news.dependencies import NewsContext
 from digestify_api.news.routers import message_router
 from digestify_api.news.user import User, create_user, get_user, update_user
 
 
 @message_router.receive(channel=identity.message_router.events)
-async def handle_user_sign_up(context: Context, event: identity.UserSignedUp) -> None:
+async def handle_user_sign_up(
+    context: NewsContext, event: identity.UserSignedUp
+) -> None:
     database = context.database
     async with database.transaction() as connection:
         handled_message = HandledMessage(

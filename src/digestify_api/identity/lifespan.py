@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from digestify_api.identity.dependencies import Context
+from digestify_api.identity.dependencies import IdentityContext
 from digestify_api.identity.migrations import migrations
 from digestify_api.identity.routers import message_router
 from digestify_api.identity.token_generation import TokenGenerator
@@ -17,7 +17,7 @@ from digestify_api.infrastructure import (
 
 
 @asynccontextmanager
-async def lifespan(name: str) -> AsyncIterator[Context]:
+async def lifespan(name: str) -> AsyncIterator[IdentityContext]:
     async with (
         create_database(schema=name) as database,
         create_message_broker() as message_broker,
@@ -34,7 +34,7 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
         token_generator = TokenGenerator()
         token_verifier = TokenVerifier()
 
-        context = Context(
+        context = IdentityContext(
             database=database,
             token_generator=token_generator,
             token_verifier=token_verifier,
