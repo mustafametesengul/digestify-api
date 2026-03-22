@@ -29,9 +29,9 @@ async def sign_in_with_username(
     context: Annotated[Context, Depends(get_context)],
     payload: SignInWithUsernameRequest,
 ) -> Token:
-    async with context.database.transaction() as connection:
+    async with context.database.connection() as connection:
         user = await get_user_by_username(connection, payload.username)
-        if user is None or user.password_hash is None:
+        if user is None or user.is_deleted or user.password_hash is None:
             raise InvalidCredentials()
 
         password_valid = await verify_password(

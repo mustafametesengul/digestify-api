@@ -36,12 +36,16 @@ async def update_user(conn: Connection, user: User) -> None:
     await conn.execute(
         """
         UPDATE users
-        SET is_deleted = $2,
-            updated_at = $3,
-            version = $4
-            WHERE id = $1
+        SET username = $2,
+            password_hash = $3,
+            is_deleted = $4,
+            updated_at = $5,
+            version = $6
+        WHERE id = $1
         """,
         user.id,
+        user.username,
+        user.password_hash,
         user.is_deleted,
         user.updated_at,
         user.version,

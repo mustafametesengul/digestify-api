@@ -16,7 +16,6 @@ async def create_initial_tables(connection: Connection) -> None:
             version INTEGER NOT NULL
         );
 
-        CREATE INDEX ix_users_username ON users (username);
         CREATE INDEX ix_users_is_deleted ON users (is_deleted);
         """
     )

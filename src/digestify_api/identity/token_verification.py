@@ -40,7 +40,7 @@ class TokenVerifier:
             or not isinstance(payload_role, str)
             or not isinstance(payload_token_type, str)
         ):
-            raise TypeError("Invalid token payload")
+            raise jwt.InvalidTokenError("Invalid token payload")
 
         token_purpose = TokenPurpose(payload_token_type)
         if token_purpose is not purpose:
