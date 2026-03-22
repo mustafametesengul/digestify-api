@@ -6,7 +6,7 @@ from asyncpg import UniqueViolationError
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity.dependencies import IdentityContext, get_context
+from digestify_api.identity.dependencies import Context, get_context
 from digestify_api.identity.password import hash_password
 from digestify_api.identity.routers import api_router, message_router
 from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
@@ -35,7 +35,7 @@ class UsernameAlreadyTaken(HTTPException):
 
 @api_router.post("/sign-up-with-username", status_code=201)
 async def sign_up_with_username(
-    context: Annotated[IdentityContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: SignUpWithUsernameRequest,
 ) -> TokenPair:
     async with context.database.transaction() as connection:

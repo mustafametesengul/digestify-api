@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import Depends
 
 from digestify_api.identity.dependencies import (
-    IdentityContext,
+    Context,
     get_context,
     get_user_claims,
 )
@@ -22,7 +22,7 @@ class AccountDeleted(Event):
 
 @api_router.post("/delete-account")
 async def delete_account(
-    context: Annotated[IdentityContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(get_user_claims)],
 ) -> None:
     async with context.database.transaction() as connection:

@@ -5,7 +5,7 @@ from fastapi import Depends
 from pydantic import BaseModel
 
 from digestify_api.identity.dependencies import (
-    IdentityContext,
+    Context,
     Unauthorized,
     get_context,
 )
@@ -20,7 +20,7 @@ class RefreshTokenRequest(BaseModel):
 
 @api_router.post("/refresh-token")
 async def refresh_token(
-    context: Annotated[IdentityContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: RefreshTokenRequest,
 ) -> TokenPair:
     try:

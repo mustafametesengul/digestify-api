@@ -24,13 +24,13 @@ class Unauthorized(HTTPException):
 
 
 @dataclass
-class IdentityContext:
+class Context:
     database: Database
     token_generator: TokenGenerator
     token_verifier: TokenVerifier
 
 
-def get_context(request: Request) -> IdentityContext:
+def get_context(request: Request) -> Context:
     return request.app.state.identity_context
 
 
@@ -38,7 +38,7 @@ http_bearer = HTTPBearer()
 
 
 def get_user_claims(
-    context: Annotated[IdentityContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
     token = credentials.credentials

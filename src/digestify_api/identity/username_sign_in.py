@@ -4,7 +4,7 @@ from fastapi import Depends
 from pydantic import BaseModel, Field
 
 from digestify_api.identity.dependencies import (
-    IdentityContext,
+    Context,
     Unauthorized,
     get_context,
 )
@@ -24,7 +24,7 @@ DUMMY_PASSWORD_HASH = "$2b$12$0X2yM4eQk9nO7/tOaG0E4u.NlXY7.sTq/.w.0B891gA2t2Tf0E
 
 @api_router.post("/sign-in-with-username")
 async def sign_in_with_username(
-    context: Annotated[IdentityContext, Depends(get_context)],
+    context: Annotated[Context, Depends(get_context)],
     payload: SignInWithUsernameRequest,
 ) -> TokenPair:
     async with context.database.connection() as connection:
