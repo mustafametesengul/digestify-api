@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from typing import Literal
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import jwt
 from pydantic import BaseModel, Field, SecretStr
@@ -20,7 +20,7 @@ class UserRole(StrEnum):
 
 
 class UserClaims(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID
     role: UserRole
 
 

@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import Depends
 
@@ -11,5 +12,5 @@ from digestify_api.identity.token_generation import TokenPair, UserClaims, UserR
 async def sign_in_anonymously(
     context: Annotated[IdentityContext, Depends(get_context)],
 ) -> TokenPair:
-    user_claims = UserClaims(role=UserRole.ANONYMOUS)
+    user_claims = UserClaims(id=uuid4(), role=UserRole.ANONYMOUS)
     return context.token_generator.generate(user_claims)

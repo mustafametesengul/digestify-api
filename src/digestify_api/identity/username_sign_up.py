@@ -16,7 +16,7 @@ from digestify_api.infrastructure import Event, enqueue_message
 
 class SignUpWithUsernameRequest(BaseModel):
     username: str = Field(..., min_length=4, max_length=32)
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=8, max_length=64)
 
 
 class UserSignedUp(Event):
@@ -25,11 +25,11 @@ class UserSignedUp(Event):
     version: int
 
 
-class UserAlreadyExists(HTTPException):
+class UsernameAlreadyTaken(HTTPException):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
-            detail="User already exists",
+            detail="Username already taken",
         )
 
 
@@ -56,14 +56,13 @@ async def sign_up_with_username(
         try:
             await create_user(connection, user)
         except UniqueViolationError:
-            raise UserAlreadyExists()
+            raise UsernameAlreadyTaken()
 
         event = UserSignedUp(
             user_id=user.id,
             username=user.username,
             version=user.version,
         )
-
         await enqueue_message(message_router.events, connection, event)
 
         token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)

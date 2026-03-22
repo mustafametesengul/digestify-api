@@ -16,7 +16,7 @@ from digestify_api.identity.user import get_user_by_username
 
 class SignInWithUsernameRequest(BaseModel):
     username: str = Field(..., min_length=4, max_length=32)
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=8, max_length=64)
 
 
 DUMMY_PASSWORD_HASH = "$2b$12$0X2yM4eQk9nO7/tOaG0E4u.NlXY7.sTq/.w.0B891gA2t2Tf0E1/O"
