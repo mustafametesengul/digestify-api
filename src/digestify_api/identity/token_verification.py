@@ -22,11 +22,7 @@ class TokenVerifier:
     def __init__(self, settings: TokenVerifierSettings | None = None) -> None:
         self._settings = settings or TokenVerifierSettings()
 
-    def verify(
-        self,
-        token: str,
-        purpose: TokenPurpose = TokenPurpose.ACCESS,
-    ) -> UserClaims:
+    def verify(self, token: str, purpose: TokenPurpose) -> UserClaims:
         payload = jwt.decode(
             token,
             self._settings.secret_key.get_secret_value(),
@@ -40,13 +36,16 @@ class TokenVerifier:
             or not isinstance(payload_role, str)
             or not isinstance(payload_token_type, str)
         ):
-            raise jwt.InvalidTokenError("Invalid token payload")
+            raise jwt.InvalidTokenError()
 
-        token_purpose = TokenPurpose(payload_token_type)
+        try:
+            token_purpose = TokenPurpose(payload_token_type)
+            user_id = UUID(payload_sub)
+            user_role = UserRole(payload_role)
+        except ValueError:
+            raise jwt.InvalidTokenError()
+
         if token_purpose is not purpose:
-            raise jwt.InvalidTokenError("Invalid token type")
+            raise jwt.InvalidTokenError()
 
-        return UserClaims(
-            id=UUID(payload_sub),
-            role=UserRole(payload_role),
-        )
+        return UserClaims(id=user_id, role=user_role)

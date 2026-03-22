@@ -1,11 +1,17 @@
 from typing import Annotated
 
+import jwt
 from fastapi import Depends
 from pydantic import BaseModel
 
-from digestify_api.identity.dependencies import IdentityContext, get_context
+from digestify_api.identity.dependencies import (
+    IdentityContext,
+    Unauthorized,
+    get_context,
+)
 from digestify_api.identity.routers import api_router
-from digestify_api.identity.token_generation import TokenPair, TokenPurpose
+from digestify_api.identity.token_generation import TokenPair, TokenPurpose, UserRole
+from digestify_api.identity.user import get_user
 
 
 class RefreshTokenRequest(BaseModel):
@@ -17,8 +23,18 @@ async def refresh_token(
     context: Annotated[IdentityContext, Depends(get_context)],
     payload: RefreshTokenRequest,
 ) -> TokenPair:
-    user_claims = context.token_verifier.verify(
-        payload.refresh_token,
-        purpose=TokenPurpose.REFRESH,
-    )
+    try:
+        user_claims = context.token_verifier.verify(
+            payload.refresh_token,
+            purpose=TokenPurpose.REFRESH,
+        )
+    except jwt.PyJWTError:
+        raise Unauthorized("Invalid refresh token")
+
+    if user_claims.role is not UserRole.ANONYMOUS:
+        async with context.database.connection() as connection:
+            user = await get_user(connection, user_claims.id)
+            if user is None or user.is_deleted:
+                raise Unauthorized("User not found or deleted")
+
     return context.token_generator.generate(user_claims)

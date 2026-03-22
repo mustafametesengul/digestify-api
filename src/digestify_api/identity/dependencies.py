@@ -1,12 +1,26 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Request
+import jwt
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from digestify_api.identity.token_generation import TokenGenerator, UserClaims
+from digestify_api.identity.token_generation import (
+    TokenGenerator,
+    TokenPurpose,
+    UserClaims,
+)
 from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.infrastructure import Database
+
+
+class Unauthorized(HTTPException):
+    def __init__(self, detail: str = "Unauthorized") -> None:
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 @dataclass
@@ -28,4 +42,7 @@ def get_user_claims(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
     token = credentials.credentials
-    return context.token_verifier.verify(token)
+    try:
+        return context.token_verifier.verify(token, purpose=TokenPurpose.ACCESS)
+    except jwt.PyJWTError:
+        raise Unauthorized("Invalid access token")
