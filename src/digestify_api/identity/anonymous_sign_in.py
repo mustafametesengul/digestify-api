@@ -8,7 +8,7 @@ from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
 
 
-@api_router.post("/sign-in-anonymously", status_code=201)
+@api_router.post("/sign-in-anonymously")
 async def sign_in_anonymously(
     context: Annotated[Context, Depends(get_context)],
 ) -> TokenPair:

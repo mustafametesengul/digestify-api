@@ -33,7 +33,7 @@ class UsernameAlreadyTaken(HTTPException):
         )
 
 
-@api_router.post("/sign-up-with-username", status_code=201)
+@api_router.post("/sign-up-with-username", status_code=status.HTTP_201_CREATED)
 async def sign_up_with_username(
     context: Annotated[Context, Depends(get_context)],
     payload: SignUpWithUsernameRequest,

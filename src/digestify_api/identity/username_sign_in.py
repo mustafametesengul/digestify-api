@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from digestify_api.identity.dependencies import (
     Context,
-    Unauthorized,
+    Unauthenticated,
     get_context,
 )
 from digestify_api.identity.password import verify_password
@@ -39,7 +39,7 @@ async def sign_in_with_username(
                 user.password_hash,
             )
         if not password_valid or user is None:
-            raise Unauthorized("Invalid username or password")
+            raise Unauthenticated()
 
         token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
         return context.token_generator.generate(token_payload)

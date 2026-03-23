@@ -8,10 +8,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from digestify_api.identity import (
     TokenPurpose,
     TokenVerifier,
-    Unauthorized,
+    Unauthenticated,
     UserClaims,
     UserRole,
 )
+from digestify_api.identity.dependencies import Unauthorized
 from digestify_api.infrastructure import Database
 
 
@@ -28,17 +29,20 @@ def get_context(request: Request) -> Context:
 http_bearer = HTTPBearer()
 
 
-def get_user_claims(
+def require_authenticated_user(
     context: Annotated[Context, Depends(get_context)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
     token = credentials.credentials
     try:
-        user_claims = context.token_verifier.verify(token, purpose=TokenPurpose.ACCESS)
+        return context.token_verifier.verify(token, purpose=TokenPurpose.ACCESS)
     except jwt.PyJWTError:
-        raise Unauthorized("Invalid access token")
+        raise Unauthenticated()
 
+
+def require_registered_user(
+    user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
+) -> UserClaims:
     if user_claims.role is UserRole.ANONYMOUS:
-        raise Unauthorized("Anonymous users are not allowed to perform this action")
-
+        raise Unauthorized()
     return user_claims

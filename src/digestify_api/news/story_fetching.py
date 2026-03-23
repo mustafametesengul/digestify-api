@@ -9,6 +9,7 @@ from pydantic_extra_types.timezone_name import TimeZoneName
 
 from digestify_api.infrastructure import (
     Command,
+    Event,
     HandledMessage,
     create_handled_message,
     enqueue_message,
@@ -25,6 +26,14 @@ class FetchStories(Command):
     schedule_time: time
     schedule_timezone: TimeZoneName
     schedule_date: date
+
+
+class StoryCreated(Event):
+    story_id: UUID
+    topic_id: UUID
+    title: str
+    content: str
+    version: int
 
 
 async def _validate_and_fetch_topic(
@@ -139,6 +148,14 @@ async def fetch_stories(
                 is_deleted=False,
             )
             await create_story(connection, story)
+            event = StoryCreated(
+                story_id=story.id,
+                topic_id=story.topic_id,
+                title=story.title,
+                content=story.content,
+                version=1,
+            )
+            await enqueue_message(message_router.events, connection, event)
 
         topic.last_execution_date = payload.schedule_date
         topic.updated_at = now

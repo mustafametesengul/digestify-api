@@ -9,17 +9,26 @@ from digestify_api.identity.token_generation import (
     TokenGenerator,
     TokenPurpose,
     UserClaims,
+    UserRole,
 )
 from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.infrastructure import Database
 
 
-class Unauthorized(HTTPException):
-    def __init__(self, detail: str = "Unauthorized") -> None:
+class Unauthenticated(HTTPException):
+    def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=detail,
+            detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class Unauthorized(HTTPException):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action",
         )
 
 
@@ -37,7 +46,7 @@ def get_context(request: Request) -> Context:
 http_bearer = HTTPBearer()
 
 
-def get_user_claims(
+def require_authenticated_user(
     context: Annotated[Context, Depends(get_context)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
@@ -45,4 +54,12 @@ def get_user_claims(
     try:
         return context.token_verifier.verify(token, purpose=TokenPurpose.ACCESS)
     except jwt.PyJWTError:
-        raise Unauthorized("Invalid access token")
+        raise Unauthenticated()
+
+
+def require_registered_user(
+    user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
+) -> UserClaims:
+    if user_claims.role is UserRole.ANONYMOUS:
+        raise Unauthorized()
+    return user_claims

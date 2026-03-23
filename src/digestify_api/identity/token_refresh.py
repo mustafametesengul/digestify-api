@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from digestify_api.identity.dependencies import (
     Context,
-    Unauthorized,
+    Unauthenticated,
     get_context,
 )
 from digestify_api.identity.routers import api_router
@@ -29,12 +29,12 @@ async def refresh_token(
             purpose=TokenPurpose.REFRESH,
         )
     except jwt.PyJWTError:
-        raise Unauthorized("Invalid refresh token")
+        raise Unauthenticated()
 
     if user_claims.role is not UserRole.ANONYMOUS:
         async with context.database.connection() as connection:
             user = await get_user(connection, user_claims.id)
             if user is None or user.is_deleted:
-                raise Unauthorized("User not found or deleted")
+                raise Unauthenticated()
 
     return context.token_generator.generate(user_claims)

@@ -8,7 +8,11 @@ from pydantic import BaseModel, Field
 
 from digestify_api.identity import UserClaims
 from digestify_api.infrastructure import enqueue_message
-from digestify_api.news.dependencies import Context, get_context, get_user_claims
+from digestify_api.news.dependencies import (
+    Context,
+    get_context,
+    require_registered_user,
+)
 from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import (
@@ -40,7 +44,7 @@ class CreateTopicResponse(BaseModel):
 
 @api_router.post("/create-topic", status_code=201)
 async def create_topic(
-    user_claims: Annotated[UserClaims, Depends(get_user_claims)],
+    user_claims: Annotated[UserClaims, Depends(require_registered_user)],
     context: Annotated[Context, Depends(get_context)],
     payload: CreateTopicRequest,
 ) -> CreateTopicResponse:
