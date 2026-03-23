@@ -2,7 +2,6 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from digestify_api.identity import TokenVerifier
 from digestify_api.infrastructure import (
     MessageProcessor,
     OutboxRelay,
@@ -30,9 +29,7 @@ async def lifespan(name: str) -> AsyncIterator[Context]:
             message_broker=message_broker,
         )
 
-        token_verifier = TokenVerifier()
-
-        context = Context(database=database, token_verifier=token_verifier)
+        context = Context(database=database)
 
         message_processor = MessageProcessor(
             context=context,
