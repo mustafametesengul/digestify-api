@@ -16,19 +16,22 @@ from digestify_api.infrastructure import Database
 
 
 class Unauthenticated(HTTPException):
-    def __init__(self) -> None:
+    def __init__(self, detail: str = "Could not validate credentials") -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail=detail,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
 
 class Unauthorized(HTTPException):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        detail: str = "You do not have permission to perform this action",
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to perform this action",
+            detail=detail,
         )
 
 

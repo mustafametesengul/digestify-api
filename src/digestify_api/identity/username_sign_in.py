@@ -39,7 +39,7 @@ async def sign_in_with_username(
                 user.password_hash,
             )
         if not password_valid or user is None:
-            raise Unauthenticated()
+            raise Unauthenticated(detail="Incorrect username or password")
 
         token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
         return context.token_generator.generate(token_payload)
