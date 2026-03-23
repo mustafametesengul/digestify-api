@@ -1,7 +1,13 @@
 from digestify_api.identity.account_deletion import AccountDeleted, delete_account
 from digestify_api.identity.account_details import get_account_details
 from digestify_api.identity.anonymous_sign_in import sign_in_anonymously
-from digestify_api.identity.dependencies import Unauthenticated, Unauthorized
+from digestify_api.identity.dependencies import (
+    Unauthenticated,
+    Unauthorized,
+    require_admin_user,
+    require_authenticated_user,
+    require_registered_user,
+)
 from digestify_api.identity.lifespan import lifespan
 from digestify_api.identity.routers import api_router, message_router
 from digestify_api.identity.token_generation import TokenPurpose, UserClaims, UserRole
@@ -33,4 +39,7 @@ __all__ = [
     "get_account_details",
     "Unauthorized",
     "UsernameAlreadyTaken",
+    "require_authenticated_user",
+    "require_registered_user",
+    "require_admin_user",
 ]

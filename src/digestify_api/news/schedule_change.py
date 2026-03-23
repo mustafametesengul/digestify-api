@@ -6,13 +6,9 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
-from digestify_api.identity import UserClaims
+from digestify_api.identity import UserClaims, require_registered_user
 from digestify_api.infrastructure import enqueue_message
-from digestify_api.news.dependencies import (
-    Context,
-    get_context,
-    require_registered_user,
-)
+from digestify_api.news.dependencies import Context, get_context
 from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
 from digestify_api.news.topic import Schedule, get_topic, update_topic

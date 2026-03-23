@@ -63,3 +63,11 @@ def require_registered_user(
     if user_claims.role is UserRole.ANONYMOUS:
         raise Unauthorized()
     return user_claims
+
+
+def require_admin_user(
+    user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
+) -> UserClaims:
+    if user_claims.role is not UserRole.ADMIN:
+        raise Unauthorized()
+    return user_claims
