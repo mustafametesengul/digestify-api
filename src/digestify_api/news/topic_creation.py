@@ -50,7 +50,8 @@ async def create_topic(
         user = await get_user(connection, user_claims.id, lock=True)
         if user is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
             )
 
         if user.created_topics_count >= 50:

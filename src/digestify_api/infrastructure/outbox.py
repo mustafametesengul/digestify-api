@@ -12,24 +12,6 @@ from digestify_api.infrastructure.message_broker import MessageBroker
 _logger = logging.getLogger(__name__)
 
 
-async def create_outbox_table(connection: Connection) -> None:
-    await connection.execute(
-        """
-        CREATE TABLE outbox (
-            id UUID PRIMARY KEY,
-            channel TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            type TEXT NOT NULL,
-            payload JSONB NOT NULL,
-            scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL
-        );
-
-        CREATE INDEX ix_outbox_scheduled_at ON outbox (scheduled_at);
-        CREATE INDEX ix_outbox_type ON outbox (type);
-        """
-    )
-
-
 async def create_outbox_message(conn: Connection, message: Message) -> None:
     await conn.execute(
         """
@@ -74,9 +56,6 @@ async def delete_outbox_message(conn: Connection, message_id: UUID) -> None:
         """,
         message_id,
     )
-
-
-migrations = [create_outbox_table]
 
 
 class OutboxRelay:
