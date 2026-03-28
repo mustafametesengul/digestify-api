@@ -107,6 +107,13 @@ services:
         - action: rebuild
           path: ./uv.lock
 
+  rustfs:
+    image: rustfs/rustfs:latest
+    ports:
+      - "9000:9000"
+    volumes:
+      - rustfs_data:/data
+
   mcp:
     image: mustafametesengul/webquest-mcp:latest
     environment:
@@ -132,3 +139,5 @@ services:
 volumes:
   db_data:
   redis_data:
+  elasticsearch_data:
+  rustfs_data:

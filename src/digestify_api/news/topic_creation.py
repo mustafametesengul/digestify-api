@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from digestify_api.identity import UserClaims, require_registered_user
-from digestify_api.infrastructure import enqueue_message
+from digestify_api.infrastructure import Event, enqueue_message
 from digestify_api.news.dependencies import Context, get_context
 from digestify_api.news.routers import api_router, message_router
 from digestify_api.news.story_fetching import FetchStories
@@ -36,6 +36,14 @@ class CreateTopicResponse(BaseModel):
     language: Language
     image_url: str | None
     next_planned_execution: datetime
+
+
+class TopicCreated(Event):
+    topic_id: UUID
+    user_id: UUID
+    name: str
+    description: str
+    version: int
 
 
 @api_router.post("/create-topic", status_code=201)
@@ -98,6 +106,15 @@ async def create_topic(
             schedule_date=schedule_date,
         )
         await enqueue_message(message_router.commands, connection, command)
+
+        event = TopicCreated(
+            topic_id=topic.id,
+            user_id=topic.user_id,
+            name=topic.name,
+            description=topic.description,
+            version=topic.schedule_version,
+        )
+        await enqueue_message(message_router.events, connection, event)
 
         response = CreateTopicResponse(
             id=topic.id,
