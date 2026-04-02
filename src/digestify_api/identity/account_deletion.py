@@ -18,7 +18,7 @@ from digestify_api.infrastructure import Event, enqueue_message
 
 class AccountDeleted(Event):
     user_id: UUID
-    version: int
+    user_version: int
 
 
 @api_router.post("/delete-account", status_code=status.HTTP_204_NO_CONTENT)
@@ -39,5 +39,5 @@ async def delete_account(
         user.password_hash = None
         await update_user(connection, user)
 
-        event = AccountDeleted(user_id=user.id, version=user.version)
+        event = AccountDeleted(user_id=user.id, user_version=user.version)
         await enqueue_message(message_router.events, connection, event)

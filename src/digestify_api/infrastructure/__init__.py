@@ -9,6 +9,7 @@ from digestify_api.infrastructure.database import Database, DSNSettings, create_
 from digestify_api.infrastructure.handled_message import (
     HandledMessage,
     create_handled_message,
+    has_message_been_handled,
 )
 from digestify_api.infrastructure.message_broker import (
     MessageBroker,
@@ -38,4 +39,5 @@ __all__ = [
     "enqueue_message",
     "HandledMessage",
     "create_handled_message",
+    "has_message_been_handled",
 ]

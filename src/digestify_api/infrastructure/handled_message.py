@@ -24,3 +24,18 @@ async def create_handled_message(
         handled_message.handler_name,
         handled_message.handled_at,
     )
+
+
+async def has_message_been_handled(
+    conn: Connection,
+    message_id: UUID,
+    handler_name: str,
+) -> bool:
+    row = await conn.fetchrow(
+        """
+        SELECT 1 FROM handled_messages WHERE message_id = $1 AND handler_name = $2
+        """,
+        message_id,
+        handler_name,
+    )
+    return row is not None

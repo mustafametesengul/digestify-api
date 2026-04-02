@@ -21,8 +21,7 @@ class SignUpWithUsernameRequest(BaseModel):
 
 class UserSignedUp(Event):
     user_id: UUID
-    username: str | None
-    version: int
+    user_version: int
 
 
 class UsernameAlreadyTaken(HTTPException):
@@ -58,11 +57,7 @@ async def sign_up_with_username(
         except UniqueViolationError:
             raise UsernameAlreadyTaken()
 
-        event = UserSignedUp(
-            user_id=user.id,
-            username=user.username,
-            version=user.version,
-        )
+        event = UserSignedUp(user_id=user.id, user_version=user.version)
         await enqueue_message(message_router.events, connection, event)
 
         token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
