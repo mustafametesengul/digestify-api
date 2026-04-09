@@ -1,128 +1,70 @@
-from datetime import UTC, datetime, timedelta
-from typing import Annotated
-from uuid import UUID, uuid4
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime
+from typing import Annotated, Literal, Self
+from uuid import UUID, uuid7
 
-from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from digestify_api.identity import UserClaims, require_registered_user
-from digestify_api.infrastructure import Event, enqueue_message
-from digestify_api.news.dependencies import Context, get_context
-from digestify_api.news.routers import api_router, message_router
-from digestify_api.news.story_fetching import FetchStories
-from digestify_api.news.topic import (
-    Language,
-    Schedule,
-    Topic,
-)
-from digestify_api.news.topic import (
-    create_topic as create_topic_in_db,
-)
-from digestify_api.news.user import get_user
+from digestify_api.news.topic import Language, Schedule, CreateTopic
+from digestify_api.news.user import ReserveTopic, TopicReserved, TopicNotReserved
 
 
-class CreateTopicRequest(Schedule):
-    name: str = Field(..., min_length=3, max_length=50)
-    description: str = Field(..., min_length=0, max_length=300)
-    language: Language
+TopicMessage = Annotated[
+    CreateTopic | ReserveTopic,
+    Field(discriminator="type"),
+]
 
 
-class CreateTopicResponse(BaseModel):
+class CreateTopicSaga(BaseModel):
+    type: Literal["CreateTopicSaga"] = "CreateTopicSaga"
     id: UUID
-    user_id: UUID
-    name: str
-    description: str
-    language: Language
-    image_url: str | None
-    next_planned_execution: datetime
-
-
-class TopicCreated(Event):
     topic_id: UUID
     user_id: UUID
     name: str
     description: str
-    version: int
+    language: Language
+    created_at: datetime
+    schedule: Schedule
+    outbox: list[TopicMessage]
+    is_completed: bool
 
+    @classmethod
+    def start(
+        cls,
+        user_id: UUID,
+        name: str,
+        description: str,
+        language: Language,
+        schedule: Schedule,
+    ) -> Self:
+        id = uuid7()
+        topic_id = uuid7()
+        topic = cls(
+            id=id,
+            topic_id=topic_id,
+            user_id=user_id,
+            name=name,
+            description=description,
+            language=language,
+            created_at=datetime.now(UTC),
+            schedule=schedule,
+            is_completed=False,
+            outbox=[ReserveTopic(id=id, topic_id=topic_id, user_id=user_id)],
+        )
+        return topic
 
-@api_router.post("/create-topic", status_code=201)
-async def create_topic(
-    user_claims: Annotated[UserClaims, Depends(require_registered_user)],
-    context: Annotated[Context, Depends(get_context)],
-    payload: CreateTopicRequest,
-) -> CreateTopicResponse:
-    async with context.database.transaction() as connection:
-        now = datetime.now(UTC)
-
-        user = await get_user(connection, user_claims.id, lock=True)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
+    def topic_reserved(self, event: TopicReserved) -> None:
+        self.outbox.append(
+            CreateTopic(
+                topic_id=event.id,
+                topic_id=self.topic_id,
+                user_id=self.user_id,
+                name=self.name,
+                description=self.description,
+                language=self.language,
+                schedule=self.schedule,
             )
-
-        if user.created_topics_count >= 50:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You have reached the maximum number of created topics (50).",
-            )
-
-        tz = ZoneInfo(payload.schedule_timezone)
-        now_in_tz = now.astimezone(tz)
-        if payload.schedule_time < now_in_tz.time():
-            schedule_date = now_in_tz.date() + timedelta(days=1)
-        else:
-            schedule_date = now_in_tz.date()
-        schedule = datetime.combine(schedule_date, payload.schedule_time, tzinfo=tz)
-
-        topic = Topic(
-            id=uuid4(),
-            user_id=user_claims.id,
-            name=payload.name,
-            description=payload.description,
-            language=payload.language,
-            image_url=None,
-            is_active=True,
-            created_at=now,
-            updated_at=None,
-            schedule_time=payload.schedule_time,
-            schedule_timezone=payload.schedule_timezone,
-            schedule_version=1,
-            last_execution_date=None,
-            is_deleted=False,
         )
+        self.is_completed = True
 
-        await create_topic_in_db(connection, topic)
-
-        scheduled_at = max(schedule - timedelta(minutes=10), now)
-
-        command = FetchStories(
-            topic_id=topic.id,
-            scheduled_at=scheduled_at,
-            schedule_version=topic.schedule_version,
-            schedule_time=topic.schedule_time,
-            schedule_timezone=topic.schedule_timezone,
-            schedule_date=schedule_date,
-        )
-        await enqueue_message(message_router.commands, connection, command)
-
-        event = TopicCreated(
-            topic_id=topic.id,
-            user_id=topic.user_id,
-            name=topic.name,
-            description=topic.description,
-            version=topic.schedule_version,
-        )
-        await enqueue_message(message_router.events, connection, event)
-
-        response = CreateTopicResponse(
-            id=topic.id,
-            user_id=topic.user_id,
-            name=topic.name,
-            description=topic.description,
-            language=topic.language,
-            image_url=topic.image_url,
-            next_planned_execution=schedule,
-        )
-        return response
+    def topic_not_reserved(self, _: TopicNotReserved) -> None:
+        self.is_completed = True

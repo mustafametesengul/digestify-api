@@ -1,27 +1,20 @@
-from datetime import UTC, datetime
+from datetime import datetime, UTC
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import uuid7
 
-from asyncpg import UniqueViolationError
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from digestify_api.identity.dependencies import Context, get_context
 from digestify_api.identity.password import hash_password
-from digestify_api.identity.routers import api_router, message_router
+from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
-from digestify_api.identity.user import User, create_user
-from digestify_api.infrastructure import Event, enqueue_message
+from digestify_api.identity.user import User
 
 
 class SignUpWithUsernameRequest(BaseModel):
     username: str = Field(..., min_length=4, max_length=32)
     password: str = Field(..., min_length=8, max_length=64)
-
-
-class UserSignedUp(Event):
-    user_id: UUID
-    user_version: int
 
 
 class UsernameAlreadyTaken(HTTPException):
@@ -37,28 +30,26 @@ async def sign_up_with_username(
     context: Annotated[Context, Depends(get_context)],
     payload: SignUpWithUsernameRequest,
 ) -> TokenPair:
-    async with context.database.transaction() as connection:
-        now = datetime.now(UTC)
+    password_hash = await hash_password(payload.password)
 
-        password_hash = await hash_password(payload.password)
+    user = User.create_with_username_and_password(
+        username=payload.username,
+        password_hash=password_hash,
+    )
 
-        user = User(
-            id=uuid4(),
-            username=payload.username,
-            password_hash=password_hash,
-            is_deleted=False,
-            created_at=now,
-            updated_at=None,
-            version=1,
+    # try:
+    await context.user_repository.save(user)
+    # except Exception:
+    #     raise UsernameAlreadyTaken()
+
+    for message in user.outbox:
+        await context.message_broker.publish_message(
+            message.model_dump_json(),
+            stream_name="user-events",
         )
 
-        try:
-            await create_user(connection, user)
-        except UniqueViolationError:
-            raise UsernameAlreadyTaken()
+    user.clear_outbox()
+    await context.user_repository.save(user)
 
-        event = UserSignedUp(user_id=user.id, user_version=user.version)
-        await enqueue_message(message_router.events, connection, event)
-
-        token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
-        return context.token_generator.generate(token_payload)
+    token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
+    return context.token_generator.generate(token_payload)

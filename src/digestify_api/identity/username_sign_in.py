@@ -11,7 +11,6 @@ from digestify_api.identity.dependencies import (
 from digestify_api.identity.password import verify_password
 from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
-from digestify_api.identity.user import get_user_by_username
 
 
 class SignInWithUsernameRequest(BaseModel):
@@ -27,19 +26,18 @@ async def sign_in_with_username(
     context: Annotated[Context, Depends(get_context)],
     payload: SignInWithUsernameRequest,
 ) -> TokenPair:
-    async with context.database.connection() as connection:
-        user = await get_user_by_username(connection, payload.username)
+    user = await context.user_repository.find_by_username(payload.username)
 
-        password_valid = False
-        if user is None or user.is_deleted or user.password_hash is None:
-            await verify_password(payload.password, DUMMY_PASSWORD_HASH)
-        else:
-            password_valid = await verify_password(
-                payload.password,
-                user.password_hash,
-            )
-        if not password_valid or user is None:
-            raise Unauthenticated(detail="Incorrect username or password")
+    password_valid = False
+    if user is None or user.is_deleted or user.password_hash is None:
+        await verify_password(payload.password, DUMMY_PASSWORD_HASH)
+    else:
+        password_valid = await verify_password(
+            payload.password,
+            user.password_hash,
+        )
+    if not password_valid or user is None:
+        raise Unauthenticated(detail="Incorrect username or password")
 
-        token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
-        return context.token_generator.generate(token_payload)
+    token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
+    return context.token_generator.generate(token_payload)

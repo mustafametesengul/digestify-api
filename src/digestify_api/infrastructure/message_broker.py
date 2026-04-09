@@ -6,8 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 
-from digestify_api.infrastructure.message import Message
-
 
 class DSNSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -42,10 +40,10 @@ class MessageBroker:
             if "BUSYGROUP" not in str(e):
                 raise
 
-    async def publish_message(self, message: Message) -> None:
+    async def publish_message(self, message: str, stream_name: str) -> None:
         await self._redis.xadd(
-            name=message.channel,
-            fields={"message": message.model_dump_json()},
+            name=stream_name,
+            fields={"message": message},
         )
 
     async def consume_stream(
@@ -56,7 +54,7 @@ class MessageBroker:
         count: int = 1,
         block: int = 1000,
         start_id: str = ">",
-    ) -> list[tuple[str, str, Message]]:
+    ) -> list[tuple[str, str, str]]:
         entries = await self._redis.xreadgroup(
             group_name,
             consumer_name,
@@ -65,7 +63,7 @@ class MessageBroker:
             block=block,
         )
 
-        broker_messages: list[tuple[str, str, Message]] = []
+        broker_messages: list[tuple[str, str, str]] = []
 
         if not entries:
             return broker_messages
@@ -89,7 +87,7 @@ class MessageBroker:
                     msg = "Message ID must be bytes"
                     raise TypeError(msg)
 
-                message = Message.model_validate_json(message_data.decode())
+                message = message_data.decode()
 
                 broker_messages.append((stream.decode(), message_id.decode(), message))
 
@@ -103,7 +101,7 @@ class MessageBroker:
         min_idle_time: int = 60000,
         start_id: str = "0-0",
         count: int = 1,
-    ) -> tuple[str, list[tuple[str, str, Message]]]:
+    ) -> tuple[str, list[tuple[str, str, str]]]:
         result = await self._redis.xautoclaim(
             name=stream_name,
             groupname=group_name,
@@ -116,7 +114,7 @@ class MessageBroker:
         next_start_id = result[0]
         messages = result[1]
 
-        broker_messages: list[tuple[str, str, Message]] = []
+        broker_messages: list[tuple[str, str, str]] = []
 
         if not messages:
             return next_start_id.decode() if isinstance(
@@ -137,7 +135,7 @@ class MessageBroker:
                 msg = "Message ID must be bytes"
                 raise TypeError(msg)
 
-            message = Message.model_validate_json(message_data.decode())
+            message = message_data.decode()
             broker_messages.append((stream_name, message_id.decode(), message))
 
         return next_start_id.decode() if isinstance(

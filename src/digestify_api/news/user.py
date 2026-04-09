@@ -1,65 +1,74 @@
 from datetime import UTC, datetime
+
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from asyncpg import Connection
 from pydantic import BaseModel, Field
+
+from digestify_api.news.topic import CreateTopic, ActivateTopic
+
+
+UserMessage = Annotated[
+    CreateTopic | ActivateTopic,
+    Field(discriminator="type"),
+]
 
 
 class User(BaseModel):
+    type: Literal["User"] = "User"
     id: UUID
-    created_topics_count: int
+    version: int
+    pending_actions: list[UserMessage]
+    topics_count: int
     active_topics_count: int
     is_deleted: bool
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime | None = None
+    outbox: list[UserMessage] = Field(default_factory=list)
 
+    @classmethod
+    def create(cls, id: UUID) -> Self:
+        return cls(
+            id=id,
+            topics_count=0,
+            active_topics_count=0,
+            is_deleted=False,
+            pending_actions=[],
+            version=1,
+        )
 
-async def create_user(conn: Connection, user: User) -> None:
-    await conn.execute(
-        """
-        INSERT INTO users
-        (id, created_topics_count, active_topics_count, is_deleted,
-        created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        """,
-        user.id,
-        user.created_topics_count,
-        user.active_topics_count,
-        user.is_deleted,
-        user.created_at,
-        user.updated_at,
-    )
+    def create_topic(self, command: CreateTopic) -> None:
+        if self.is_deleted:
+            raise ValueError("User is deleted")
 
+        if len(self.pending_actions) >= 5:
+            raise ValueError("User has reached the maximum number of pending actions")
 
-async def update_user(conn: Connection, user: User) -> None:
-    await conn.execute(
-        """
-        UPDATE users
-        SET created_topics_count = $2,
-            active_topics_count = $3,
-            is_deleted = $4,
-            created_at = $5,
-            updated_at = $6
-        WHERE id = $1
-        """,
-        user.id,
-        user.created_topics_count,
-        user.active_topics_count,
-        user.is_deleted,
-        user.created_at,
-        user.updated_at,
-    )
+        if self.topics_count >= 10:
+            raise ValueError("User has reached the maximum number of topics")
 
+        if self.active_topics_count >= 5:
+            raise ValueError("User has reached the maximum number of active topics")
 
-async def get_user(conn: Connection, user_id: UUID, lock: bool = False) -> User | None:
-    query = "SELECT * FROM users WHERE id = $1"
-    if lock:
-        query += " FOR UPDATE"
+        self.pending_actions.append(command)
+        self.topics_count += 1
+        self.updated_at = datetime.now(UTC)
+        self.outbox.append(command)
 
-    row = await conn.fetchrow(query, user_id)
+    def on_topic_created(self) -> None:
+        pass
 
-    if row is None:
-        return None
+    def activate_topic(self) -> None:
+        pass
 
-    user = User.model_validate(dict(row))
-    return user
+    def on_topic_activated(self) -> None:
+        pass
+
+    def deactivate_topic(self) -> None:
+        pass
+
+    def on_topic_deactivated(self) -> None:
+        pass
+
+    def on_topic_deleted(self) -> None:
+        pass

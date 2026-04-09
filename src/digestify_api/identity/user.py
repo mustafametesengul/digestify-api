@@ -1,69 +1,44 @@
-from datetime import datetime
-from uuid import UUID
-
-from asyncpg import Connection
-from pydantic import BaseModel
+from typing import Literal, Self
 
 
-class User(BaseModel):
-    id: UUID
+from digestify_api.infrastructure import Entity, Message, Repository
+
+
+class UserSignedUp(Message):
+    type: Literal["UserSignedUp"] = "UserSignedUp"
+
+
+class AccountDeleted(Message):
+    type: Literal["AccountDeleted"] = "AccountDeleted"
+
+
+class User(Entity):
+    type: Literal["User"] = "User"
     username: str | None
     password_hash: str | None
-    created_at: datetime
-    updated_at: datetime | None
-    version: int
-    is_deleted: bool
+
+    @classmethod
+    def create_with_username_and_password(
+        cls,
+        username: str,
+        password_hash: str,
+    ) -> Self:
+        user = cls(
+            username=username,
+            password_hash=password_hash,
+        )
+        user.add_to_outbox(UserSignedUp())
+        return user
 
 
-async def create_user(conn: Connection, user: User) -> None:
-    await conn.execute(
-        """
-        INSERT INTO users
-        (id, username, password_hash, is_deleted, created_at, updated_at, version)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        """,
-        user.id,
-        user.username,
-        user.password_hash,
-        user.is_deleted,
-        user.created_at,
-        user.updated_at,
-        user.version,
-    )
+class UserRepository(Repository[User]):
+    async def find_by_username(self, username: str) -> User | None:
+        document = await self._collection.find_one(
+            {"username": username, "is_deleted": False}
+        )
+        if document is None:
+            return None
+        return User.model_validate(document)
 
-
-async def update_user(conn: Connection, user: User) -> None:
-    await conn.execute(
-        """
-        UPDATE users
-        SET username = $2,
-            password_hash = $3,
-            is_deleted = $4,
-            updated_at = $5,
-            version = $6
-        WHERE id = $1
-        """,
-        user.id,
-        user.username,
-        user.password_hash,
-        user.is_deleted,
-        user.updated_at,
-        user.version,
-    )
-
-
-async def get_user(conn: Connection, user_id: UUID, lock: bool = False) -> User | None:
-    query = "SELECT * FROM users WHERE id = $1"
-    if lock:
-        query += " FOR UPDATE"
-    row = await conn.fetchrow(query, user_id)
-    if row is None:
-        return None
-    return User.model_validate(dict(row))
-
-
-async def get_user_by_username(conn: Connection, username: str) -> User | None:
-    row = await conn.fetchrow("SELECT * FROM users WHERE username = $1", username)
-    if row is None:
-        return None
-    return User.model_validate(dict(row))
+    async def create_indices(self) -> None:
+        await self._collection.create_index("username", unique=True, sparse=True)

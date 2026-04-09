@@ -4,7 +4,9 @@ from typing import Any, Callable, TypeVar
 
 from pydantic import BaseModel
 
-from digestify_api.infrastructure.channel import Channel
+
+class Channel(BaseModel):
+    address: str | None = None
 
 
 class Operation(BaseModel):

@@ -23,7 +23,7 @@ async def on_user_sign_up(context: Context, event: identity.UserSignedUp) -> Non
 
         user = User(
             id=event.user_id,
-            created_topics_count=0,
+            reserved_topics_count=0,
             active_topics_count=0,
             is_deleted=False,
         )

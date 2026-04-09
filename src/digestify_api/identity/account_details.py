@@ -12,7 +12,6 @@ from digestify_api.identity.dependencies import (
 )
 from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import UserClaims
-from digestify_api.identity.user import get_user
 
 
 class AccountDetailsResponse(BaseModel):
@@ -25,8 +24,7 @@ async def get_account_details(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> AccountDetailsResponse:
-    async with context.database.connection() as connection:
-        user = await get_user(connection, user_claims.id)
+    user = await context.user_repository.find_by_id(user_claims.id)
 
     if user is None or user.is_deleted:
         raise Unauthenticated()

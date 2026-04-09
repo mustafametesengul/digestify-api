@@ -11,7 +11,6 @@ from digestify_api.identity.dependencies import (
 )
 from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import TokenPair, TokenPurpose, UserRole
-from digestify_api.identity.user import get_user
 
 
 class RefreshTokenRequest(BaseModel):
@@ -32,9 +31,8 @@ async def refresh_token(
         raise Unauthenticated()
 
     if user_claims.role is not UserRole.ANONYMOUS:
-        async with context.database.connection() as connection:
-            user = await get_user(connection, user_claims.id)
-            if user is None or user.is_deleted:
-                raise Unauthenticated()
+        user = await context.user_repository.find_by_id(user_claims.id)
+        if user is None or user.is_deleted:
+            raise Unauthenticated()
 
     return context.token_generator.generate(user_claims)

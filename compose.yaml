@@ -1,46 +1,27 @@
 services:
   db:
-    image: pgvector/pgvector:pg18
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=db
+    image: mongo:latest
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27017" ]
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - db_data:/var/lib/postgresql
+      - mongo_data:/data/db
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1" ]
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 5s
 
-  pgweb:
-    image: sosedoff/pgweb:latest
+  mongo-express:
+    image: mongo-express:latest
     ports:
       - "8081:8081"
     environment:
-      - PGWEB_DATABASE_URL=postgres://user:password@db:5432/db?sslmode=disable
+      - ME_CONFIG_MONGODB_URL=mongodb://db:27017/
     depends_on:
       db:
         condition: service_healthy
-
-  migrate:
-    build:
-      context: .
-    environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=db
-    depends_on:
-      db:
-        condition: service_healthy
-    command: migrate
-    profiles:
-      - api
 
   redis:
     image: redis:7
@@ -77,11 +58,7 @@ services:
     build:
       context: .
     environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=db
+      - MONGO_URL=mongodb://db:27017/db
       - OPENAI_API_KEY
       - DIGESTIFY_API_HOST=0.0.0.0
       - DIGESTIFY_API_JWKS_URL
@@ -91,8 +68,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     ports:
       - "8000:8000"
     command: serve
@@ -106,13 +81,6 @@ services:
           initial_sync: true
         - action: rebuild
           path: ./uv.lock
-
-  rustfs:
-    image: rustfs/rustfs:latest
-    ports:
-      - "9000:9000"
-    volumes:
-      - rustfs_data:/data
 
   mcp:
     image: mustafametesengul/webquest-mcp:latest
@@ -137,7 +105,7 @@ services:
       - "4040:4040"
 
 volumes:
-  db_data:
+  mongo_data:
   redis_data:
   elasticsearch_data:
   rustfs_data:
