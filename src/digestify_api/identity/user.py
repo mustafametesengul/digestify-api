@@ -30,6 +30,10 @@ class User(Entity):
         user.add_to_outbox(UserSignedUp())
         return user
 
+    def delete_account(self) -> None:
+        self.mark_as_discarded()
+        self.add_to_outbox(AccountDeleted())
+
 
 class UserRepository(Repository[User]):
     async def find_by_username(self, username: str) -> User | None:

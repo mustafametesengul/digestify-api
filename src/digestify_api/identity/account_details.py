@@ -26,7 +26,7 @@ async def get_account_details(
 ) -> AccountDetailsResponse:
     user = await context.user_repository.find_by_id(user_claims.id)
 
-    if user is None or user.is_deleted:
+    if user is None:
         raise Unauthenticated()
 
     return AccountDetailsResponse(username=user.username, created_at=user.created_at)

@@ -6,6 +6,7 @@ from uuid import UUID, uuid7
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
+from digestify_api.infrastructure.entity import Entity, Message
 
 
 class Schedule(BaseModel):
@@ -28,7 +29,7 @@ class Language(StrEnum):
     TR_TR = "tr-TR"
 
 
-class CreateTopic(BaseModel):
+class CreateTopic(Message):
     type: Literal["CreateTopic"] = "CreateTopic"
     topic_id: UUID = Field(default_factory=uuid7)
     user_id: UUID
@@ -39,28 +40,23 @@ class CreateTopic(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class ActivateTopic(BaseModel):
+class ActivateTopic(Message):
     type: Literal["ActivateTopic"] = "ActivateTopic"
     topic_id: UUID
     user_id: UUID
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class Topic(BaseModel):
+class Topic(Entity):
     type: Literal["Topic"] = "Topic"
-    id: UUID
     user_id: UUID
     name: str
     description: str
     language: Language
     is_active: bool
-    created_at: datetime
-    updated_at: datetime | None
     schedule: Schedule
     schedule_version: int
     last_execution_date: date | None
-    is_deleted: bool
-    activation_version: int
 
     @classmethod
     def create(
@@ -68,19 +64,14 @@ class Topic(BaseModel):
         command: CreateTopic,
     ) -> Self:
         topic = cls(
-            id=command.topic_id,
             user_id=command.user_id,
             name=command.name,
             description=command.description,
             language=command.language,
             is_active=True,
-            created_at=command.created_at,
-            updated_at=None,
             schedule=command.schedule,
             schedule_version=1,
             last_execution_date=None,
-            is_deleted=False,
-            activation_version=0,
         )
         return topic
 

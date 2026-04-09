@@ -1,4 +1,3 @@
-from datetime import datetime, UTC
 from typing import Annotated
 
 from fastapi import Depends, status
@@ -18,11 +17,9 @@ async def delete_account(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> None:
-    now = datetime.now(UTC)
-
     user = await context.user_repository.find_by_id(user_claims.id)
-    if user is None or user.is_deleted:
+    if user is None or user.is_discarded:
         raise Unauthenticated()
 
-    user.delete(now)
+    user.delete_account()
     await context.user_repository.save(user)

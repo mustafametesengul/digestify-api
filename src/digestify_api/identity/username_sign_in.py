@@ -29,7 +29,7 @@ async def sign_in_with_username(
     user = await context.user_repository.find_by_username(payload.username)
 
     password_valid = False
-    if user is None or user.is_deleted or user.password_hash is None:
+    if user is None or user.is_discarded or user.password_hash is None:
         await verify_password(payload.password, DUMMY_PASSWORD_HASH)
     else:
         password_valid = await verify_password(

@@ -5,35 +5,20 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from digestify_api.infrastructure.entity import Entity, Message
 from digestify_api.news.topic import CreateTopic, ActivateTopic
 
 
-UserMessage = Annotated[
-    CreateTopic | ActivateTopic,
-    Field(discriminator="type"),
-]
-
-
-class User(BaseModel):
+class User(Entity):
     type: Literal["User"] = "User"
-    id: UUID
-    version: int
-    pending_actions: list[UserMessage]
-    topics_count: int
     active_topics_count: int
-    is_deleted: bool
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime | None = None
-    outbox: list[UserMessage] = Field(default_factory=list)
+    topics_count: int
 
     @classmethod
     def create(cls, id: UUID) -> Self:
         return cls(
-            id=id,
             topics_count=0,
             active_topics_count=0,
-            is_deleted=False,
-            pending_actions=[],
             version=1,
         )
 

@@ -42,14 +42,5 @@ async def sign_up_with_username(
     # except Exception:
     #     raise UsernameAlreadyTaken()
 
-    for message in user.outbox:
-        await context.message_broker.publish_message(
-            message.model_dump_json(),
-            stream_name="user-events",
-        )
-
-    user.clear_outbox()
-    await context.user_repository.save(user)
-
     token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
     return context.token_generator.generate(token_payload)

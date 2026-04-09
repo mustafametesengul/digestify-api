@@ -22,7 +22,7 @@ class Entity(BaseModel):
     id: UUID = Field(default_factory=uuid7, alias="_id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    is_deleted: bool = False
+    is_discarded: bool = False
     version: int = 0
     outbox: list[Message] = Field(default_factory=list)
     processed_messages: list[ProcessedMessage] = Field(default_factory=list)
@@ -42,5 +42,5 @@ class Entity(BaseModel):
     def clear_outbox(self) -> None:
         self.outbox.clear()
 
-    def delete(self) -> None:
-        self.is_deleted = True
+    def mark_as_discarded(self) -> None:
+        self.is_discarded = True

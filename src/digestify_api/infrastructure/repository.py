@@ -18,10 +18,10 @@ class ConcurrencyError(Exception):
 class Repository(Generic[T]):
     def __init__(
         self,
+        entity_class: type[T],
         collection: AsyncCollection,
         messages_collection: AsyncCollection,
         processed_messages_collection: AsyncCollection,
-        entity_class: type[T],
         message_broker: MessageBroker,
     ) -> None:
         self._collection = collection
@@ -31,7 +31,7 @@ class Repository(Generic[T]):
         self._entity_class = entity_class
         self._message_broker = message_broker
 
-    async def save(self, entity: T) -> None:
+    async def _save(self, entity: T) -> None:
         expected_version = entity.version
         entity.version += 1
         entity.updated_at = datetime.now(UTC)
@@ -43,7 +43,7 @@ class Repository(Generic[T]):
             result = await self._collection.update_one(
                 {"_id": entity.id, "version": expected_version},
                 {"$set": document},
-                upsert=(expected_version == 1),
+                upsert=(expected_version == 0),
             )
 
             if result.matched_count == 0 and result.upserted_id is None:
@@ -57,8 +57,8 @@ class Repository(Generic[T]):
                 f"Version mismatch for {entity.__class__.__name__} (id: {entity.id})"
             )
 
-    async def save_and_publish(self, entity: T) -> None:
-        await self.save(entity)
+    async def save(self, entity: T) -> None:
+        await self._save(entity)
 
         async def publish_messages():
             for message in entity.outbox:
@@ -85,13 +85,13 @@ class Repository(Generic[T]):
                 )
             entity.clear_processed_messages()
 
-            await self.save(entity)
+            await self._save(entity)
 
         await publish_messages()
 
     async def find_by_id(self, entity_id: UUID) -> T | None:
         document = await self._collection.find_one(
-            {"_id": entity_id, "is_deleted": False}
+            {"_id": entity_id, "is_discarded": False}
         )
         if document is None:
             return None

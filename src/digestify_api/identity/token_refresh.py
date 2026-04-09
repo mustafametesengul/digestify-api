@@ -32,7 +32,7 @@ async def refresh_token(
 
     if user_claims.role is not UserRole.ANONYMOUS:
         user = await context.user_repository.find_by_id(user_claims.id)
-        if user is None or user.is_deleted:
+        if user is None or user.is_discarded:
             raise Unauthenticated()
 
     return context.token_generator.generate(user_claims)
