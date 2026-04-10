@@ -20,13 +20,9 @@ class Repository(Generic[T]):
         self,
         entity_class: type[T],
         collection: AsyncCollection,
-        messages_collection: AsyncCollection,
-        processed_messages_collection: AsyncCollection,
         message_broker: MessageBroker,
     ) -> None:
         self._collection = collection
-        self._messages_collection = messages_collection
-        self._processed_messages_collection = processed_messages_collection
 
         self._entity_class = entity_class
         self._message_broker = message_broker
@@ -66,24 +62,7 @@ class Repository(Generic[T]):
                     message.model_dump_json(),
                     stream_name=f"{entity.__class__.__name__.lower()}-events",
                 )
-                message_doc = message.model_dump()
-                message_doc.pop("_id", None)
-                await self._messages_collection.update_one(
-                    {"_id": message.id},
-                    {"$set": message_doc},
-                    upsert=True,
-                )
             entity.clear_outbox()
-
-            for processed_message in entity.processed_messages:
-                processed_message_doc = processed_message.model_dump()
-                processed_message_doc.pop("_id", None)
-                await self._processed_messages_collection.update_one(
-                    {"_id": processed_message.id},
-                    {"$set": processed_message_doc},
-                    upsert=True,
-                )
-            entity.clear_processed_messages()
 
             await self._save(entity)
 

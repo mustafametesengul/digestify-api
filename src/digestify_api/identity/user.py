@@ -31,7 +31,7 @@ class User(Entity):
         return user
 
     def delete_account(self) -> None:
-        self.mark_as_discarded()
+        self.discard()
         self.add_to_outbox(AccountDeleted())
 
 

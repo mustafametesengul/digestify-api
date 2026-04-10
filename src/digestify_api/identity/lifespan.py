@@ -23,14 +23,10 @@ async def lifespan() -> AsyncIterator[Context]:
 
         db = mongo_client["identity"]
         users_collection = db["users"]
-        messages_collection = db["messages"]
-        processed_messages_collection = db["processed_messages"]
 
         user_repository = UserRepository(
             User,
             users_collection,
-            messages_collection,
-            processed_messages_collection,
             message_broker,
         )
 

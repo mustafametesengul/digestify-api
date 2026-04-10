@@ -11,8 +11,7 @@ from digestify_api.news.topic import CreateTopic, ActivateTopic
 
 class User(Entity):
     type: Literal["User"] = "User"
-    active_topics_count: int
-    topics_count: int
+    active_topics: set[UUID] = Field(default_factory=set)
 
     @classmethod
     def create(cls, id: UUID) -> Self:
