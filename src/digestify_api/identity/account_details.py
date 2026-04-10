@@ -24,7 +24,7 @@ async def get_account_details(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> AccountDetailsResponse:
-    user = await context.user_repository.find_by_id(user_claims.id)
+    events = await context.user_event_store.load(user_claims.id)
 
     if user is None:
         raise Unauthenticated()

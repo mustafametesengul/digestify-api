@@ -9,7 +9,7 @@ from digestify_api.identity.dependencies import Context, get_context
 from digestify_api.identity.password import hash_password
 from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
-from digestify_api.identity.user import User
+from digestify_api.identity.user import SignUpWithUsername, User
 
 
 class SignUpWithUsernameRequest(BaseModel):
@@ -32,15 +32,16 @@ async def sign_up_with_username(
 ) -> TokenPair:
     password_hash = await hash_password(payload.password)
 
-    user = User.create_with_username_and_password(
-        username=payload.username,
-        password_hash=password_hash,
+    user_id = uuid7()
+
+    event = User.sign_up_with_username(
+        SignUpWithUsername(
+            user_id=user_id,
+            username=payload.username,
+            password_hash=password_hash,
+        )
     )
+    await context.user_event_store.save(event)
 
-    # try:
-    await context.user_repository.save(user)
-    # except Exception:
-    #     raise UsernameAlreadyTaken()
-
-    token_payload = UserClaims(id=user.id, role=UserRole.PERMANENT)
+    token_payload = UserClaims(id=user_id, role=UserRole.PERMANENT)
     return context.token_generator.generate(token_payload)

@@ -1,14 +1,23 @@
-from typing import Literal, Self
+from typing import Literal
+from uuid import UUID
+
+from digestify_api.infrastructure import Entity, Event, Command
 
 
-from digestify_api.infrastructure import Entity, Message, Repository
+class SignUpWithUsername(Command):
+    type: Literal["SignUpWithUsername"] = "SignUpWithUsername"
+    user_id: UUID
+    username: str
+    password_hash: str
 
 
-class UserSignedUp(Message):
+class UserSignedUp(Event):
     type: Literal["UserSignedUp"] = "UserSignedUp"
+    username: str
+    password_hash: str
 
 
-class AccountDeleted(Message):
+class AccountDeleted(Event):
     type: Literal["AccountDeleted"] = "AccountDeleted"
 
 
@@ -17,32 +26,22 @@ class User(Entity):
     username: str | None
     password_hash: str | None
 
-    @classmethod
-    def create_with_username_and_password(
-        cls,
-        username: str,
-        password_hash: str,
-    ) -> Self:
-        user = cls(
-            username=username,
-            password_hash=password_hash,
+    @staticmethod
+    def sign_up_with_username(command: SignUpWithUsername) -> UserSignedUp:
+        return UserSignedUp(
+            entity_id=command.user_id,
+            entity_version=1,
+            username=command.username,
+            password_hash=command.password_hash,
         )
-        user.add_to_outbox(UserSignedUp())
-        return user
 
-    def delete_account(self) -> None:
-        self.discard()
-        self.add_to_outbox(AccountDeleted())
+    def delete_account(self) -> AccountDeleted:
+        return AccountDeleted(entity_id=self.id, entity_version=self.version)
 
+    def apply_user_signed_up(self, event: UserSignedUp) -> None:
+        self.username = event.username
+        self.password_hash = event.password_hash
 
-class UserRepository(Repository[User]):
-    async def find_by_username(self, username: str) -> User | None:
-        document = await self._collection.find_one(
-            {"username": username, "is_deleted": False}
-        )
-        if document is None:
-            return None
-        return User.model_validate(document)
-
-    async def create_indices(self) -> None:
-        await self._collection.create_index("username", unique=True, sparse=True)
+    def apply_account_deleted(self, _: AccountDeleted) -> None:
+        self.username = None
+        self.password_hash = None

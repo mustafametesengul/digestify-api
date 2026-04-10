@@ -1,27 +1,4 @@
 services:
-  db:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 5s
-
-  mongo-express:
-    image: mongo-express:latest
-    ports:
-      - "8081:8081"
-    environment:
-      - ME_CONFIG_MONGODB_URL=mongodb://db:27017/
-    depends_on:
-      db:
-        condition: service_healthy
-
   redis:
     image: redis:7
     environment:
@@ -104,5 +81,4 @@ services:
       - "4040:4040"
 
 volumes:
-  mongo_data:
   redis_data:

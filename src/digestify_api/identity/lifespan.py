@@ -1,40 +1,48 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from pymongo import AsyncMongoClient
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from redis.asyncio import Redis
 
 from digestify_api.identity.dependencies import Context
 from digestify_api.identity.token_generation import TokenGenerator
 from digestify_api.identity.token_verification import TokenVerifier
-from digestify_api.identity.user import User, UserRepository
 
-from digestify_api.infrastructure import create_message_broker
+from digestify_api.infrastructure import EventStore
+
+
+class DSNSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="REDIS_",
+    )
+
+    host: str = Field(default="localhost")
+    port: int = Field(default=6379)
+    password: SecretStr = Field(default=SecretStr("password"))
+    db: str = Field(default="0")
 
 
 @asynccontextmanager
 async def lifespan() -> AsyncIterator[Context]:
-    mongo_url = "mongodb://localhost:27017/db?directConnection=true"
-    async with (
-        AsyncMongoClient(mongo_url, uuidRepresentation="standard") as mongo_client,
-        create_message_broker() as message_broker,
-    ):
-        token_generator = TokenGenerator()
-        token_verifier = TokenVerifier()
+    token_generator = TokenGenerator()
+    token_verifier = TokenVerifier()
+    settings = DSNSettings()
 
-        db = mongo_client["identity"]
-        users_collection = db["users"]
-
-        user_repository = UserRepository(
-            User,
-            users_collection,
-            message_broker,
-        )
+    async with Redis(
+        host=settings.host,
+        port=settings.port,
+        password=settings.password.get_secret_value(),
+        db=settings.db,
+    ) as redis:
+        user_event_store = EventStore(redis, namespace="users")
 
         context = Context(
-            user_repository=user_repository,
+            user_event_store=user_event_store,
             token_generator=token_generator,
             token_verifier=token_verifier,
-            message_broker=message_broker,
         )
 
         yield context

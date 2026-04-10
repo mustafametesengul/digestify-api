@@ -12,9 +12,8 @@ from digestify_api.identity.token_generation import (
     UserRole,
 )
 from digestify_api.identity.token_verification import TokenVerifier
-from digestify_api.identity.user import UserRepository
 
-from digestify_api.infrastructure import MessageBroker
+from digestify_api.infrastructure import EventStore
 
 
 class Unauthenticated(HTTPException):
@@ -39,10 +38,9 @@ class Unauthorized(HTTPException):
 
 @dataclass
 class Context:
-    user_repository: UserRepository
+    user_event_store: EventStore
     token_generator: TokenGenerator
     token_verifier: TokenVerifier
-    message_broker: MessageBroker
 
 
 def get_context(request: Request) -> Context:

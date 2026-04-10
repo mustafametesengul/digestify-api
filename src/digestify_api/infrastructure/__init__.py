@@ -3,14 +3,20 @@ from digestify_api.infrastructure.message_broker import (
     create_message_broker,
 )
 
-from digestify_api.infrastructure.entity import Entity, Message
-from digestify_api.infrastructure.repository import Repository, ConcurrencyError
+from digestify_api.infrastructure.event_store import (
+    Entity,
+    Event,
+    Command,
+    EventStore,
+    OptimisticConcurrencyError,
+)
 
 __all__ = [
     "MessageBroker",
     "create_message_broker",
     "Entity",
-    "Message",
-    "Repository",
-    "ConcurrencyError",
+    "Event",
+    "Command",
+    "EventStore",
+    "OptimisticConcurrencyError",
 ]
