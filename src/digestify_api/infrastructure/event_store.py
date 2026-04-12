@@ -15,10 +15,6 @@ class Entity(BaseModel):
     version: int = 0
     discarded: bool = False
 
-    @classmethod
-    def from_events_json(cls, events_json: list[str]) -> Self:
-        raise NotImplementedError
-
 
 T = TypeVar("T", bound=Entity)
 

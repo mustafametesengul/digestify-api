@@ -2,9 +2,14 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import Field, TypeAdapter
 
-from digestify_api.infrastructure.event_store import Command, Entity, Event
+from digestify_api.infrastructure.event_store import (
+    Command,
+    Entity,
+    Event,
+    mutates_entity,
+)
 
 
 class SignUpWithUsername(Command):
@@ -25,8 +30,8 @@ class AccountDeleted(Event):
     type: Literal["AccountDeleted"] = "AccountDeleted"
 
 
-UserEventType = Annotated[UserSignedUp | AccountDeleted, Field(discriminator="type")]
-user_event_adapter = TypeAdapter(UserEventType)
+UserEvent = Annotated[UserSignedUp | AccountDeleted, Field(discriminator="type")]
+user_event_adapter = TypeAdapter(UserEvent)
 
 
 class User(Entity):
@@ -34,6 +39,20 @@ class User(Entity):
     username: str | None
     password_hash: str | None
     created_at: datetime
+
+    @classmethod
+    def on_user_signed_up(cls, event: UserSignedUp) -> Self:
+        return cls(
+            id=event.entity_id,
+            version=event.entity_version,
+            username=event.username,
+            password_hash=event.password_hash,
+            created_at=event.created_at,
+        )
+
+    def on_account_deleted(self, event: AccountDeleted) -> None:
+        self.discarded = True
+        self.version = event.entity_version
 
     @staticmethod
     def sign_up_with_username(command: SignUpWithUsername) -> UserSignedUp:
@@ -48,31 +67,3 @@ class User(Entity):
         if self.discarded:
             raise ValueError("Account is already deleted.")
         return AccountDeleted(entity_id=self.id, entity_version=self.version)
-
-    @classmethod
-    def from_events(cls, events: list[UserEventType]) -> Self:
-        user = None
-        for e in events:
-            if isinstance(e, UserSignedUp):
-                user = cls(
-                    id=e.entity_id,
-                    version=e.entity_version,
-                    username=e.username,
-                    password_hash=e.password_hash,
-                    created_at=e.created_at,
-                )
-            elif isinstance(e, AccountDeleted):
-                if user is not None:
-                    user.discarded = True
-                    user.version = e.entity_version
-                    user.username = None
-                    user.password_hash = None
-
-        if user is None:
-            raise ValueError("No creation event found to apply.")
-        return user
-
-    @classmethod
-    def from_events_json(cls, events_json: list[str]) -> Self:
-        events = [user_event_adapter.validate_json(e) for e in events_json]
-        return cls.from_events(events)
