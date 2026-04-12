@@ -1,4 +1,5 @@
-from typing import Generic, Self, TypeVar
+from datetime import UTC, datetime
+from typing import Callable, Generic, ParamSpec, Self, TypeVar, Concatenate
 from uuid import UUID, uuid4
 
 from nats.errors import TimeoutError as NatsTimeoutError
@@ -10,22 +11,79 @@ class OptimisticConcurrencyError(Exception):
     pass
 
 
-class Entity(BaseModel):
-    id: int | UUID | str = Field(default_factory=uuid4)
-    version: int = 0
-    discarded: bool = False
-
-
-T = TypeVar("T", bound=Entity)
-
-
 class Event(BaseModel):
-    entity_id: int | UUID | str
-    entity_version: int
+    entity_id: int | UUID | str = Field(default_factory=uuid4)
+    entity_version: int = 0
 
 
 class Command(BaseModel):
     id: UUID = Field(default_factory=uuid4)
+
+
+class Entity(BaseModel):
+    id: int | UUID | str = Field(default_factory=uuid4)
+    version: int = 0
+    discarded: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    # @abstractmethod
+    # def apply(self, event: Event) -> None:
+    #     handler = _handlers.get(type(self), {}).get(event.type)
+    #     if handler is None:
+    #         raise ValueError(f"No handler for event type {event.type} on entity {type(self).__name__}")
+    #     handler(self, event)
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+T = TypeVar("T", bound=Entity)
+E = TypeVar("E", bound=Event)
+
+
+_handlers: dict[type[Entity], dict[str, Callable[[Entity, Event], None]]] = {}
+
+
+def handler(
+    func: Callable[[T, E], R],
+) -> Callable[[T, E], R]:
+    return func
+
+
+def classhandler(
+    func: Callable[[type[T], E], T],
+) -> Callable[[type[T], E], T]:
+    return func
+
+
+def command(
+    func: Callable[Concatenate[T, P], Event],
+) -> Callable[Concatenate[T, P], None]:
+    def wrapper(entity: T, *args: P.args, **kwargs: P.kwargs) -> None:
+        event = func(entity, *args, **kwargs)
+        event.entity_id = entity.id
+        event.entity_version = entity.version + 1
+        # entity.apply(event)
+        return None
+
+    return wrapper
+
+
+def classcommand(
+    func: Callable[Concatenate[type[T], P], Event],
+) -> Callable[Concatenate[type[T], P], T]:
+    """
+    A version of the `command` decorator designed to work on class methods
+    (e.g., for creating a new entity). It sets the initial entity context.
+    """
+
+    def wrapper(cls: type[T], *args: P.args, **kwargs: P.kwargs) -> T:
+        event = func(cls, *args, **kwargs)
+        # For a creation event, the version starts at 1
+        print("Creating entity with event:", event)
+        entity = cls()
+        return entity
+
+    return wrapper
 
 
 class EventStore(Generic[T]):
@@ -39,8 +97,6 @@ class EventStore(Generic[T]):
 
     async def add_event(self, event: Event) -> None:
         subject = f"{self._subject_prefix}.{event.entity_id}"
-
-        print(subject)
 
         await self._js.publish(
             subject,
@@ -66,8 +122,10 @@ class EventStore(Generic[T]):
         if not events:
             return None
 
-        entity = self._entity_class.from_events_json(events)
-        if entity.discarded:
-            return None
+        # entity = self._entity_class.from_events_json(events)
+        # if entity.discarded:
+        #     return None
 
-        return entity
+        # return entity
+
+        return None
