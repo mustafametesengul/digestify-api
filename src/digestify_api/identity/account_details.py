@@ -12,6 +12,7 @@ from digestify_api.identity.dependencies import (
 )
 from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import UserClaims
+from digestify_api.identity.user import User
 
 
 class AccountDetailsResponse(BaseModel):
@@ -24,7 +25,8 @@ async def get_account_details(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> AccountDetailsResponse:
-    events = await context.user_event_store.load(user_claims.id)
+    events = await context.event_store.load(subject="users", entity_id=user_claims.id)
+    user = User.from_events_json(events)
 
     if user is None:
         raise Unauthenticated()

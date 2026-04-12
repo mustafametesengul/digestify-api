@@ -38,7 +38,7 @@ class Unauthorized(HTTPException):
 
 @dataclass
 class Context:
-    user_event_store: EventStore
+    event_store: EventStore
     token_generator: TokenGenerator
     token_verifier: TokenVerifier
 

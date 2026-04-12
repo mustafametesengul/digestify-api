@@ -1,8 +1,9 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from redis.asyncio import Redis
+from nats.js.client import JetStreamContext
+from nats.errors import TimeoutError as NatsTimeoutError
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OptimisticConcurrencyError(Exception):
@@ -10,41 +11,46 @@ class OptimisticConcurrencyError(Exception):
 
 
 class Entity(BaseModel):
-    id: UUID
+    id: int | UUID | str = Field(default_factory=uuid4)
     version: int = 0
+    discarded: bool = False
 
 
 class Event(BaseModel):
-    entity_id: UUID
+    entity_id: int | UUID | str
     entity_version: int
 
 
 class Command(BaseModel):
-    pass
+    id: UUID = Field(default_factory=uuid4)
 
 
 class EventStore:
-    def __init__(self, redis: Redis, namespace: str = "users"):
-        self._redis = redis
-        self._namespace = namespace
+    def __init__(self, js: JetStreamContext) -> None:
+        self._js = js
 
-    async def save(self, event: Event) -> None:
-        stream_key = f"{self._namespace}:events:{{{event.entity_id}}}"
+    async def save(self, subject: str, event: Event) -> None:
+        subject = f"{subject}.{event.entity_id}"
 
-        await self._redis.xadd(
-            name=stream_key,
-            id=f"0-{event.entity_version}",
-            fields={"event": event.model_dump_json()},
+        await self._js.publish(
+            subject,
+            event.model_dump_json().encode("utf-8"),
         )
 
-    async def load(self, entity_id: UUID) -> list[str]:
-        stream_key = f"{self._namespace}:events:{{{entity_id}}}"
+    async def load(self, subject: str, entity_id: int | UUID | str) -> list[str]:
+        subject = f"{subject}.{entity_id}"
 
-        events_data = await self._redis.xrange(stream_key, count=1000)
         events = []
-        for _, fields in events_data:
-            event_binary = fields[b"event"]
-            event_json = event_binary.decode("utf-8")
-            events.append(event_json)
+        sub: JetStreamContext.PushSubscription | None = None
+        try:
+            sub = await self._js.subscribe(subject)
+            while True:
+                msg = await sub.next_msg(timeout=0.1)
+                events.append(msg.data.decode("utf-8"))
+        except NatsTimeoutError:
+            pass
+        finally:
+            if sub is not None:
+                await sub.unsubscribe()
 
         return events

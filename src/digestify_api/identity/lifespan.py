@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from pydantic import Field, SecretStr
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from redis.asyncio import Redis
+import nats
 
 from digestify_api.identity.dependencies import Context
 from digestify_api.identity.token_generation import TokenGenerator
@@ -16,13 +16,11 @@ class DSNSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
-        env_prefix="REDIS_",
+        env_prefix="NATS_",
     )
 
     host: str = Field(default="localhost")
-    port: int = Field(default=6379)
-    password: SecretStr = Field(default=SecretStr("password"))
-    db: str = Field(default="0")
+    port: int = Field(default=4222)
 
 
 @asynccontextmanager
@@ -31,18 +29,19 @@ async def lifespan() -> AsyncIterator[Context]:
     token_verifier = TokenVerifier()
     settings = DSNSettings()
 
-    async with Redis(
-        host=settings.host,
-        port=settings.port,
-        password=settings.password.get_secret_value(),
-        db=settings.db,
-    ) as redis:
-        user_event_store = EventStore(redis, namespace="users")
+    nc = await nats.connect(f"nats://{settings.host}:{settings.port}")
+    try:
+        js = nc.jetstream()
+        await js.add_stream(name="identity", subjects=["users.*"])
+
+        event_store = EventStore(js)
 
         context = Context(
-            user_event_store=user_event_store,
+            event_store=event_store,
             token_generator=token_generator,
             token_verifier=token_verifier,
         )
 
         yield context
+    finally:
+        await nc.close()

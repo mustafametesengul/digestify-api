@@ -41,7 +41,7 @@ async def sign_up_with_username(
             password_hash=password_hash,
         )
     )
-    await context.user_event_store.save(event)
+    await context.event_store.save("users", event)
 
     token_payload = UserClaims(id=user_id, role=UserRole.PERMANENT)
     return context.token_generator.generate(token_payload)
