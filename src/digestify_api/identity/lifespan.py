@@ -1,14 +1,14 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+import nats
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import nats
 
 from digestify_api.identity.dependencies import Context
 from digestify_api.identity.token_generation import TokenGenerator
 from digestify_api.identity.token_verification import TokenVerifier
-
+from digestify_api.identity.user import User
 from digestify_api.infrastructure import EventStore
 
 
@@ -32,12 +32,12 @@ async def lifespan() -> AsyncIterator[Context]:
     nc = await nats.connect(f"nats://{settings.host}:{settings.port}")
     try:
         js = nc.jetstream()
-        await js.add_stream(name="identity", subjects=["users.*"])
 
-        event_store = EventStore(js)
+        users = EventStore(js, User)
+        await users.register("identity_users")
 
         context = Context(
-            event_store=event_store,
+            users=users,
             token_generator=token_generator,
             token_verifier=token_verifier,
         )

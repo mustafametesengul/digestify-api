@@ -1,7 +1,7 @@
 from digestify_api.infrastructure.event_store import (
+    Command,
     Entity,
     Event,
-    Command,
     EventStore,
     OptimisticConcurrencyError,
 )

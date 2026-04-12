@@ -12,7 +12,7 @@ from digestify_api.identity.token_generation import (
     UserRole,
 )
 from digestify_api.identity.token_verification import TokenVerifier
-
+from digestify_api.identity.user import User
 from digestify_api.infrastructure import EventStore
 
 
@@ -38,7 +38,7 @@ class Unauthorized(HTTPException):
 
 @dataclass
 class Context:
-    event_store: EventStore
+    users: EventStore[User]
     token_generator: TokenGenerator
     token_verifier: TokenVerifier
 

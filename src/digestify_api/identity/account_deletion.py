@@ -17,9 +17,9 @@ async def delete_account(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> None:
-    user = await context.user_repository.find_by_id(user_claims.id)
-    if user is None or user.is_discarded:
+    user = await context.users.load(entity_id=user_claims.id)
+    if user is None or user.discarded:
         raise Unauthenticated()
 
-    user.delete_account()
-    await context.user_repository.save(user)
+    event = user.delete_account()
+    await context.users.add_event(event)

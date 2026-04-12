@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from digestify_api.infrastructure import Entity, Event, Command
+from digestify_api.infrastructure import Command, Entity, Event
 
 
 class ClaimUsername(Command):

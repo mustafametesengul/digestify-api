@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import uuid7
 
@@ -41,7 +41,7 @@ async def sign_up_with_username(
             password_hash=password_hash,
         )
     )
-    await context.event_store.save("users", event)
+    await context.users.add_event(event)
 
     token_payload = UserClaims(id=user_id, role=UserRole.PERMANENT)
     return context.token_generator.generate(token_payload)

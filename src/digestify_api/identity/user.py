@@ -1,11 +1,10 @@
 from datetime import UTC, datetime
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from digestify_api.infrastructure.event_store import Entity, Event, Command
-
 from pydantic import BaseModel, Field, TypeAdapter
-from typing import Annotated
+
+from digestify_api.infrastructure.event_store import Command, Entity, Event
 
 
 class SignUpWithUsername(Command):

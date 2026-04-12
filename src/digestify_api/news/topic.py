@@ -1,11 +1,12 @@
-from datetime import UTC, date, datetime, time as time_
-
+from datetime import UTC, date, datetime
+from datetime import time as time_
 from enum import StrEnum
 from typing import Annotated, Literal, Self
 from uuid import UUID, uuid7
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
+
 from digestify_api.infrastructure.entity import Entity, Message
 
 

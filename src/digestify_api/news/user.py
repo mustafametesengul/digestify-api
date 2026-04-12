@@ -1,12 +1,11 @@
 from datetime import UTC, datetime
-
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from digestify_api.infrastructure.entity import Entity, Message
-from digestify_api.news.topic import CreateTopic, ActivateTopic
+from digestify_api.news.topic import ActivateTopic, CreateTopic
 
 
 class User(Entity):
