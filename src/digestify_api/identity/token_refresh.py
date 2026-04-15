@@ -31,7 +31,7 @@ async def refresh_token(
         raise Unauthenticated()
 
     if user_claims.role is not UserRole.ANONYMOUS:
-        user = await context.users.load(entity_id=user_claims.id)
+        user = await context.users.load(id=user_claims.id)
         if user is None or user.discarded:
             raise Unauthenticated()
 

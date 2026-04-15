@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from digestify_api.infrastructure import Command, Entity, Event
+from digestify_api.infrastructure import Command, Aggregate, Event
 
 
 class ClaimUsername(Command):
@@ -16,7 +16,7 @@ class UsernameClaimed(Event):
     user_id: UUID
 
 
-class UsernameClaim(Entity):
+class UsernameClaim(Aggregate):
     type: Literal["UsernameClaim"] = "UsernameClaim"
     claimed_by: UUID
 

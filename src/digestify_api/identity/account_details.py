@@ -24,7 +24,7 @@ async def get_account_details(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> AccountDetailsResponse:
-    user = await context.users.load(entity_id=user_claims.id)
+    user = await context.users.load(id=user_claims.id)
 
     if user is None:
         raise Unauthenticated()
