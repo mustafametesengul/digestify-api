@@ -27,14 +27,14 @@ class Aggregate(Generic[T]):
         if event_type not in self._mutators:
             raise ValueError(f"No mutator registered for event type {event_type}.")
         mutator_func = self._mutators[event_type]
-        mutator_func(self, event)
+        mutator_func(event)
 
     def apply_json(self, event_json: str) -> None:
         """Apply an event from its JSON representation."""
         for event_type, mutator_func in self._mutators.items():
             try:
                 event = TypeAdapter(event_type).validate_json(event_json)
-                mutator_func(self, event)
+                mutator_func(event)
                 return
             except Exception:
                 continue
@@ -44,12 +44,10 @@ class Aggregate(Generic[T]):
         self._pending_events.append(event)
         self.apply(event)
 
-    def _get_state(self) -> T:
-        if self._state is None:
-            raise ValueError("Aggregate state is not initialized.")
-        return self._state.model_copy()
+    def _get_state(self) -> T | None:
+        if self._state is not None:
+            return self._state.model_copy()
+        return None
 
     def _set_state(self, state: T) -> None:
-        if self._state is not None:
-            raise ValueError("Aggregate state is already initialized.")
         self._state = state

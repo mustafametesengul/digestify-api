@@ -41,6 +41,8 @@ class User(Aggregate[UserState]):
 
     def apply_account_deleted(self, _: AccountDeleted) -> None:
         state = self._get_state()
+        if state is None:
+            raise ValueError("User does not exist.")
         if state.account_deleted:
             raise ValueError("Account is already deleted.")
         state.account_deleted = True
@@ -56,6 +58,8 @@ class User(Aggregate[UserState]):
 
     def delete_account(self) -> None:
         state = self._get_state()
+        if state is None:
+            raise ValueError("User does not exist.")
         if state.account_deleted:
             raise ValueError("Account is already deleted.")
         self._publish(AccountDeleted())
@@ -64,3 +68,10 @@ class User(Aggregate[UserState]):
 class UserRepository(NATSRepository[User]):
     def __init__(self, js: JetStreamContext) -> None:
         super().__init__(js, subject_prefix="user")
+
+
+user = User(id="user-123")
+user.sign_up_with_username("john_doe", "hashed_password")
+user.delete_account()
+print(user._pending_events)
+print(user._get_state())
