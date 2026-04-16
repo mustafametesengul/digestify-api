@@ -1,4 +1,4 @@
-from typing import Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -16,7 +16,7 @@ class Aggregate(Generic[T]):
         self._id = id
         self._state: T | None = None
         self._pending_events: list[BaseModel] = []
-        self._mutators: dict[type[BaseModel], Callable[..., None]] = {}
+        self._mutators: dict[type[BaseModel], Callable[[Any], None]] = {}
 
     def _add_mutator(self, event_type: type[E], mutator: Callable[[E], None]) -> None:
         self._mutators[event_type] = mutator
