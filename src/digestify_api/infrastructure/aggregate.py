@@ -1,6 +1,6 @@
-from typing import Any, Callable, Generic, TypeVar
+from typing import Annotated, Any, Callable, Generic, TypeVar, Union
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, Discriminator, TypeAdapter
 
 
 class OptimisticConcurrencyError(Exception):
@@ -12,14 +12,24 @@ E = TypeVar("E", bound=BaseModel)
 
 
 class Aggregate(Generic[S]):
-    def __init__(self, id: str) -> None:
+    def __init__(
+        self,
+        id: str,
+        state_class: type[S],
+        event_discriminator: str | None = None,
+    ) -> None:
         self._id = id
+        self._state_class = state_class
         self._state: S | None = None
         self._pending_events: list[BaseModel] = []
         self._mutators: dict[type[BaseModel], Callable[[Any], None]] = {}
+        self._event_discriminator = event_discriminator
 
     def _add_mutator(self, event_type: type[E], mutator: Callable[[E], None]) -> None:
         self._mutators[event_type] = mutator
+
+    def load_state_json(self, state_json: str) -> None:
+        self._state = self._state_class.model_validate_json(state_json)
 
     def apply(self, event: BaseModel) -> None:
         """Route the event to the registered mutator."""
@@ -31,6 +41,16 @@ class Aggregate(Generic[S]):
 
     def apply_json(self, event_json: str) -> None:
         """Apply an event from its JSON representation."""
+        if self._event_discriminator is not None:
+            event_types = tuple(self._mutators.keys())
+            union_type = Union[event_types]
+            adapter = TypeAdapter(
+                Annotated[union_type, Discriminator(self._event_discriminator)]
+            )
+            event = adapter.validate_json(event_json)
+            self.apply(event)
+            return
+
         for event_type, mutator_func in self._mutators.items():
             try:
                 event = TypeAdapter(event_type).validate_json(event_json)

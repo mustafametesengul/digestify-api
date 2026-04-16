@@ -26,9 +26,7 @@ class UserState(BaseModel):
 
 class User(Aggregate[UserState]):
     def __init__(self, id: UUID | None = None) -> None:
-        if id is None:
-            id = uuid4()
-        super().__init__(str(id))
+        super().__init__(str(id or uuid4()), UserState, "schema_version")
         self._add_mutator(UserSignedUp, self.apply_user_signed_up)
         self._add_mutator(AccountDeleted, self.apply_account_deleted)
 
