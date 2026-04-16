@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from digestify_api.infrastructure import Aggregate, NATSRepository
 from nats.js.client import JetStreamContext
+from uuid import UUID, uuid4
 
 
 class UserSignedUp(BaseModel):
@@ -23,8 +24,10 @@ class UserState(BaseModel):
 
 
 class User(Aggregate[UserState]):
-    def __init__(self, id: str) -> None:
-        super().__init__(id)
+    def __init__(self, id: UUID | None = None) -> None:
+        if id is None:
+            id = uuid4()
+        super().__init__(str(id))
         self._add_mutator(UserSignedUp, self.apply_user_signed_up)
         self._add_mutator(AccountDeleted, self.apply_account_deleted)
 
@@ -61,7 +64,7 @@ class UserRepository(NATSRepository[User]):
         super().__init__(js, subject_prefix="user")
 
 
-user = User(id="user-123")
+user = User()
 user.sign_up_with_username("john_doe", "hashed_password")
 user.delete_account()
 print(user._pending_events)
