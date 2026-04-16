@@ -6,11 +6,10 @@ from nats.js.client import JetStreamContext
 from digestify_api.infrastructure.aggregate import Aggregate
 from digestify_api.infrastructure.respository import Repository
 
+A = TypeVar("A", bound=Aggregate)
 
-T = TypeVar("T", bound=Aggregate)
 
-
-class NATSRepository(Repository[T]):
+class NATSRepository(Repository[A]):
     def __init__(
         self,
         js: JetStreamContext,
@@ -19,12 +18,11 @@ class NATSRepository(Repository[T]):
         self._js = js
         self._subject_prefix = subject_prefix
 
-    @override
     async def register(self, name: str) -> None:
         await self._js.add_stream(name=name, subjects=[f"{self._subject_prefix}.*"])
 
     @override
-    async def save(self, aggregate: T) -> None:
+    async def save(self, aggregate: A) -> None:
         subject = f"{self._subject_prefix}.{aggregate._id}"
 
         events = aggregate._pending_events
@@ -35,7 +33,7 @@ class NATSRepository(Repository[T]):
             )
 
     @override
-    async def load(self, aggregate: T) -> None:
+    async def load(self, aggregate: A) -> None:
         subject = f"{self._subject_prefix}.{aggregate._id}"
 
         events = []

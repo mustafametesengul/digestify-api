@@ -1,9 +1,10 @@
 from typing import Literal
+from uuid import UUID, uuid4
+
+from nats.js.client import JetStreamContext
 from pydantic import BaseModel
 
 from digestify_api.infrastructure import Aggregate, NATSRepository
-from nats.js.client import JetStreamContext
-from uuid import UUID, uuid4
 
 
 class UserSignedUp(BaseModel):

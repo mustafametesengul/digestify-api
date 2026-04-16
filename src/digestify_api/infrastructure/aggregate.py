@@ -7,14 +7,14 @@ class OptimisticConcurrencyError(Exception):
     pass
 
 
-T = TypeVar("T", bound=BaseModel)
+S = TypeVar("S", bound=BaseModel)
 E = TypeVar("E", bound=BaseModel)
 
 
-class Aggregate(Generic[T]):
+class Aggregate(Generic[S]):
     def __init__(self, id: str) -> None:
         self._id = id
-        self._state: T | None = None
+        self._state: S | None = None
         self._pending_events: list[BaseModel] = []
         self._mutators: dict[type[BaseModel], Callable[[Any], None]] = {}
 
