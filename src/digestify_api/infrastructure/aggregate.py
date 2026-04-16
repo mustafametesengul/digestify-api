@@ -1,6 +1,4 @@
-from abc import ABC
-from typing import Callable, Generic, TypeVar, get_type_hints, Any
-from uuid import UUID, uuid4
+from typing import Callable, Generic, TypeVar
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -10,35 +8,25 @@ class OptimisticConcurrencyError(Exception):
 
 
 T = TypeVar("T", bound=BaseModel)
+E = TypeVar("E", bound=BaseModel)
 
 
-class Aggregate(ABC, Generic[T]):
-    _mutators: dict[type[BaseModel], Callable] = {}
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls._mutators = getattr(cls, "_mutators", {}).copy()
-        for name, method in cls.__dict__.items():
-            if getattr(method, "__is_mutator__", False):
-                hints = get_type_hints(method)
-                for hint in hints.values():
-                    # Find the parameter mapped to the Event (must subclass BaseModel)
-                    if isinstance(hint, type) and issubclass(hint, BaseModel):
-                        cls._mutators[hint] = method
-                        break
-
-    def __init__(self, id: int | UUID | str | None = None) -> None:
-        self._id = id or uuid4()
-        self._state_: T | None = None
+class Aggregate(Generic[T]):
+    def __init__(self, id: str) -> None:
+        self._id = id
+        self._state: T | None = None
         self._pending_events: list[BaseModel] = []
+        self._mutators: dict[type[BaseModel], Callable[..., None]] = {}
+
+    def _add_mutator(self, event_type: type[E], mutator: Callable[[E], None]) -> None:
+        self._mutators[event_type] = mutator
 
     def apply(self, event: BaseModel) -> None:
         """Route the event to the registered mutator."""
-        mutator_func = self._mutators.get(type(event))
-        if not mutator_func:
-            raise NotImplementedError(
-                f"No mutator registered for event type: {type(event).__name__}"
-            )
+        event_type = type(event)
+        if event_type not in self._mutators:
+            raise ValueError(f"No mutator registered for event type {event_type}.")
+        mutator_func = self._mutators[event_type]
         mutator_func(self, event)
 
     def apply_json(self, event_json: str) -> None:
@@ -57,16 +45,11 @@ class Aggregate(ABC, Generic[T]):
         self.apply(event)
 
     def _get_state(self) -> T:
-        if self._state_ is None:
+        if self._state is None:
             raise ValueError("Aggregate state is not initialized.")
-        return self._state_
+        return self._state.model_copy()
 
     def _set_state(self, state: T) -> None:
-        if self._state_ is not None:
+        if self._state is not None:
             raise ValueError("Aggregate state is already initialized.")
-        self._state_ = state
-
-
-def mutator(func: Callable[[Any, Any], None]) -> Callable[[Any, Any], None]:
-    setattr(func, "__is_mutator__", True)
-    return func
+        self._state = state

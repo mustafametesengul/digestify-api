@@ -1,7 +1,8 @@
 from typing import Literal
 from pydantic import BaseModel
 
-from digestify_api.infrastructure.aggregate import Aggregate, mutator
+from digestify_api.infrastructure import Aggregate, NATSRepository
+from nats.js.client import JetStreamContext
 
 
 class UserSignedUp(BaseModel):
@@ -22,8 +23,14 @@ class UserState(BaseModel):
 
 
 class User(Aggregate[UserState]):
-    @mutator
+    def __init__(self, id: str) -> None:
+        super().__init__(id)
+        self._add_mutator(UserSignedUp, self.apply_user_signed_up)
+        self._add_mutator(AccountDeleted, self.apply_account_deleted)
+
     def apply_user_signed_up(self, event: UserSignedUp) -> None:
+        if self._state is not None:
+            raise ValueError("User already exists.")
         self._set_state(
             UserState(
                 username=event.username,
@@ -32,12 +39,12 @@ class User(Aggregate[UserState]):
             )
         )
 
-    @mutator
     def apply_account_deleted(self, _: AccountDeleted) -> None:
         state = self._get_state()
         if state.account_deleted:
             raise ValueError("Account is already deleted.")
         state.account_deleted = True
+        self._set_state(state)
 
     def sign_up_with_username(self, username: str, password_hash: str) -> None:
         self._publish(
@@ -54,9 +61,6 @@ class User(Aggregate[UserState]):
         self._publish(AccountDeleted())
 
 
-user = User()
-
-user.sign_up_with_username("user1", "hashed_password")
-user.delete_account()
-
-print(user._get_state())
+class UserRepository(NATSRepository[User]):
+    def __init__(self, js: JetStreamContext) -> None:
+        super().__init__(js, subject_prefix="user")
