@@ -43,11 +43,3 @@ class Aggregate(Generic[T]):
     def _publish(self, event: BaseModel) -> None:
         self._pending_events.append(event)
         self.apply(event)
-
-    def _get_state(self) -> T | None:
-        if self._state is not None:
-            return self._state.model_copy()
-        return None
-
-    def _set_state(self, state: T) -> None:
-        self._state = state
