@@ -250,10 +250,10 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "nats-py", specifier = ">=2.14.0" },
     { name = "openai", specifier = ">=2.14.0" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "pydantic", specifier = ">=2.13.3" },
+    { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pyjwt", specifier = ">=2.10.1" },
-    { name = "rillo", extras = ["nats"], specifier = ">=0.1.0" },
+    { name = "rillo", extras = ["nats"], specifier = ">=0.2.6" },
     { name = "tzdata", specifier = ">=2025.3" },
 ]
 
@@ -892,14 +892,14 @@ wheels = [
 
 [[package]]
 name = "rillo"
-version = "0.1.0"
+version = "0.2.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/20/43b30b3082984bac85c178d96f8c138f7866d60027f0581c3496ce9820a1/rillo-0.1.0.tar.gz", hash = "sha256:c270ad96ce22745d3c0f4a1a5dbd024c734e4f873c8ede3ecbc6634ea418b365", size = 4907, upload-time = "2026-04-25T08:27:59.27Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/58/2c/c5dcca99435840b214947058b4a2a11f20b7832e30302bf1ab4c9c163a1c/rillo-0.2.6.tar.gz", hash = "sha256:8a953e4412143f6a530d3ac6f2e3e979685bfd504a0e5aa99da3765ab38ded6a", size = 4703, upload-time = "2026-05-03T21:10:21.513Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f4/d6/d3465342541de3ae7b82a78b3d30ff34d87f8841e8fac381b66126b18e16/rillo-0.1.0-py3-none-any.whl", hash = "sha256:19737e427e50c5a844f6e42fb982a6026a9039f97e8b000607542a4d9ffd9f13", size = 6736, upload-time = "2026-04-25T08:28:00.205Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/e2/8d7633a114b4e69da295f835f008a9b43f8e2c4142778d75ce8bef57b778/rillo-0.2.6-py3-none-any.whl", hash = "sha256:68318be64adede7c6019ce21c2bdbfcacb04f0510b36ee704f996cd0e71f3011", size = 6534, upload-time = "2026-05-03T21:10:20.483Z" },
 ]
 
 [package.optional-dependencies]

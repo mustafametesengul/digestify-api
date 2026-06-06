@@ -1,13 +1,13 @@
 from datetime import UTC, date, datetime
 from datetime import time as time_
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, override
 from uuid import UUID, uuid7
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
 
-from digestify_api.infrastructure.entity import Entity, Message
+from rillo import Aggregate
 
 
 class Schedule(BaseModel):
@@ -30,7 +30,7 @@ class Language(StrEnum):
     TR_TR = "tr-TR"
 
 
-class CreateTopic(Message):
+class CreateTopic(BaseModel):
     type: Literal["CreateTopic"] = "CreateTopic"
     topic_id: UUID = Field(default_factory=uuid7)
     user_id: UUID
@@ -41,14 +41,32 @@ class CreateTopic(Message):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class ActivateTopic(Message):
+class ActivateTopic(BaseModel):
     type: Literal["ActivateTopic"] = "ActivateTopic"
     topic_id: UUID
     user_id: UUID
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class Topic(Entity):
+class TopicCreated(BaseModel):
+    type: Literal["TopicCreated"] = "TopicCreated"
+    topic_id: UUID
+    user_id: UUID
+    name: str
+    description: str
+    language: Language
+    schedule: Schedule
+    created_at: datetime
+
+
+class TopicActivated(BaseModel):
+    type: Literal["TopicActivated"] = "TopicActivated"
+    topic_id: UUID
+    user_id: UUID
+    created_at: datetime
+
+
+class TopicState(BaseModel):
     type: Literal["Topic"] = "Topic"
     user_id: UUID
     name: str
@@ -59,25 +77,26 @@ class Topic(Entity):
     schedule_version: int
     last_execution_date: date | None
 
-    @classmethod
-    def create(
-        cls,
-        command: CreateTopic,
-    ) -> Self:
-        topic = cls(
-            user_id=command.user_id,
-            name=command.name,
-            description=command.description,
-            language=command.language,
-            is_active=True,
-            schedule=command.schedule,
-            schedule_version=1,
-            last_execution_date=None,
-        )
-        return topic
 
-    def activate(self) -> None:
-        pass
+type TopicEvent = Annotated[TopicCreated | TopicActivated, Field(discriminator="type")]
+type TopicCommand = Annotated[CreateTopic, Field(discriminator="type")]
 
-    def deactivate(self) -> None:
-        pass
+
+class Topic(Aggregate[TopicState, TopicEvent, TopicCommand]):
+    @override
+    def apply(self, event: TopicEvent) -> None:
+        match event:
+            case CreateTopic():
+                self.state = TopicState.model_validate(
+                    event.model_dump(exclude={"type"})
+                )
+            case ActivateTopic():
+                self.state.is_active = True
+
+    @override
+    def execute(self, command: TopicCommand) -> None:
+        match command:
+            case CreateTopic():
+                self._emit(
+                    TopicCreated.model_validate(command.model_dump(exclude={"type"}))
+                )
