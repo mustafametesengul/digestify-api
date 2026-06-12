@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 from datetime import time as time_
 from enum import StrEnum
 from typing import Annotated, Literal, override
-from uuid import UUID, uuid7
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
@@ -30,44 +30,8 @@ class Language(StrEnum):
     TR_TR = "tr-TR"
 
 
-class CreateTopic(BaseModel):
-    type: Literal["CreateTopic"] = "CreateTopic"
-    topic_id: UUID = Field(default_factory=uuid7)
-    user_id: UUID
-    name: str
-    description: str
-    language: Language
-    schedule: Schedule
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
-class ActivateTopic(BaseModel):
-    type: Literal["ActivateTopic"] = "ActivateTopic"
-    topic_id: UUID
-    user_id: UUID
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
-class TopicCreated(BaseModel):
-    type: Literal["TopicCreated"] = "TopicCreated"
-    topic_id: UUID
-    user_id: UUID
-    name: str
-    description: str
-    language: Language
-    schedule: Schedule
-    created_at: datetime
-
-
-class TopicActivated(BaseModel):
-    type: Literal["TopicActivated"] = "TopicActivated"
-    topic_id: UUID
-    user_id: UUID
-    created_at: datetime
-
-
-class TopicState(BaseModel):
-    type: Literal["Topic"] = "Topic"
+class State(BaseModel):
+    type: Literal["TopicState"] = "TopicState"
     user_id: UUID
     name: str
     description: str
@@ -78,25 +42,77 @@ class TopicState(BaseModel):
     last_execution_date: date | None
 
 
-type TopicEvent = Annotated[TopicCreated | TopicActivated, Field(discriminator="type")]
-type TopicCommand = Annotated[CreateTopic, Field(discriminator="type")]
+class TopicCreated(BaseModel):
+    type: Literal["TopicCreated"] = "TopicCreated"
+    user_id: UUID
+    name: str
+    description: str
+    language: Language
+    schedule: Schedule
+    created_at: datetime
 
 
-class Topic(Aggregate[TopicState, TopicEvent, TopicCommand]):
+class TopicActivated(BaseModel):
+    type: Literal["TopicActivated"] = "TopicActivated"
+    user_id: UUID
+    created_at: datetime
+
+
+type Event = Annotated[TopicCreated | TopicActivated, Field(discriminator="type")]
+
+
+class Topic(Aggregate[State, Event]):
     @override
-    def apply(self, event: TopicEvent) -> None:
+    def apply(self, event: Event) -> None:
         match event:
-            case CreateTopic():
-                self.state = TopicState.model_validate(
-                    event.model_dump(exclude={"type"})
+            case TopicCreated():
+                self._state = State(
+                    user_id=event.user_id,
+                    name=event.name,
+                    description=event.description,
+                    language=event.language,
+                    is_active=False,
+                    schedule=event.schedule,
+                    schedule_version=0,
+                    last_execution_date=None,
                 )
-            case ActivateTopic():
-                self.state.is_active = True
+            case TopicActivated():
+                if self._state is not None:
+                    self._state.is_active = True
 
-    @override
-    def execute(self, command: TopicCommand) -> None:
-        match command:
-            case CreateTopic():
-                self._emit(
-                    TopicCreated.model_validate(command.model_dump(exclude={"type"}))
-                )
+    def create(
+        self,
+        user_id: UUID,
+        name: str,
+        description: str,
+        language: Language,
+        schedule: Schedule,
+    ) -> None:
+        self._emit(
+            TopicCreated(
+                user_id=user_id,
+                name=name,
+                description=description,
+                language=language,
+                schedule=schedule,
+                created_at=datetime.now(UTC),
+            )
+        )
+
+    def activate(self) -> None:
+        if self._state is None:
+            raise ValueError("Topic does not exist")
+        if self._state.is_active:
+            raise ValueError("Topic is already active")
+        self._emit(
+            TopicActivated(
+                user_id=self._state.user_id,
+                created_at=datetime.now(UTC),
+            )
+        )
+
+    def update_schedule(self, schedule: Schedule) -> None:
+        if self._state is None:
+            raise ValueError("Topic does not exist")
+        self._state.schedule = schedule
+        self._state.schedule_version += 1

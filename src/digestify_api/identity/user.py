@@ -1,70 +1,50 @@
-from typing import Literal
-from uuid import UUID, uuid4
+from uuid import UUID
+from typing import Literal, Annotated, override
 
-from nats.js.client import JetStreamContext
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from digestify_api.infrastructure import Aggregate, NATSRepository
+from rillo import Aggregate
+
+
+class State(BaseModel):
+    email: str
+    is_deleted: bool
 
 
 class UserSignedUp(BaseModel):
-    schema_version: Literal["UserSignedUpV1"] = "UserSignedUpV1"
-    username: str
-    password_hash: str
+    type: Literal["UserSignedUpV1"] = "UserSignedUpV1"
+    email: str
 
 
 class AccountDeleted(BaseModel):
-    schema_version: Literal["AccountDeletedV1"] = "AccountDeletedV1"
+    type: Literal["AccountDeletedV1"] = "AccountDeletedV1"
 
 
-class UserState(BaseModel):
-    schema_version: Literal["UserStateV1"] = "UserStateV1"
-    username: str
-    password_hash: str
-    account_deleted: bool
+type Event = Annotated[UserSignedUp | AccountDeleted, Field(discriminator="type")]
 
 
-class User(Aggregate[UserState]):
-    def __init__(self, id: UUID | None = None) -> None:
-        super().__init__(str(id or uuid4()), UserState, "schema_version")
-        self._add_mutator(UserSignedUp, self.apply_user_signed_up)
-        self._add_mutator(AccountDeleted, self.apply_account_deleted)
+class User(Aggregate[State, Event]):
+    def __init__(self, id: UUID) -> None:
+        super().__init__(str(id))
 
-    def apply_user_signed_up(self, event: UserSignedUp) -> None:
-        self._state = UserState(
-            username=event.username,
-            password_hash=event.password_hash,
-            account_deleted=False,
-        )
-
-    def apply_account_deleted(self, _: AccountDeleted) -> None:
-        if self._state is None:
-            raise ValueError("User does not exist.")
-        self._state.account_deleted = True
-
-    def sign_up_with_username(self, username: str, password_hash: str) -> None:
-        self._publish(
-            UserSignedUp(
-                username=username,
-                password_hash=password_hash,
-            )
-        )
+    def sign_up(self, email: str) -> None:
+        if self._state is not None:
+            raise ValueError("User already exists")
+        self._emit(UserSignedUp(email=email))
 
     def delete_account(self) -> None:
-        if self._state is None:
-            raise ValueError("User does not exist.")
-        if self._state.account_deleted:
-            raise ValueError("Account is already deleted.")
-        self._publish(AccountDeleted())
+        if self._state is None or self._state.is_deleted:
+            raise ValueError("User does not exist or is already deleted")
+        self._emit(AccountDeleted())
 
-
-class UserRepository(NATSRepository[User]):
-    def __init__(self, js: JetStreamContext) -> None:
-        super().__init__(js, subject_prefix="user")
-
-
-user = User()
-user.sign_up_with_username("john_doe", "hashed_password")
-user.delete_account()
-print(user._pending_events)
-print(user._state)
+    @override
+    def apply(self, event: Event) -> None:
+        match event:
+            case UserSignedUp():
+                self._state = State(
+                    email=event.email,
+                    is_deleted=False,
+                )
+            case AccountDeleted():
+                if self._state is not None:
+                    self._state.is_deleted = True

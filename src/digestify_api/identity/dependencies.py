@@ -13,7 +13,7 @@ from digestify_api.identity.token_generation import (
 )
 from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.identity.user import User
-from digestify_api.infrastructure import Repository
+from rillo import Repository
 
 
 class Unauthenticated(HTTPException):

@@ -9,7 +9,7 @@ from digestify_api.identity.dependencies import Context
 from digestify_api.identity.token_generation import TokenGenerator
 from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.identity.user import User
-from digestify_api.infrastructure import Repository
+from rillo.nats import NATSRepository
 
 
 class DSNSettings(BaseSettings):
@@ -33,8 +33,11 @@ async def lifespan() -> AsyncIterator[Context]:
     try:
         js = nc.jetstream()
 
-        users = Repository(js, User)
-        await users.register("identity_users")
+        users = NATSRepository[User](
+            js,
+            "identity",
+            "users",
+        )
 
         context = Context(
             users=users,
