@@ -1,8 +1,7 @@
+from typing import Annotated, Literal, override
 from uuid import UUID
-from typing import Literal, Annotated, override
 
 from pydantic import BaseModel, Field
-
 from rillo import Aggregate
 
 
@@ -48,3 +47,11 @@ class User(Aggregate[State, Event]):
             case AccountDeleted():
                 if self._state is not None:
                     self._state.is_deleted = True
+
+    def is_active(self) -> bool:
+        return self._state is not None and not self._state.is_deleted
+
+    def email(self) -> str:
+        if self._state is None or self._state.is_deleted:
+            raise ValueError("User does not exist or is deleted")
+        return self._state.email

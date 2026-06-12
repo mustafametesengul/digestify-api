@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, JsonValue
-
 from digestify_api.infrastructure.aggregate import Aggregate
 
 

@@ -13,6 +13,7 @@ from digestify_api.identity.routers import api_router
 from digestify_api.identity.token_generation import TokenPair, TokenPurpose, UserRole
 from digestify_api.identity.user import User
 
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 

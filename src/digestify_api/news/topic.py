@@ -6,7 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
-
 from rillo import Aggregate
 
 
