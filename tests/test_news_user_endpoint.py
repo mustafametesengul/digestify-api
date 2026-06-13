@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -18,6 +19,9 @@ from digestify_api.infrastructure.token_verification import (
     TokenVerifierSettings,
 )
 from digestify_api.news.dependencies import Context
+from digestify_api.news.quota import FetchQuota
+from digestify_api.news.story import Story
+from digestify_api.news.topic import Topic
 from digestify_api.news.user import User
 
 SECRET_KEY = "test-secret-key"
@@ -37,6 +41,30 @@ class InMemoryRepository(DocumentRepository[T]):
     async def save(self, document: Document) -> None:
         self._documents[document.id] = document.model_dump_json(by_alias=True)
 
+    async def find(
+        self,
+        selector: dict[str, Any],
+        *,
+        sort: list[dict[str, str]] | None = None,
+        limit: int | None = None,
+    ) -> list[T]:
+        matches = [
+            doc
+            for doc in (
+                self._document_type.model_validate_json(stored)
+                for stored in self._documents.values()
+            )
+            if all(getattr(doc, key) == value for key, value in selector.items())
+        ]
+        if sort:
+            field, direction = next(iter(sort[0].items()))
+            matches.sort(
+                key=lambda doc: getattr(doc, field), reverse=direction == "desc"
+            )
+        if limit is not None:
+            matches = matches[:limit]
+        return matches
+
 
 @pytest.fixture
 def users() -> InMemoryRepository[User]:
@@ -54,6 +82,9 @@ def client(users: InMemoryRepository[User]) -> TestClient:
     app.include_router(news.api_router, prefix="/news")
     app.state.news_context = Context(
         users=users,
+        topics=InMemoryRepository(Topic),
+        stories=InMemoryRepository(Story),
+        quotas=InMemoryRepository(FetchQuota),
         token_verifier=TokenVerifier(
             TokenVerifierSettings(secret_key=SecretStr(SECRET_KEY))
         ),

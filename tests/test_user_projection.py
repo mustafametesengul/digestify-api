@@ -1,5 +1,5 @@
 import json
-from typing import cast
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -23,6 +23,30 @@ class InMemoryRepository(DocumentRepository[T]):
 
     async def save(self, document: Document) -> None:
         self._documents[document.id] = document.model_dump_json(by_alias=True)
+
+    async def find(
+        self,
+        selector: dict[str, Any],
+        *,
+        sort: list[dict[str, str]] | None = None,
+        limit: int | None = None,
+    ) -> list[T]:
+        matches = [
+            doc
+            for doc in (
+                self._document_type.model_validate_json(stored)
+                for stored in self._documents.values()
+            )
+            if all(getattr(doc, key) == value for key, value in selector.items())
+        ]
+        if sort:
+            field, direction = next(iter(sort[0].items()))
+            matches.sort(
+                key=lambda doc: getattr(doc, field), reverse=direction == "desc"
+            )
+        if limit is not None:
+            matches = matches[:limit]
+        return matches
 
 
 def change_line(seq: str, user_id: str, **doc: object) -> str:

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -52,6 +52,21 @@ class DocumentRepository(ABC, Generic[T]):
     @abstractmethod
     async def save(self, document: T) -> None: ...
 
+    @abstractmethod
+    async def find(
+        self,
+        selector: dict[str, Any],
+        *,
+        sort: list[dict[str, str]] | None = None,
+        limit: int | None = None,
+    ) -> list[T]:
+        """Return documents matching a CouchDB Mango `selector`.
+
+        `sort` and `limit` map directly onto the `_find` request. Sorting
+        requires a matching index (see `ensure_index`).
+        """
+        ...
+
 
 class CouchDBRepository(DocumentRepository[T]):
     def __init__(
@@ -86,10 +101,48 @@ class CouchDBRepository(DocumentRepository[T]):
 
         document.rev = response.json()["rev"]
 
+    async def find(
+        self,
+        selector: dict[str, Any],
+        *,
+        sort: list[dict[str, str]] | None = None,
+        limit: int | None = None,
+    ) -> list[T]:
+        body: dict[str, Any] = {"selector": selector}
+        if sort is not None:
+            body["sort"] = sort
+        if limit is not None:
+            body["limit"] = limit
+
+        response = await self._client.post(f"/{self._database}/_find", json=body)
+        response.raise_for_status()
+        return [
+            self._document_type.model_validate(doc) for doc in response.json()["docs"]
+        ]
+
 
 async def ensure_database(client: httpx.AsyncClient, name: str) -> None:
     response = await client.put(f"/{name}")
     # 201 Created on first run, 412 Precondition Failed if it already exists.
     if response.status_code in (httpx.codes.CREATED, httpx.codes.PRECONDITION_FAILED):
         return
+    response.raise_for_status()
+
+
+async def ensure_index(
+    client: httpx.AsyncClient,
+    database: str,
+    *,
+    fields: list[str],
+    name: str,
+) -> None:
+    """Create a Mango index if it does not already exist.
+
+    `_index` is idempotent: CouchDB returns 200 whether it created the index
+    or found an existing one with the same definition.
+    """
+    response = await client.post(
+        f"/{database}/_index",
+        json={"index": {"fields": fields}, "name": name, "type": "json"},
+    )
     response.raise_for_status()
