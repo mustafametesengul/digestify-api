@@ -1,18 +1,17 @@
 import re
 from datetime import timedelta
-from typing import Sequence
 from uuid import UUID
 
 import jwt
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from pydantic import JsonValue, SecretStr
-from rillo import OptimisticConcurrencyError, Repository
+from pydantic import SecretStr
 
 from digestify_api import identity
 from digestify_api.identity import sign_in_code
 from digestify_api.identity.dependencies import Context
+from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token_generation import (
     TokenGenerator,
     TokenGeneratorSettings,
@@ -21,33 +20,25 @@ from digestify_api.identity.token_verification import (
     TokenVerifier,
     TokenVerifierSettings,
 )
+from digestify_api.identity.user import User
+from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
 
 SECRET_KEY = "test-secret-key"
 
 
-class InMemoryRepository(Repository):
-    def __init__(self) -> None:
-        self._events: dict[str, list[JsonValue]] = {}
+class InMemoryRepository(DocumentRepository[T]):
+    def __init__(self, document_type: type[T]) -> None:
+        self._document_type = document_type
+        self._documents: dict[str, str] = {}
 
-    async def _save_events(
-        self,
-        aggregate_id: str,
-        events: Sequence[JsonValue],
-        expected_version: int,
-    ) -> int:
-        stored = self._events.setdefault(aggregate_id, [])
-        if len(stored) != expected_version:
-            raise OptimisticConcurrencyError()
-        stored.extend(events)
-        return len(stored)
+    async def get(self, id: str) -> T | None:
+        stored = self._documents.get(id)
+        if stored is None:
+            return None
+        return self._document_type.model_validate_json(stored)
 
-    async def _load_events(
-        self,
-        aggregate_id: str,
-        from_version: int,
-    ) -> tuple[Sequence[JsonValue], int]:
-        stored = self._events.get(aggregate_id, [])
-        return stored[from_version:], len(stored)
+    async def save(self, document: Document) -> None:
+        self._documents[document.id] = document.model_dump_json(by_alias=True)
 
 
 class FakeEmailSender:
@@ -74,8 +65,8 @@ def client(email_sender: FakeEmailSender) -> TestClient:
     app = FastAPI()
     app.include_router(identity.api_router, prefix="/identity")
     app.state.identity_context = Context(
-        users=InMemoryRepository(),
-        sign_in_codes=InMemoryRepository(),
+        users=InMemoryRepository(User),
+        sign_in_codes=InMemoryRepository(SignInCode),
         email_sender=email_sender,
         token_generator=TokenGenerator(
             TokenGeneratorSettings(secret_key=SecretStr(SECRET_KEY))

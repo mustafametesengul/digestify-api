@@ -4,7 +4,6 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from rillo import Repository
 
 from digestify_api.identity.email_delivery import EmailSender
 from digestify_api.identity.sign_in_code import SignInCode
@@ -16,6 +15,7 @@ from digestify_api.identity.token_generation import (
 )
 from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.identity.user import User
+from digestify_api.infrastructure.couchdb import DocumentRepository
 
 
 class Unauthenticated(HTTPException):
@@ -40,8 +40,8 @@ class Unauthorized(HTTPException):
 
 @dataclass
 class Context:
-    users: Repository[User]
-    sign_in_codes: Repository[SignInCode]
+    users: DocumentRepository[User]
+    sign_in_codes: DocumentRepository[SignInCode]
     email_sender: EmailSender
     token_generator: TokenGenerator
     token_verifier: TokenVerifier

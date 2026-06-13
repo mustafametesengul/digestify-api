@@ -1,18 +1,26 @@
 services:
-  nats:
-    image: nats:latest
-    command: [ "-js" ]
+  db:
+    image: couchdb:latest
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
     ports:
-      - "4222:4222"
-      - "8222:8222"
+      - "5984:5984"
     volumes:
-      - nats_data:/data
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5984/_up" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   web:
     build:
       context: .
     environment:
-      - MONGO_URL=mongodb://db:27017/db
+      - COUCHDB_URL=http://db:5984
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
       - OPENAI_API_KEY
       - DIGESTIFY_API_HOST=0.0.0.0
       - DIGESTIFY_API_JWKS_URL
@@ -59,4 +67,4 @@ services:
       - "4040:4040"
 
 volumes:
-  nats_data:
+  couchdb_data:

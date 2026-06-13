@@ -46,8 +46,9 @@ async def sign_in_with_email(
     context: Annotated[Context, Depends(get_context)],
     payload: SignInWithEmailRequest,
 ) -> SignInWithEmailResponse:
-    sign_in = SignInCode(payload.email)
-    await context.sign_in_codes.load(sign_in)
+    sign_in = await context.sign_in_codes.get(SignInCode.id_for(payload.email))
+    if sign_in is None:
+        sign_in = SignInCode.for_email(payload.email)
 
     code = _generate_code()
     try:
@@ -83,8 +84,12 @@ async def verify_sign_in_code(
     context: Annotated[Context, Depends(get_context)],
     payload: VerifySignInCodeRequest,
 ) -> TokenPair:
-    sign_in = SignInCode(payload.email)
-    await context.sign_in_codes.load(sign_in)
+    sign_in = await context.sign_in_codes.get(SignInCode.id_for(payload.email))
+    if sign_in is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired sign-in code",
+        )
 
     try:
         sign_in.verify_code(payload.code, now=datetime.now(UTC))
@@ -95,17 +100,15 @@ async def verify_sign_in_code(
             detail="Invalid or expired sign-in code",
         )
 
-    user_id = sign_in.user_id()
+    user_id = sign_in.user_id
     if user_id is not None:
-        user = User(user_id)
-        await context.users.load(user)
-        if not user.is_active():
+        user = await context.users.get(str(user_id))
+        if user is None or not user.is_active():
             user_id = None
 
     if user_id is None:
         user_id = uuid4()
-        user = User(user_id)
-        user.sign_up(email=sign_in.email)
+        user = User.sign_up(user_id, email=sign_in.email)
         await context.users.save(user)
 
     sign_in.complete(user_id)
