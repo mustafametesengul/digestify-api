@@ -7,15 +7,15 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from digestify_api.identity.email_delivery import EmailSender
 from digestify_api.identity.sign_in_code import SignInCode
-from digestify_api.identity.token_generation import (
+from digestify_api.identity.user import User
+from digestify_api.infrastructure.couchdb import DocumentRepository
+from digestify_api.infrastructure.token_generation import (
     TokenGenerator,
     TokenPurpose,
     UserClaims,
     UserRole,
 )
-from digestify_api.identity.token_verification import TokenVerifier
-from digestify_api.identity.user import User
-from digestify_api.infrastructure.couchdb import DocumentRepository
+from digestify_api.infrastructure.token_verification import TokenVerifier
 
 
 class Unauthenticated(HTTPException):

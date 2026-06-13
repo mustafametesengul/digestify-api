@@ -8,7 +8,7 @@ from digestify_api.identity.dependencies import (
     require_registered_user,
 )
 from digestify_api.identity.routers import api_router
-from digestify_api.identity.token_generation import UserClaims
+from digestify_api.infrastructure.token_generation import UserClaims
 
 
 @api_router.post("/delete-account", status_code=status.HTTP_204_NO_CONTENT)

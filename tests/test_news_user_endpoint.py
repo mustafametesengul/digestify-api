@@ -6,17 +6,17 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from digestify_api import news
-from digestify_api.identity.token_generation import (
+from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
+from digestify_api.infrastructure.token_generation import (
     TokenGenerator,
     TokenGeneratorSettings,
     UserClaims,
     UserRole,
 )
-from digestify_api.identity.token_verification import (
+from digestify_api.infrastructure.token_verification import (
     TokenVerifier,
     TokenVerifierSettings,
 )
-from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
 from digestify_api.news.dependencies import Context
 from digestify_api.news.user import User
 

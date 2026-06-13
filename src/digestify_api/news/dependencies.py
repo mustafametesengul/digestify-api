@@ -5,9 +5,9 @@ import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from digestify_api.identity.token_generation import TokenPurpose, UserClaims
-from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.infrastructure.couchdb import DocumentRepository
+from digestify_api.infrastructure.token_generation import TokenPurpose, UserClaims
+from digestify_api.infrastructure.token_verification import TokenVerifier
 from digestify_api.news.user import User
 
 

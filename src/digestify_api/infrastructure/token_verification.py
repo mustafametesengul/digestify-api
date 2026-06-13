@@ -4,7 +4,11 @@ import jwt
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.identity.token_generation import TokenPurpose, UserClaims, UserRole
+from digestify_api.infrastructure.token_generation import (
+    TokenPurpose,
+    UserClaims,
+    UserRole,
+)
 
 
 class TokenVerifierSettings(BaseSettings):

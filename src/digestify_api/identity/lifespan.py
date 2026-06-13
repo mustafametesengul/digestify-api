@@ -6,14 +6,14 @@ import httpx
 from digestify_api.identity.dependencies import Context
 from digestify_api.identity.email_delivery import ResendEmailSender
 from digestify_api.identity.sign_in_code import SignInCode
-from digestify_api.identity.token_generation import TokenGenerator
-from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.identity.user import User
 from digestify_api.infrastructure.couchdb import (
     CouchDBRepository,
     CouchDBSettings,
     ensure_database,
 )
+from digestify_api.infrastructure.token_generation import TokenGenerator
+from digestify_api.infrastructure.token_verification import TokenVerifier
 
 DATABASE = "identity"
 

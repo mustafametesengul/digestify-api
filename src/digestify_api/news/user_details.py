@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
-from digestify_api.identity.token_generation import UserClaims
+from digestify_api.infrastructure.token_generation import UserClaims
 from digestify_api.news.dependencies import (
     Context,
     get_context,

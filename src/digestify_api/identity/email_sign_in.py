@@ -15,8 +15,12 @@ from digestify_api.identity.sign_in_code import (
     InvalidCode,
     SignInCode,
 )
-from digestify_api.identity.token_generation import TokenPair, UserClaims, UserRole
 from digestify_api.identity.user import User
+from digestify_api.infrastructure.token_generation import (
+    TokenPair,
+    UserClaims,
+    UserRole,
+)
 
 
 class SignInWithEmailRequest(BaseModel):

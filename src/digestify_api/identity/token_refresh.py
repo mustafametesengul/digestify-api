@@ -10,7 +10,11 @@ from digestify_api.identity.dependencies import (
     get_context,
 )
 from digestify_api.identity.routers import api_router
-from digestify_api.identity.token_generation import TokenPair, TokenPurpose, UserRole
+from digestify_api.infrastructure.token_generation import (
+    TokenPair,
+    TokenPurpose,
+    UserRole,
+)
 
 
 class RefreshTokenRequest(BaseModel):

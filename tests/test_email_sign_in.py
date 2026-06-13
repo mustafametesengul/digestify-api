@@ -12,16 +12,16 @@ from digestify_api import identity
 from digestify_api.identity import sign_in_code
 from digestify_api.identity.dependencies import Context
 from digestify_api.identity.sign_in_code import SignInCode
-from digestify_api.identity.token_generation import (
+from digestify_api.identity.user import User
+from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
+from digestify_api.infrastructure.token_generation import (
     TokenGenerator,
     TokenGeneratorSettings,
 )
-from digestify_api.identity.token_verification import (
+from digestify_api.infrastructure.token_verification import (
     TokenVerifier,
     TokenVerifierSettings,
 )
-from digestify_api.identity.user import User
-from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
 
 SECRET_KEY = "test-secret-key"
 

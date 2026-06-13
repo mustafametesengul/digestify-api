@@ -4,12 +4,12 @@ from typing import AsyncIterator
 
 import httpx
 
-from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.infrastructure.couchdb import (
     CouchDBRepository,
     CouchDBSettings,
     ensure_database,
 )
+from digestify_api.infrastructure.token_verification import TokenVerifier
 from digestify_api.news.checkpoint import ProjectionCheckpoint
 from digestify_api.news.dependencies import Context
 from digestify_api.news.user import User
