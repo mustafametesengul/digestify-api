@@ -2,11 +2,30 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class CouchDBSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_prefix="COUCHDB_",
+    )
+
+    url: str = Field(default="http://localhost:5984")
+    user: str = Field(default="admin")
+    password: SecretStr = Field(default=SecretStr("password"))
 
 
 class Document(BaseModel):
-    """A persistable document identified by `id` and a CouchDB revision."""
+    """A persistable document identified by `id` and a CouchDB revision.
+
+    Every document carries a `type` discriminator so a single database can
+    hold multiple document kinds and consumers (e.g. the `_changes` feed) can
+    filter to the kind they care about. Subclasses pin it with a `Literal`
+    default, for example ``type: Literal["user"] = "user"``.
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -16,6 +35,7 @@ class Document(BaseModel):
         validation_alias="_rev",
         serialization_alias="_rev",
     )
+    type: str
 
 
 class DocumentConflict(Exception):

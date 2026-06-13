@@ -2,8 +2,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 import httpx
-from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from digestify_api.identity.dependencies import Context
 from digestify_api.identity.email_delivery import ResendEmailSender
@@ -11,21 +9,13 @@ from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token_generation import TokenGenerator
 from digestify_api.identity.token_verification import TokenVerifier
 from digestify_api.identity.user import User
-from digestify_api.infrastructure.couchdb import CouchDBRepository, ensure_database
+from digestify_api.infrastructure.couchdb import (
+    CouchDBRepository,
+    CouchDBSettings,
+    ensure_database,
+)
 
 DATABASE = "identity"
-
-
-class CouchDBSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        extra="ignore",
-        env_prefix="COUCHDB_",
-    )
-
-    url: str = Field(default="http://localhost:5984")
-    user: str = Field(default="admin")
-    password: SecretStr = Field(default=SecretStr("password"))
 
 
 @asynccontextmanager

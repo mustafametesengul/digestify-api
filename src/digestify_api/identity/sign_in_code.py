@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 from datetime import datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -28,6 +29,7 @@ class Challenge(BaseModel):
 
 
 class SignInCode(Document):
+    type: Literal["sign_in_code"] = "sign_in_code"
     email: str
     user_id: UUID | None = None
     challenge: Challenge | None = None

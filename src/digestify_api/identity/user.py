@@ -1,9 +1,11 @@
+from typing import Literal
 from uuid import UUID
 
 from digestify_api.infrastructure.couchdb import Document
 
 
 class User(Document):
+    type: Literal["user"] = "user"
     email: str
     is_deleted: bool = False
 
