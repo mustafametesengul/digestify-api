@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Self
 
 from digestify_api.infrastructure.couchdb import Document
 
@@ -16,7 +16,7 @@ class ProjectionCheckpoint(Document):
     last_seq: str
 
     @classmethod
-    def start(cls, id: str) -> "ProjectionCheckpoint":
+    def start(cls, id: str) -> Self:
         # "0" means "replay from the beginning", which backfills every existing
         # identity user the first time the consumer runs.
         return cls(id=id, last_seq="0")

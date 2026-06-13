@@ -1,10 +1,12 @@
-from datetime import date
 from datetime import time as time_
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
+
+from digestify_api.infrastructure.couchdb import Document
 
 
 class Schedule(BaseModel):
@@ -27,12 +29,11 @@ class Language(StrEnum):
     TR_TR = "tr-TR"
 
 
-class Topic(BaseModel):
+class Topic(Document):
+    type: Literal["topic"] = "topic"
     user_id: UUID
     name: str
     description: str
     language: Language
     is_active: bool
     schedule: Schedule
-    schedule_version: int
-    last_execution_date: date | None

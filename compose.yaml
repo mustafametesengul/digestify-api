@@ -5,7 +5,7 @@ services:
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD=password
     ports:
-      - "5984:5984"
+      - "5984:5984" # Fauxton Web UI: http://localhost:5984/_utils/
     volumes:
       - couchdb_data:/opt/couchdb/data
     healthcheck:

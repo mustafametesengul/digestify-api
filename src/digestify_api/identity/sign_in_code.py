@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -41,7 +41,7 @@ class SignInCode(Document):
         return hashlib.sha256(normalized.encode()).hexdigest()
 
     @classmethod
-    def for_email(cls, email: str) -> "SignInCode":
+    def for_email(cls, email: str) -> Self:
         normalized = email.strip().lower()
         return cls(id=cls.id_for(normalized), email=normalized)
 
