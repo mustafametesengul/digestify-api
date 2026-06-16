@@ -13,7 +13,7 @@ from digestify_api.news.topic import Topic
 
 logger = logging.getLogger(__name__)
 
-TICK_SECONDS = 60.0
+TICK_SECONDS = 5.0
 # Each tick reads the active topics in one Mango query. This bounds how many it
 # will consider; well above any realistic active-topic count for now. If the
 # active set ever approaches this, switch the scan to bookmark pagination.

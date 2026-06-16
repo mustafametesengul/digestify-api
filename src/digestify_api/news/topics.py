@@ -27,6 +27,15 @@ class CreateTopicRequest(BaseModel):
     schedule: Schedule
 
 
+class UpdateTopicScheduleRequest(BaseModel):
+    topic_id: UUID
+    schedule: Schedule
+
+
+class TopicRequest(BaseModel):
+    topic_id: UUID
+
+
 class TopicResponse(BaseModel):
     id: UUID
     name: str
@@ -69,7 +78,7 @@ async def _save(context: Context, topic: Topic) -> None:
         )
 
 
-@api_router.post("/topics", status_code=status.HTTP_201_CREATED)
+@api_router.post("/create-topic", status_code=status.HTTP_201_CREATED)
 async def create_topic(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
@@ -82,30 +91,39 @@ async def create_topic(
         language=payload.language,
         schedule=payload.schedule,
     )
+
+    # Activate the new topic automatically when the user is still below the
+    # active-topic cap, so the common case needs no separate activate call.
+    active = await context.topics.find(
+        {"type": "topic", "user_id": str(user_claims.id), "is_active": True},
+        limit=MAX_ACTIVE_TOPICS,
+    )
+    if len(active) < MAX_ACTIVE_TOPICS:
+        topic.activate()
+
     await _save(context, topic)
     return TopicResponse.of(topic)
 
 
-@api_router.put("/topics/{topic_id}/schedule")
+@api_router.post("/update-topic-schedule")
 async def update_topic_schedule(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
-    topic_id: UUID,
-    schedule: Schedule,
+    payload: UpdateTopicScheduleRequest,
 ) -> TopicResponse:
-    topic = await _owned_topic(topic_id, user_claims, context)
-    topic.update_schedule(schedule)
+    topic = await _owned_topic(payload.topic_id, user_claims, context)
+    topic.update_schedule(payload.schedule)
     await _save(context, topic)
     return TopicResponse.of(topic)
 
 
-@api_router.post("/topics/{topic_id}/activate")
+@api_router.post("/activate-topic")
 async def activate_topic(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
-    topic_id: UUID,
+    payload: TopicRequest,
 ) -> TopicResponse:
-    topic = await _owned_topic(topic_id, user_claims, context)
+    topic = await _owned_topic(payload.topic_id, user_claims, context)
 
     if not topic.is_active:
         active = await context.topics.find(
@@ -126,13 +144,13 @@ async def activate_topic(
     return TopicResponse.of(topic)
 
 
-@api_router.post("/topics/{topic_id}/deactivate")
+@api_router.post("/deactivate-topic")
 async def deactivate_topic(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
-    topic_id: UUID,
+    payload: TopicRequest,
 ) -> TopicResponse:
-    topic = await _owned_topic(topic_id, user_claims, context)
+    topic = await _owned_topic(payload.topic_id, user_claims, context)
     topic.deactivate()
     await _save(context, topic)
     return TopicResponse.of(topic)

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -24,7 +24,7 @@ class StoryResponse(BaseModel):
     title: str
     body: str
     language: Language
-    created_at: date
+    created_at: datetime
 
     @classmethod
     def of(cls, story: Story) -> "StoryResponse":
@@ -37,8 +37,8 @@ class StoryResponse(BaseModel):
         )
 
 
-@api_router.get("/topics/{topic_id}/stories")
-async def get_latest_stories(
+@api_router.get("/latest-stories")
+async def latest_stories(
     context: Annotated[Context, Depends(get_context)],
     user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
     topic_id: UUID,
