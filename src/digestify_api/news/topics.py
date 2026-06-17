@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Callable
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
@@ -6,6 +6,11 @@ from pydantic import BaseModel
 
 from digestify_api.infrastructure.couchdb import DocumentConflict
 from digestify_api.infrastructure.token_generation import UserClaims
+from digestify_api.news.active_topics import (
+    MAX_ACTIVE_TOPICS,
+    ActiveTopicLimitExceeded,
+    ActiveTopics,
+)
 from digestify_api.news.dependencies import (
     Context,
     get_context,
@@ -13,11 +18,13 @@ from digestify_api.news.dependencies import (
 )
 from digestify_api.news.routers import api_router
 from digestify_api.news.topic import (
-    MAX_ACTIVE_TOPICS,
     Language,
     Schedule,
     Topic,
 )
+
+# Optimistic-concurrency retries when writing a user's `ActiveTopics` document.
+MAX_CONFLICT_RETRIES = 5
 
 
 class CreateTopicRequest(BaseModel):
@@ -45,13 +52,13 @@ class TopicResponse(BaseModel):
     schedule: Schedule
 
     @classmethod
-    def of(cls, topic: Topic) -> "TopicResponse":
+    def of(cls, topic: Topic, *, is_active: bool) -> "TopicResponse":
         return cls(
             id=UUID(topic.id),
             name=topic.name,
             description=topic.description,
             language=topic.language,
-            is_active=topic.is_active,
+            is_active=is_active,
             schedule=topic.schedule,
         )
 
@@ -78,6 +85,38 @@ async def _save(context: Context, topic: Topic) -> None:
         )
 
 
+async def _is_active(context: Context, user_id: UUID, topic_id: UUID) -> bool:
+    activation = await context.active_topics.get(ActiveTopics.id_for(user_id))
+    return activation is not None and activation.is_active(topic_id)
+
+
+async def _mutate_active_topics(
+    context: Context, user_id: UUID, mutate: Callable[[ActiveTopics], None]
+) -> None:
+    """Read-modify-write the user's `ActiveTopics` under optimistic concurrency.
+
+    `mutate` is applied to a freshly read document on every attempt, so the
+    cap it enforces is always checked against the current set — two racing
+    activations cannot both slip past `MAX_ACTIVE_TOPICS`. Exceptions raised by
+    `mutate` (e.g. `ActiveTopicLimitExceeded`) happen before the write and
+    propagate to the caller; only write conflicts are retried.
+    """
+    for _ in range(MAX_CONFLICT_RETRIES):
+        activation = await context.active_topics.get(
+            ActiveTopics.id_for(user_id)
+        ) or ActiveTopics.for_user(user_id)
+        mutate(activation)
+        try:
+            await context.active_topics.save(activation)
+            return
+        except DocumentConflict:
+            continue  # another activation wrote concurrently; re-read and retry
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="Active topics were modified concurrently, please retry",
+    )
+
+
 @api_router.post("/create-topic", status_code=status.HTTP_201_CREATED)
 async def create_topic(
     context: Annotated[Context, Depends(get_context)],
@@ -91,18 +130,21 @@ async def create_topic(
         language=payload.language,
         schedule=payload.schedule,
     )
+    await _save(context, topic)
 
     # Activate the new topic automatically when the user is still below the
-    # active-topic cap, so the common case needs no separate activate call.
-    active = await context.topics.find(
-        {"type": "topic", "user_id": str(user_claims.id), "is_active": True},
-        limit=MAX_ACTIVE_TOPICS,
-    )
-    if len(active) < MAX_ACTIVE_TOPICS:
-        topic.activate()
+    # active-topic cap, so the common case needs no separate activate call. If
+    # the cap is already reached the topic is simply left inactive.
+    is_active = False
+    try:
+        await _mutate_active_topics(
+            context, user_claims.id, lambda a: a.activate(UUID(topic.id))
+        )
+        is_active = True
+    except ActiveTopicLimitExceeded:
+        pass
 
-    await _save(context, topic)
-    return TopicResponse.of(topic)
+    return TopicResponse.of(topic, is_active=is_active)
 
 
 @api_router.post("/update-topic-schedule")
@@ -114,7 +156,8 @@ async def update_topic_schedule(
     topic = await _owned_topic(payload.topic_id, user_claims, context)
     topic.update_schedule(payload.schedule)
     await _save(context, topic)
-    return TopicResponse.of(topic)
+    is_active = await _is_active(context, user_claims.id, UUID(topic.id))
+    return TopicResponse.of(topic, is_active=is_active)
 
 
 @api_router.post("/activate-topic")
@@ -125,23 +168,20 @@ async def activate_topic(
 ) -> TopicResponse:
     topic = await _owned_topic(payload.topic_id, user_claims, context)
 
-    if not topic.is_active:
-        active = await context.topics.find(
-            {"type": "topic", "user_id": str(user_claims.id), "is_active": True},
-            limit=MAX_ACTIVE_TOPICS + 1,
+    try:
+        await _mutate_active_topics(
+            context, user_claims.id, lambda a: a.activate(UUID(topic.id))
         )
-        if len(active) >= MAX_ACTIVE_TOPICS:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"At most {MAX_ACTIVE_TOPICS} topics can be active at once; "
-                    "deactivate one first"
-                ),
-            )
+    except ActiveTopicLimitExceeded:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"At most {MAX_ACTIVE_TOPICS} topics can be active at once; "
+                "deactivate one first"
+            ),
+        )
 
-    topic.activate()
-    await _save(context, topic)
-    return TopicResponse.of(topic)
+    return TopicResponse.of(topic, is_active=True)
 
 
 @api_router.post("/deactivate-topic")
@@ -151,6 +191,7 @@ async def deactivate_topic(
     payload: TopicRequest,
 ) -> TopicResponse:
     topic = await _owned_topic(payload.topic_id, user_claims, context)
-    topic.deactivate()
-    await _save(context, topic)
-    return TopicResponse.of(topic)
+    await _mutate_active_topics(
+        context, user_claims.id, lambda a: a.deactivate(UUID(topic.id))
+    )
+    return TopicResponse.of(topic, is_active=False)

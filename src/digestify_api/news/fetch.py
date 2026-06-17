@@ -5,6 +5,7 @@ from digestify_api.infrastructure.couchdb import (
     DocumentConflict,
     DocumentRepository,
 )
+from digestify_api.news.active_topics import ActiveTopics
 from digestify_api.news.quota import FetchQuota
 from digestify_api.news.story import Story
 from digestify_api.news.topic import Topic
@@ -67,6 +68,7 @@ async def fetch_topic_stories(
     today: date,
     stories: DocumentRepository[Story],
     quotas: DocumentRepository[FetchQuota],
+    active_topics: DocumentRepository[ActiveTopics],
 ) -> list[Story]:
     """Run one story fetch for `topic` and persist the results.
 
@@ -76,10 +78,15 @@ async def fetch_topic_stories(
     * the topic must be active, and
     * the owner's daily fetch budget must not be exhausted (`FetchQuotaExceeded`).
 
+    Activeness is re-read here from the owner's `ActiveTopics` document rather
+    than trusted from the caller, so a topic deactivated between a scheduler scan
+    and this call does not produce a stray fetch.
+
     The budget is reserved *before* the expensive generation so two concurrent
     fetches can never both slip past the limit.
     """
-    if not topic.is_active:
+    activation = await active_topics.get(ActiveTopics.id_for(topic.user_id))
+    if activation is None or not activation.is_active(UUID(topic.id)):
         raise TopicNotActive()
 
     await _consume_quota(topic, today, quotas)

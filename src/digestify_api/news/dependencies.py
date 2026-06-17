@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from digestify_api.infrastructure.couchdb import DocumentRepository
 from digestify_api.infrastructure.token_generation import TokenPurpose, UserClaims
 from digestify_api.infrastructure.token_verification import TokenVerifier
+from digestify_api.news.active_topics import ActiveTopics
 from digestify_api.news.quota import FetchQuota
 from digestify_api.news.story import Story
 from digestify_api.news.topic import Topic
@@ -29,6 +30,7 @@ class Context:
     topics: DocumentRepository[Topic]
     stories: DocumentRepository[Story]
     quotas: DocumentRepository[FetchQuota]
+    active_topics: DocumentRepository[ActiveTopics]
     token_verifier: TokenVerifier
 
 

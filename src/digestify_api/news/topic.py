@@ -10,11 +10,6 @@ from pydantic_extra_types.timezone_name import TimeZoneName
 
 from digestify_api.infrastructure.couchdb import Document
 
-# A user may have at most this many topics active at once. Each active topic
-# costs one scheduled (LLM-backed) fetch per day, so this also bounds a user's
-# daily scheduled spend — see `digestify_api.news.quota`.
-MAX_ACTIVE_TOPICS = 5
-
 
 class Schedule(BaseModel):
     time: time_ = Field(..., json_schema_extra={"example": "17:04:13"})
@@ -42,7 +37,6 @@ class Topic(Document):
     name: str
     description: str
     language: Language
-    is_active: bool = False
     schedule: Schedule
     # The local date this topic last produced stories. The scheduler uses it to
     # run a topic at most once per local day; `None` means it has never run.
@@ -58,8 +52,8 @@ class Topic(Document):
         language: Language,
         schedule: Schedule,
     ) -> Self:
-        # Topics start inactive; activation is a deliberate, capped action so it
-        # cannot be used to silently exceed the active-topic limit.
+        # A topic carries no activeness of its own; whether it is active lives in
+        # the owner's `ActiveTopics` document, where the per-user cap is enforced.
         return cls(
             id=str(uuid4()),
             user_id=user_id,
@@ -72,12 +66,6 @@ class Topic(Document):
     def update_schedule(self, schedule: Schedule) -> None:
         self.schedule = schedule
 
-    def activate(self) -> None:
-        self.is_active = True
-
-    def deactivate(self) -> None:
-        self.is_active = False
-
     def local_date(self, now: datetime) -> date:
         """The calendar date `now` falls on in this topic's own timezone."""
         return now.astimezone(ZoneInfo(self.schedule.timezone)).date()
@@ -85,12 +73,10 @@ class Topic(Document):
     def is_due(self, now: datetime) -> bool:
         """Whether the scheduler should fetch stories for this topic at `now`.
 
-        A topic is due once per local day, at or after its scheduled local
-        time, and only while active.
+        A topic is due once per local day, at or after its scheduled local time.
+        Activeness is not the topic's concern — the scheduler only ever asks this
+        of topics it already knows are active (see `digestify_api.news.scheduler`).
         """
-        if not self.is_active:
-            return False
-
         zone = ZoneInfo(self.schedule.timezone)
         local_now = now.astimezone(zone)
 

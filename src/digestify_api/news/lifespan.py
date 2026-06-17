@@ -11,6 +11,7 @@ from digestify_api.infrastructure.couchdb import (
     ensure_index,
 )
 from digestify_api.infrastructure.token_verification import TokenVerifier
+from digestify_api.news.active_topics import ActiveTopics
 from digestify_api.news.checkpoint import ProjectionCheckpoint
 from digestify_api.news.dependencies import Context
 from digestify_api.news.quota import FetchQuota
@@ -25,19 +26,14 @@ IDENTITY_DATABASE = "identity"
 
 
 async def _ensure_indexes(client: httpx.AsyncClient) -> None:
-    # Listing/counting a user's topics, and checking the active-topic cap.
+    # The scheduler's per-tick scan of every user's active-topic set. The topics
+    # those sets reference are then loaded by `_id`, which uses CouchDB's
+    # built-in primary index and so needs no Mango index of its own.
     await ensure_index(
         client,
         DATABASE,
-        fields=["type", "user_id", "is_active"],
-        name="topics-by-user",
-    )
-    # The scheduler's per-tick scan of all active topics.
-    await ensure_index(
-        client,
-        DATABASE,
-        fields=["type", "is_active"],
-        name="topics-active",
+        fields=["type"],
+        name="documents-by-type",
     )
     # Latest-first stories for a topic.
     await ensure_index(
@@ -64,6 +60,7 @@ async def lifespan() -> AsyncIterator[Context]:
         topics = CouchDBRepository(couch_client, DATABASE, Topic)
         stories = CouchDBRepository(couch_client, DATABASE, Story)
         quotas = CouchDBRepository(couch_client, DATABASE, FetchQuota)
+        active_topics = CouchDBRepository(couch_client, DATABASE, ActiveTopics)
         checkpoints = CouchDBRepository(couch_client, DATABASE, ProjectionCheckpoint)
 
         projection = UserProjection(
@@ -72,7 +69,7 @@ async def lifespan() -> AsyncIterator[Context]:
             checkpoints,
             source_database=IDENTITY_DATABASE,
         )
-        scheduler = TopicScheduler(topics, stories, quotas)
+        scheduler = TopicScheduler(topics, stories, quotas, active_topics)
 
         tasks = [
             asyncio.create_task(projection.run()),
@@ -85,6 +82,7 @@ async def lifespan() -> AsyncIterator[Context]:
                 topics=topics,
                 stories=stories,
                 quotas=quotas,
+                active_topics=active_topics,
                 token_verifier=TokenVerifier(),
             )
         finally:

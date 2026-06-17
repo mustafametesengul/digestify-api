@@ -18,6 +18,7 @@ from digestify_api.infrastructure.token_verification import (
     TokenVerifier,
     TokenVerifierSettings,
 )
+from digestify_api.news.active_topics import ActiveTopics
 from digestify_api.news.dependencies import Context
 from digestify_api.news.quota import FetchQuota
 from digestify_api.news.story import Story
@@ -85,6 +86,7 @@ def client(users: InMemoryRepository[User]) -> TestClient:
         topics=InMemoryRepository(Topic),
         stories=InMemoryRepository(Story),
         quotas=InMemoryRepository(FetchQuota),
+        active_topics=InMemoryRepository(ActiveTopics),
         token_verifier=TokenVerifier(
             TokenVerifierSettings(secret_key=SecretStr(SECRET_KEY))
         ),
