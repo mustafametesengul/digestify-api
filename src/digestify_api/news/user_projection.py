@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from digestify_api.infrastructure.couchdb import (
+from digestify_api.infrastructure.database import (
     DocumentConflict,
     DocumentRepository,
 )

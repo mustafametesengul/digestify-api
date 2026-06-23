@@ -1,47 +1,33 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-import httpx
+from fastapi import FastAPI
 
-from digestify_api.identity.dependencies import Context
-from digestify_api.identity.email_delivery import ResendEmailSender
-from digestify_api.identity.sign_in_code import SignInCode
-from digestify_api.identity.user import User
-from digestify_api.infrastructure.couchdb import (
-    CouchDBRepository,
-    CouchDBSettings,
-    ensure_database,
-)
-from digestify_api.infrastructure.token_generation import TokenGenerator
-from digestify_api.infrastructure.token_verification import TokenVerifier
+from digestify_api.identity.models import SignInCode, User
+from digestify_api.identity.service import Accounts
+from digestify_api.identity.token import TokenGenerator, TokenVerifier
+from digestify_api.infrastructure.database import create_client
+from digestify_api.infrastructure.email_delivery import create_email_client
 
 DATABASE = "identity"
 
 
 @asynccontextmanager
-async def lifespan() -> AsyncIterator[Context]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     token_generator = TokenGenerator()
     token_verifier = TokenVerifier()
-    settings = CouchDBSettings()
 
-    async with (
-        httpx.AsyncClient(
-            base_url=settings.url,
-            auth=(settings.user, settings.password.get_secret_value()),
-        ) as couch_client,
-        httpx.AsyncClient() as email_client,
-    ):
-        await ensure_database(couch_client, DATABASE)
+    async with create_client() as client, create_email_client() as email_client:
+        await client.ensure_database(DATABASE)
+        database = client.get_database(DATABASE, User, SignInCode)
 
-        users = CouchDBRepository(couch_client, DATABASE, User)
-        sign_in_codes = CouchDBRepository(couch_client, DATABASE, SignInCode)
-
-        context = Context(
-            users=users,
-            sign_in_codes=sign_in_codes,
-            email_sender=ResendEmailSender(email_client),
+        service = Accounts(
+            database=database,
+            email_sender=email_client,
             token_generator=token_generator,
             token_verifier=token_verifier,
         )
 
-        yield context
+        app.state.identity_service = service
+        app.state.token_verifier = token_verifier
+        yield

@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from uuid import UUID
 
-from digestify_api.infrastructure.couchdb import (
+from digestify_api.infrastructure.database import (
     DocumentConflict,
     DocumentRepository,
 )

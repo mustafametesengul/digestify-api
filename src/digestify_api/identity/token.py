@@ -30,7 +30,7 @@ class TokenPair(BaseModel):
     token_type: Literal["Bearer"] = "Bearer"
 
 
-class TokenGeneratorSettings(BaseSettings):
+class TokenVerifierSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -39,6 +39,42 @@ class TokenGeneratorSettings(BaseSettings):
 
     secret_key: SecretStr = Field(default=...)
     algorithm: str = "HS256"
+
+
+class TokenVerifier:
+    def __init__(self, settings: TokenVerifierSettings | None = None) -> None:
+        self._settings = settings or TokenVerifierSettings()
+
+    def verify(self, token: str, purpose: TokenPurpose) -> UserClaims:
+        payload = jwt.decode(
+            token,
+            self._settings.secret_key.get_secret_value(),
+            algorithms=[self._settings.algorithm],
+        )
+        payload_token_type = payload.get("type")
+        payload_sub = payload.get("sub")
+        payload_role = payload.get("role")
+        if (
+            not isinstance(payload_sub, str)
+            or not isinstance(payload_role, str)
+            or not isinstance(payload_token_type, str)
+        ):
+            raise jwt.InvalidTokenError()
+
+        try:
+            token_purpose = TokenPurpose(payload_token_type)
+            user_id = UUID(payload_sub)
+            user_role = UserRole(payload_role)
+        except ValueError:
+            raise jwt.InvalidTokenError()
+
+        if token_purpose is not purpose:
+            raise jwt.InvalidTokenError()
+
+        return UserClaims(id=user_id, role=user_role)
+
+
+class TokenGeneratorSettings(TokenVerifierSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 

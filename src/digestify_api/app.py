@@ -24,11 +24,9 @@ class AppSettings(BaseSettings):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with (
-        identity.lifespan() as identity_context,
-        news.lifespan() as news_context,
+        identity.lifespan(app),
+        news.lifespan(app),
     ):
-        app.state.identity_context = identity_context
-        app.state.news_context = news_context
         yield
 
 
@@ -41,7 +39,7 @@ def run_app(settings: AppSettings | None = None) -> None:
         debug=settings.debug,
     )
 
-    app.include_router(identity.api_router, prefix="/identity", tags=["identity"])
+    app.include_router(identity.router, prefix="/identity", tags=["identity"])
     app.include_router(news.api_router, prefix="/news", tags=["news"])
 
     uvicorn.run(app, host=settings.host, port=settings.port)

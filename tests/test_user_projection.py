@@ -3,10 +3,10 @@ from typing import Any, cast
 
 import httpx
 import pytest
-
-from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
 from digestify_api.news.checkpoint import ProjectionCheckpoint
 from digestify_api.news.user import User
+
+from digestify_api.infrastructure.database import Document, DocumentRepository, T
 from digestify_api.news.user_projection import CHECKPOINT_ID, UserProjection
 
 

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
-from digestify_api.infrastructure.couchdb import (
+from digestify_api.infrastructure.database import (
     DocumentConflict,
     DocumentRepository,
 )

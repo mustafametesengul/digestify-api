@@ -1,66 +1,37 @@
-from dataclasses import dataclass
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from digestify_api.identity.email_delivery import EmailSender
-from digestify_api.identity.sign_in_code import SignInCode
-from digestify_api.identity.user import User
-from digestify_api.infrastructure.couchdb import DocumentRepository
-from digestify_api.infrastructure.token_generation import (
-    TokenGenerator,
+from digestify_api.identity.exceptions import Unauthenticated, Unauthorized
+from digestify_api.identity.service import Accounts
+from digestify_api.identity.token import (
     TokenPurpose,
+    TokenVerifier,
     UserClaims,
     UserRole,
 )
-from digestify_api.infrastructure.token_verification import TokenVerifier
 
 
-class Unauthenticated(HTTPException):
-    def __init__(self, detail: str = "Could not validate credentials") -> None:
-        super().__init__(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=detail,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+def get_identity_service(request: Request) -> Accounts:
+    return request.app.state.identity_service
 
 
-class Unauthorized(HTTPException):
-    def __init__(
-        self,
-        detail: str = "You do not have permission to perform this action",
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=detail,
-        )
-
-
-@dataclass
-class Context:
-    users: DocumentRepository[User]
-    sign_in_codes: DocumentRepository[SignInCode]
-    email_sender: EmailSender
-    token_generator: TokenGenerator
-    token_verifier: TokenVerifier
-
-
-def get_context(request: Request) -> Context:
-    return request.app.state.identity_context
+def get_token_verifier(request: Request) -> TokenVerifier:
+    return request.app.state.token_verifier
 
 
 http_bearer = HTTPBearer()
 
 
 def require_authenticated_user(
-    context: Annotated[Context, Depends(get_context)],
+    token_verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
 ) -> UserClaims:
     token = credentials.credentials
     try:
-        return context.token_verifier.verify(token, purpose=TokenPurpose.ACCESS)
+        return token_verifier.verify(token, purpose=TokenPurpose.ACCESS)
     except jwt.PyJWTError:
         raise Unauthenticated()
 

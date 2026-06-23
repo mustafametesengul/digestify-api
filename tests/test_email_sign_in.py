@@ -5,16 +5,8 @@ from uuid import UUID
 
 import jwt
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from pydantic import SecretStr
-
-from digestify_api import identity
-from digestify_api.identity import sign_in_code
-from digestify_api.identity.dependencies import Context
 from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.user import User
-from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
 from digestify_api.infrastructure.token_generation import (
     TokenGenerator,
     TokenGeneratorSettings,
@@ -23,6 +15,14 @@ from digestify_api.infrastructure.token_verification import (
     TokenVerifier,
     TokenVerifierSettings,
 )
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+
+from digestify_api import identity
+from digestify_api.identity import sign_in_code
+from digestify_api.identity.dependencies import Context
+from digestify_api.infrastructure.database import Document, DocumentRepository, T
 
 SECRET_KEY = "test-secret-key"
 
@@ -88,7 +88,7 @@ def email_sender() -> FakeEmailSender:
 @pytest.fixture
 def client(email_sender: FakeEmailSender) -> TestClient:
     app = FastAPI()
-    app.include_router(identity.api_router, prefix="/identity")
+    app.include_router(identity.router, prefix="/identity")
     app.state.identity_context = Context(
         users=InMemoryRepository(User),
         sign_in_codes=InMemoryRepository(SignInCode),

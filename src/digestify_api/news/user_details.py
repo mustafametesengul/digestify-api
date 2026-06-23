@@ -23,7 +23,7 @@ async def get_user(
     user_claims: Annotated[UserClaims, Depends(require_authenticated_user)],
 ) -> UserResponse:
     user = await context.users.get(str(user_claims.id))
-    if user is None or not user.is_active():
+    if user is None or user.is_deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",

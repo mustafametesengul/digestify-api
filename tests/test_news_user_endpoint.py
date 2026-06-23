@@ -2,12 +2,6 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from pydantic import SecretStr
-
-from digestify_api import news
-from digestify_api.infrastructure.couchdb import Document, DocumentRepository, T
 from digestify_api.infrastructure.token_generation import (
     TokenGenerator,
     TokenGeneratorSettings,
@@ -19,11 +13,17 @@ from digestify_api.infrastructure.token_verification import (
     TokenVerifierSettings,
 )
 from digestify_api.news.active_topics import ActiveTopics
-from digestify_api.news.dependencies import Context
 from digestify_api.news.quota import FetchQuota
 from digestify_api.news.story import Story
 from digestify_api.news.topic import Topic
 from digestify_api.news.user import User
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+
+from digestify_api import news
+from digestify_api.infrastructure.database import Document, DocumentRepository, T
+from digestify_api.news.dependencies import Context
 
 SECRET_KEY = "test-secret-key"
 
