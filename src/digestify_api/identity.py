@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import jwt
 from pydantic import BaseModel
 
-from digestify_api.identity.token import (
+from digestify_api.token import (
     TokenGenerator,
     TokenPair,
     TokenPurpose,
@@ -16,8 +16,8 @@ from digestify_api.identity.token import (
     UserClaims,
     UserRole,
 )
-from digestify_api.infrastructure.database import Database, Document
-from digestify_api.infrastructure.email_delivery import ResendEmailSender
+from digestify_api.couchdb import CouchDB, Document
+from digestify_api.email import EmailSender
 
 CODE_LENGTH = 6
 CODE_TIME_TO_LIVE = timedelta(minutes=10)
@@ -53,18 +53,29 @@ class CodeRequestedTooSoon(Exception):
     pass
 
 
-class Accounts:
+class Identity:
     def __init__(
         self,
-        database: Database[User | SignInCode],
-        email_sender: ResendEmailSender,
+        couchdb: CouchDB,
+        email_sender: EmailSender,
         token_generator: TokenGenerator,
         token_verifier: TokenVerifier,
     ):
-        self._database = database
+        self._couchdb = couchdb
         self._email_sender = email_sender
         self._token_generator = token_generator
         self._token_verifier = token_verifier
+        self._database = couchdb.get_database("identity")
+
+    async def init_database(self) -> None:
+        await self._database.ensure_index(
+            fields=["email"],
+            name="sign_in_code_email_index",
+        )
+        await self._database.ensure_index(
+            fields=["email"],
+            name="user_email_index",
+        )
 
     async def refresh_token_pair(self, refresh_token: str) -> TokenPair:
         user_claims = self._token_verifier.verify(
@@ -73,22 +84,22 @@ class Accounts:
         )
 
         if user_claims.role is not UserRole.ANONYMOUS:
-            user = await self._database.get(str(user_claims.id))
-            if not isinstance(user, User) or user.is_deleted:
+            user = await self._database.get(User, str(user_claims.id))
+            if user is None or user.is_deleted:
                 raise jwt.InvalidTokenError()
 
         return self._token_generator.generate(user_claims)
 
-    async def get_account_details(self, user_claims: UserClaims) -> str:
-        user = await self._database.get(str(user_claims.id))
-        if not isinstance(user, User) or user.is_deleted:
+    async def get_email(self, user_claims: UserClaims) -> str:
+        user = await self._database.get(User, str(user_claims.id))
+        if user is None or user.is_deleted:
             raise jwt.InvalidTokenError()
 
         return user.email
 
     async def delete_account(self, user_claims: UserClaims) -> None:
-        user = await self._database.get(str(user_claims.id))
-        if not isinstance(user, User) or user.is_deleted:
+        user = await self._database.get(User, str(user_claims.id))
+        if user is None or user.is_deleted:
             raise jwt.InvalidTokenError()
 
         user.is_deleted = True
@@ -102,8 +113,8 @@ class Accounts:
         normalized = email.strip().lower()
         sign_in_id = hashlib.sha256(normalized.encode()).hexdigest()
 
-        sign_in = await self._database.get(sign_in_id)
-        if not isinstance(sign_in, SignInCode):
+        sign_in = await self._database.get(SignInCode, sign_in_id)
+        if sign_in is None:
             sign_in = SignInCode(id=sign_in_id, email=normalized)
 
         now = datetime.now(UTC)
@@ -134,8 +145,8 @@ class Accounts:
 
     async def verify_sign_in_code(self, email: str, code: str) -> TokenPair:
         sign_in_id = hashlib.sha256(email.strip().lower().encode()).hexdigest()
-        sign_in = await self._database.get(sign_in_id)
-        if not isinstance(sign_in, SignInCode):
+        sign_in = await self._database.get(SignInCode, sign_in_id)
+        if sign_in is None:
             raise InvalidCode()
 
         now = datetime.now(UTC)
@@ -157,8 +168,8 @@ class Accounts:
 
         user_id = sign_in.user_id
         if user_id is not None:
-            user = await self._database.get(str(user_id))
-            if not isinstance(user, User) or user.is_deleted:
+            user = await self._database.get(User, str(user_id))
+            if user is None or user.is_deleted:
                 user_id = None
 
         if user_id is None:
@@ -174,6 +185,9 @@ class Accounts:
         return self._token_generator.generate(token_payload)
 
     async def changes(self, since: str = "0") -> AsyncIterator[User]:
-        async for change in self._database.changes(since=since):
+        async for change in self._database.changes(User, since=since):
             if isinstance(change.doc, User):
                 yield change.doc
+
+
+__all__ = ["Identity", "InvalidCode", "CodeRequestedTooSoon"]

@@ -1,11 +1,9 @@
 import json
-import operator
 from contextlib import asynccontextmanager
-from functools import reduce
-from typing import Annotated, Any, AsyncIterator, Generic, TypeVar
+from typing import Any, AsyncIterator, Generic, TypeVar
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,18 +49,14 @@ class Change(BaseModel, Generic[T]):
     doc: T | None = None
 
 
-class Database(Generic[T]):
+class Database:
     def __init__(
         self,
         client: httpx.AsyncClient,
         name: str,
-        *document_types: type[T],
     ) -> None:
         self._client = client
         self._name = name
-        union: Any = reduce(operator.or_, document_types)
-        annotation: Any = Annotated[union, Field(discriminator="type")]
-        self._adapter = TypeAdapter(annotation)
 
     async def ensure_index(
         self,
@@ -81,14 +75,14 @@ class Database(Generic[T]):
         )
         response.raise_for_status()
 
-    async def get(self, id: str) -> T | None:
+    async def get(self, document_type: type[T], id: str) -> T | None:
         response = await self._client.get(f"/{self._name}/{id}")
         if response.status_code == httpx.codes.NOT_FOUND:
             return None
         response.raise_for_status()
-        return self._adapter.validate_python(response.json())
+        return document_type.model_validate(response.json())
 
-    async def save(self, document: T) -> None:
+    async def save(self, document: Document) -> None:
         body: dict[str, Any] = document.model_dump(by_alias=True, mode="json")
         if body.get("_rev") is None:
             body.pop("_rev", None)
@@ -105,12 +99,14 @@ class Database(Generic[T]):
 
     async def find(
         self,
+        document_type: type[T],
         selector: dict[str, Any],
         *,
         sort: list[dict[str, str]] | None = None,
         limit: int | None = None,
     ) -> list[T]:
-        body: dict[str, Any] = {"selector": selector}
+        type_value = document_type.model_fields["type"].default
+        body: dict[str, Any] = {"selector": {"type": type_value, **selector}}
         if sort is not None:
             body["sort"] = sort
         if limit is not None:
@@ -118,10 +114,11 @@ class Database(Generic[T]):
 
         response = await self._client.post(f"/{self._name}/_find", json=body)
         response.raise_for_status()
-        return [self._adapter.validate_python(doc) for doc in response.json()["docs"]]
+        return [document_type.model_validate(doc) for doc in response.json()["docs"]]
 
     async def changes(
         self,
+        document_type: type[T],
         *,
         since: str = "0",
         selector: dict[str, Any] | None = None,
@@ -167,7 +164,7 @@ class Database(Generic[T]):
                 # Tombstones carry no `type`, so they cannot pass the
                 # discriminated-union adapter; surface them by id only.
                 doc = (
-                    self._adapter.validate_python(raw_doc)
+                    document_type.model_validate(raw_doc)
                     if raw_doc is not None and not deleted
                     else None
                 )
@@ -186,7 +183,7 @@ class ClientSettings(BaseSettings):
     password: SecretStr = Field(default=SecretStr("password"))
 
 
-class Client:
+class CouchDB:
     def __init__(
         self,
         client: httpx.AsyncClient,
@@ -203,18 +200,18 @@ class Client:
             return
         response.raise_for_status()
 
-    def get_database(self, name: str, *document_types: type[T]) -> Database[T]:
-        return Database(self._client, name, *document_types)
+    def get_database(self, name: str) -> Database:
+        return Database(self._client, name)
 
 
 @asynccontextmanager
-async def create_client(
+async def create_couchdb(
     settings: ClientSettings | None = None,
-) -> AsyncIterator[Client]:
+) -> AsyncIterator[CouchDB]:
     settings = settings or ClientSettings()
     async with httpx.AsyncClient(
         base_url=settings.url,
         auth=(settings.user, settings.password.get_secret_value()),
         timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
     ) as client:
-        yield Client(client)
+        yield CouchDB(client)
