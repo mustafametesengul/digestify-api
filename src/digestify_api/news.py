@@ -44,7 +44,7 @@ class UserQuota(Document):
     is_deleted: bool
     active_topic_ids: list[UUID]
     quota_window: date | None
-    quota_ids: list[UUID]
+    quota_task_ids: list[UUID]
 
 
 class Story(Document):
