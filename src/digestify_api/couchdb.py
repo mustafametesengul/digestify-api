@@ -58,10 +58,20 @@ class Database:
         self._client = client
         self._name = name
 
+    async def ensure_database(self) -> None:
+        response = await self._client.put(f"/{self._name}")
+        # 201 Created on first run, 412 Precondition Failed if it already exists.
+        if response.status_code in (
+            httpx.codes.CREATED,
+            httpx.codes.PRECONDITION_FAILED,
+        ):
+            return
+        response.raise_for_status()
+
     async def ensure_index(
         self,
         *,
-        name,
+        name: str,
         fields: list[str],
     ) -> None:
         """Create a Mango index if it does not already exist.
@@ -189,16 +199,6 @@ class CouchDB:
         client: httpx.AsyncClient,
     ) -> None:
         self._client = client
-
-    async def ensure_database(self, name: str) -> None:
-        response = await self._client.put(f"/{name}")
-        # 201 Created on first run, 412 Precondition Failed if it already exists.
-        if response.status_code in (
-            httpx.codes.CREATED,
-            httpx.codes.PRECONDITION_FAILED,
-        ):
-            return
-        response.raise_for_status()
 
     def get_database(self, name: str) -> Database:
         return Database(self._client, name)

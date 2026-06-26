@@ -16,7 +16,7 @@ from digestify_api.token import (
     UserClaims,
     UserRole,
 )
-from digestify_api.couchdb import CouchDB, Document
+from digestify_api.couchdb import Document, Database
 from digestify_api.email import EmailSender
 
 CODE_LENGTH = 6
@@ -56,18 +56,18 @@ class CodeRequestedTooSoon(Exception):
 class Identity:
     def __init__(
         self,
-        couchdb: CouchDB,
+        database: Database,
         email_sender: EmailSender,
         token_generator: TokenGenerator,
         token_verifier: TokenVerifier,
     ):
-        self._couchdb = couchdb
+        self._database = database
         self._email_sender = email_sender
         self._token_generator = token_generator
         self._token_verifier = token_verifier
-        self._database = couchdb.get_database("identity")
 
-    async def init_database(self) -> None:
+    async def init(self) -> None:
+        await self._database.ensure_database()
         await self._database.ensure_index(
             fields=["email"],
             name="sign_in_code_email_index",
