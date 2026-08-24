@@ -1,8 +1,9 @@
-from datetime import datetime, UTC
-from digestify_api.topic import Language
-from uuid import UUID
+from datetime import UTC, datetime
 from typing import Literal
+from uuid import UUID
+
 from digestify_api.couchdb import Document
+from digestify_api.topic import Language
 
 
 class Story(Document):

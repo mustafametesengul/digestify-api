@@ -1,8 +1,9 @@
-from pydantic import BaseModel
 from typing import AsyncIterator, Literal
 from uuid import UUID
 
-from digestify_api.couchdb import Document, Database
+from pydantic import BaseModel
+
+from digestify_api.couchdb import Database, Document
 
 
 class Follow(Document):

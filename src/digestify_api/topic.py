@@ -1,7 +1,8 @@
 from enum import StrEnum
-from uuid import UUID
 from typing import Literal
-from digestify_api.couchdb import Document, Database
+from uuid import UUID
+
+from digestify_api.couchdb import Database, Document
 
 
 class Language(StrEnum):

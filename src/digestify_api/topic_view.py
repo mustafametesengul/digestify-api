@@ -1,8 +1,10 @@
-from pydantic import BaseModel
-from digestify_api.topic import Language
-from uuid import UUID
 from typing import Literal
-from digestify_api.couchdb import Document, Database
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from digestify_api.couchdb import Database, Document
+from digestify_api.topic import Language
 
 
 class Topic(BaseModel):

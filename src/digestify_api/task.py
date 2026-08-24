@@ -1,13 +1,14 @@
 import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from datetime import time as time_
-from zoneinfo import ZoneInfo
-from uuid import UUID
 from typing import Awaitable, Callable, Literal
-from digestify_api.couchdb import Document, Database, DocumentConflict
+from uuid import UUID
+from zoneinfo import ZoneInfo
+
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
 
+from digestify_api.couchdb import Database, Document, DocumentConflict
 
 # How long a claim is trusted before another worker may reclaim the task. If a
 # worker crashes mid-run, the task is stuck `running` until this elapses, after

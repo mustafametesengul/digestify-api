@@ -1,6 +1,7 @@
-from digestify_api.quota import QuotaService
-from digestify_api.topic import TopicService, Language
 from uuid import UUID
+
+from digestify_api.quota import QuotaService
+from digestify_api.topic import Language, TopicService
 
 
 class TopicManager:

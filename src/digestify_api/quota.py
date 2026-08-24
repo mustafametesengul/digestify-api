@@ -1,10 +1,12 @@
 from datetime import datetime
 from datetime import time as time_
-from uuid import UUID, uuid4
 from typing import Literal
-from digestify_api.couchdb import Document, Database
+from uuid import UUID, uuid4
+
 from pydantic import BaseModel, Field, field_validator
 from pydantic_extra_types.timezone_name import TimeZoneName
+
+from digestify_api.couchdb import Database, Document
 
 
 class Schedule(BaseModel):

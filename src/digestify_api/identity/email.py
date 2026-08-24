@@ -10,7 +10,7 @@ class EmailDeliveryError(Exception):
     pass
 
 
-class EmailSenderSettings(BaseSettings):
+class EmailClientSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
@@ -21,14 +21,14 @@ class EmailSenderSettings(BaseSettings):
     from_address: str = Field(default="Digestify <onboarding@resend.dev>")
 
 
-class EmailSender:
+class EmailClient:
     def __init__(
         self,
         client: httpx.AsyncClient,
-        settings: EmailSenderSettings | None = None,
+        settings: EmailClientSettings | None = None,
     ) -> None:
         self._client = client
-        self._settings = settings or EmailSenderSettings()
+        self._settings = settings or EmailClientSettings()
 
     async def send(self, to: str, subject: str, text: str) -> None:
         try:
@@ -55,10 +55,10 @@ class EmailSender:
 
 
 @asynccontextmanager
-async def create_email_sender(
-    settings: EmailSenderSettings | None = None,
-) -> AsyncIterator[EmailSender]:
-    settings = settings or EmailSenderSettings()
+async def create_email_client(
+    settings: EmailClientSettings | None = None,
+) -> AsyncIterator[EmailClient]:
+    settings = settings or EmailClientSettings()
     async with httpx.AsyncClient(
         base_url="https://api.resend.com",
         headers={
@@ -66,4 +66,4 @@ async def create_email_sender(
         },
         timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
     ) as client:
-        yield EmailSender(client, settings)
+        yield EmailClient(client, settings)
