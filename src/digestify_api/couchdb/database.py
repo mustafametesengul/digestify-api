@@ -1,16 +1,17 @@
 import json
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from pydantic import BaseModel
 
 
 class DocumentConflict(Exception):
     """Raised when a write loses against a newer revision of the document."""
 
 
-class Change(BaseModel):
+@dataclass(slots=True, frozen=True)
+class Change:
     """A single row from the `_changes` feed.
 
     `seq` is the feed position to resume from; persist it after the change is

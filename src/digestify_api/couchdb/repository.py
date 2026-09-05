@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from typing import Any, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,7 +26,8 @@ class Document(BaseModel):
     type: str
 
 
-class DocumentChange[T: Document](BaseModel):
+@dataclass(slots=True, frozen=True)
+class DocumentChange[T: Document]:
     """A typed row from the `_changes` feed; see `Repository.changes`."""
 
     seq: str
