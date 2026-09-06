@@ -14,8 +14,8 @@ from digestify_api.couchdb import (
     WriteNotConfirmed,
 )
 from digestify_api.identity.email import EmailDeliveryError
+from digestify_api.identity.identity import Identity
 from digestify_api.identity.router import require_registered_user, router
-from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token import (
     TokenGenerator,
@@ -85,7 +85,7 @@ async def api() -> AsyncIterator[Api]:
         ) -> dict[str, str]:
             return {"id": str(claims.id)}
 
-        app.state.identity_service = Service(
+        app.state.identity_service = Identity(
             users=users,
             sign_in_codes=sign_in_codes,
             email_sender=email,

@@ -11,7 +11,7 @@ from digestify_api.couchdb import (
     Repository,
     UnresolvedDocumentConflict,
 )
-from digestify_api.identity.service import Service
+from digestify_api.identity import identity as identity_module
 from digestify_api.identity.sign_in_code import InvalidCode, SignInCode
 from digestify_api.identity.token import (
     TokenGenerator,
@@ -34,7 +34,7 @@ def identity(database: Database) -> Identity:
     email = RecordingEmailClient()
     verifier = TokenVerifier(TokenVerifierSettings(secret_key=SecretStr(SECRET)))
     return Identity(
-        service=Service(
+        service=identity_module.Identity(
             users=users,
             sign_in_codes=codes,
             email_sender=email,

@@ -2,18 +2,18 @@
 
 ## Construction
 
-`Service` requires repositories for `User` and `SignInCode`, plus the email
+`Identity` requires repositories for `User` and `SignInCode`, plus the email
 client, token generator, and token verifier. The repositories can share a
 CouchDB database. Create the database before serving requests. There is no
 session repository, refresh-token table, or rotation worker.
 
 ```python
 from digestify_api.couchdb import Repository
-from digestify_api.identity.service import Service
+from digestify_api.identity.identity import Identity
 from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.user import User
 
-service = Service(
+identity = Identity(
     users=Repository(User, database),
     sign_in_codes=Repository(SignInCode, database),
     email_sender=email_client,
@@ -73,7 +73,7 @@ cookie storage. Do not log credentials, email codes, or token responses.
 `require_user` verifies the signature and checks registered-account status and
 token generation. Refresh and direct account operations check these too.
 `require_registered_user` additionally rejects anonymous identities. Direct
-callers of `TokenVerifier.verify()` must call `Service.authorize()` if they
+callers of `TokenVerifier.verify()` must call `Identity.authorize()` if they
 need the account-status and generation checks. Tokens are stateless; registered-user
 authorization is not database-free. Database failures return 503 rather than
 falling back to token-only authorization. Anonymous identities need no

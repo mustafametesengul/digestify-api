@@ -13,7 +13,7 @@ from digestify_api.couchdb import (
     WriteNotConfirmed,
 )
 from digestify_api.identity.email import EmailDeliveryError
-from digestify_api.identity.service import Service
+from digestify_api.identity.identity import Identity
 from digestify_api.identity.sign_in_code import (
     CODE_LENGTH,
     ISSUE_COOLDOWN,
@@ -60,7 +60,7 @@ class AccountResponse(BaseModel):
     email: str
 
 
-async def get_service(request: Request) -> AsyncIterator[Service]:
+async def get_service(request: Request) -> AsyncIterator[Identity]:
     try:
         yield request.app.state.identity_service
     except (
@@ -94,7 +94,7 @@ _http_bearer = HTTPBearer(auto_error=False)
 
 
 async def require_user(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     token_verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
@@ -128,14 +128,14 @@ def require_registered_user(
 
 @router.post("/sign-in-anonymously")
 async def sign_in_anonymously(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
 ) -> TokenPair:
     return await service.sign_in_anonymously()
 
 
 @router.post("/sign-in-with-email", status_code=status.HTTP_202_ACCEPTED)
 async def sign_in_with_email(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     payload: SignInWithEmailRequest,
 ) -> SignInWithEmailResponse:
     try:
@@ -156,7 +156,7 @@ async def sign_in_with_email(
 
 @router.post("/verify-sign-in-code")
 async def verify_sign_in_code(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     payload: VerifySignInCodeRequest,
 ) -> TokenPair:
     try:
@@ -170,7 +170,7 @@ async def verify_sign_in_code(
 
 @router.post("/recover-account")
 async def recover_account(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     payload: VerifySignInCodeRequest,
 ) -> TokenPair:
     """Verify email ownership, revoke all account tokens, and return a new pair."""
@@ -187,7 +187,7 @@ async def recover_account(
 
 @router.post("/refresh-token")
 async def refresh_token(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     payload: RefreshTokenRequest,
 ) -> TokenPair:
     try:
@@ -198,7 +198,7 @@ async def refresh_token(
 
 @router.get("/account")
 async def get_account(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> AccountResponse:
     try:
@@ -210,7 +210,7 @@ async def get_account(
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
-    service: Annotated[Service, Depends(get_service)],
+    service: Annotated[Identity, Depends(get_service)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> None:
     try:

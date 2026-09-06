@@ -12,8 +12,8 @@ import pytest
 from pydantic import SecretStr
 
 from digestify_api.couchdb import Database, Repository, UnresolvedDocumentConflict
+from digestify_api.identity import identity as identity_module
 from digestify_api.identity.email import EmailClient
-from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import (
     CodeRequestedTooSoon,
     InvalidCode,
@@ -79,7 +79,7 @@ class RecordingEmailClient(EmailClient):
 
 @dataclass
 class Identity:
-    service: Service
+    service: identity_module.Identity
     users: Repository[User]
     sign_in_codes: Repository[SignInCode]
     email: RecordingEmailClient
@@ -115,7 +115,7 @@ async def identity() -> AsyncIterator[Identity]:
             TokenVerifierSettings(secret_key=SecretStr(SECRET)),
         )
         yield Identity(
-            service=Service(
+            service=identity_module.Identity(
                 users=users,
                 sign_in_codes=sign_in_codes,
                 email_sender=email,

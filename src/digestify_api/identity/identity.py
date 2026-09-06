@@ -22,7 +22,7 @@ from digestify_api.identity.token import (
 from digestify_api.identity.user import User
 
 
-class Service:
+class Identity:
     def __init__(
         self,
         users: Repository[User],
