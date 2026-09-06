@@ -178,6 +178,22 @@ async def test_changes_parses_rows(server: FakeServer, database: Database) -> No
     assert changes[1].doc is None
 
 
+async def test_changes_parses_integer_seq(
+    server: FakeServer, database: Database
+) -> None:
+    server.enqueue(
+        changes_feed(
+            '{"seq": 1, "id": "a", "changes": [{"rev": "1-x"}],'
+            ' "doc": {"_id": "a", "_rev": "1-x", "type": "item"}}',
+        )
+    )
+
+    [change] = [change async for change in database.changes()]
+
+    assert change.seq == "1"
+    assert isinstance(change.seq, str)
+
+
 async def test_changes_request_without_selector(
     server: FakeServer, database: Database
 ) -> None:

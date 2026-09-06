@@ -200,6 +200,24 @@ async def test_changes_skips_rows_without_documents(
     assert changes == []
 
 
+async def test_changes_skips_rows_with_mismatched_document_kind(
+    server: FakeServer, repository: Repository[Item]
+) -> None:
+    server.enqueue(
+        httpx.Response(
+            200,
+            content=(
+                '{"seq": "1-a", "id": "a", "changes": [{"rev": "1-x"}],'
+                ' "doc": {"_id": "a", "_rev": "1-x", "type": "user"}}\n'
+            ).encode(),
+        )
+    )
+
+    changes = [change async for change in repository.changes()]
+
+    assert changes == []
+
+
 def test_document_kind_from_literal_default(database: Database) -> None:
     assert Repository(Item, database)._type == "item"
 
@@ -215,7 +233,17 @@ def test_document_kind_requires_single_pinned_value(database: Database) -> None:
     class MultiValued(Document):
         type: Literal["a", "b"]
 
+    class MultiValuedWithDefault(Document):
+        type: Literal["a", "b"] = "a"
+
+    class StrWithDefault(Document):
+        type: str = "a"
+
     with pytest.raises(TypeError):
         Repository(Unpinned, database)
     with pytest.raises(TypeError):
         Repository(MultiValued, database)
+    with pytest.raises(TypeError):
+        Repository(MultiValuedWithDefault, database)
+    with pytest.raises(TypeError):
+        Repository(StrWithDefault, database)

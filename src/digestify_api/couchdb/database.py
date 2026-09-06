@@ -165,7 +165,7 @@ class Database:
 
                 deleted = bool(row.get("deleted"))
                 yield Change(
-                    seq=row["seq"],
+                    seq=str(row["seq"]),
                     id=row["id"],
                     deleted=deleted,
                     doc=None if deleted else row.get("doc"),

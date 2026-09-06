@@ -107,7 +107,7 @@ class Repository[T: Document]:
             since=since,
             selector={"type": self._type},
         ):
-            if change.doc is None:
+            if change.doc is None or change.doc.get("type") != self._type:
                 continue
             yield DocumentChange(
                 seq=change.seq,
@@ -118,9 +118,12 @@ class Repository[T: Document]:
 
 def _document_type(model_type: type[Document]) -> str:
     """The `type` discriminator value `model_type` is pinned to."""
-    field = model_type.model_fields["type"]
-    if isinstance(field.default, str):
-        return field.default
+    field = model_type.model_fields.get("type")
+    if field is None:
+        raise TypeError(
+            f"{model_type.__name__} must pin `type` to a single value, "
+            'e.g. `type: Literal["user"] = "user"`.'
+        )
     literal_values = get_args(field.annotation)
     if len(literal_values) == 1 and isinstance(literal_values[0], str):
         return literal_values[0]
