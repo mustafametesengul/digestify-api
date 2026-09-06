@@ -72,6 +72,68 @@ async def test_get_raises_on_error(server: FakeServer, database: Database) -> No
         await database.get("a")
 
 
+@pytest.mark.parametrize(
+    ("id", "encoded"),
+    [
+        ("a?b", "a%3Fb"),
+        ("a#b", "a%23b"),
+        ("a/b", "a%2Fb"),
+        ("a%2Fb", "a%252Fb"),
+        ("../other", "..%2Fother"),
+        (".", "%2E"),
+        ("..", "%2E%2E"),
+        ("_design/example", "_design/example"),
+        ("_local/example", "_local/example"),
+        ("_design/a?b", "_design/a%3Fb"),
+        ("_local/a#b", "_local/a%23b"),
+    ],
+)
+async def test_document_operations_encode_ids(
+    server: FakeServer, database: Database, id: str, encoded: str
+) -> None:
+    server.enqueue(httpx.Response(200, json={"_id": id}))
+    server.enqueue(httpx.Response(201, json={"rev": "1-x"}))
+    server.enqueue(httpx.Response(200, json={"ok": True}))
+
+    await database.get(id)
+    await database.save(id, {"_id": id})
+    await database.delete(id, "1-x")
+
+    assert [request.url.raw_path for request in server.requests] == [
+        f"/things/{encoded}".encode(),
+        f"/things/{encoded}".encode(),
+        f"/things/{encoded}?rev=1-x".encode(),
+    ]
+
+
+async def test_document_operations_reject_empty_ids(
+    server: FakeServer, database: Database
+) -> None:
+    with pytest.raises(ValueError, match="Document ID"):
+        await database.get("")
+    with pytest.raises(ValueError, match="Document ID"):
+        await database.save("", {})
+    with pytest.raises(ValueError, match="Document ID"):
+        await database.delete("", "1-x")
+    assert server.requests == []
+
+
+@pytest.mark.parametrize("name", ["", ".", "..", "../other", "things?x", "things#x"])
+async def test_invalid_database_names(name: str) -> None:
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(ValueError, match="database name"):
+            Database(client, name)
+
+
+async def test_database_name_with_slash_is_encoded(server: FakeServer) -> None:
+    server.enqueue(httpx.Response(201))
+    async with httpx.AsyncClient(
+        base_url="http://couch", transport=httpx.MockTransport(server)
+    ) as client:
+        await Database(client, "tenant/things").ensure_database()
+    assert server.request.url.raw_path == b"/tenant%2Fthings"
+
+
 async def test_save_returns_new_revision(
     server: FakeServer, database: Database
 ) -> None:
@@ -124,7 +186,10 @@ async def test_find_sends_minimal_body(server: FakeServer, database: Database) -
 
     assert docs == []
     assert server.request.url.path == "/things/_find"
-    assert json.loads(server.request.content) == {"selector": {"type": "item"}}
+    assert json.loads(server.request.content) == {
+        "selector": {"type": "item"},
+        "limit": 100,
+    }
 
 
 async def test_find_sends_sort_and_limit(
@@ -144,6 +209,79 @@ async def test_find_sends_sort_and_limit(
         "sort": [{"type": "asc"}, {"email": "asc"}],
         "limit": 10,
     }
+
+
+@pytest.mark.parametrize("limit", [None, 101, 150, 200])
+async def test_find_follows_bookmarks(
+    server: FakeServer, database: Database, limit: int | None
+) -> None:
+    first_page = [{"_id": str(index)} for index in range(100)]
+    last_page = [{"_id": "100"}]
+    server.enqueue(
+        httpx.Response(200, json={"docs": first_page, "bookmark": "page-two"})
+    )
+    server.enqueue(httpx.Response(200, json={"docs": last_page, "bookmark": "end"}))
+
+    docs = await database.find({"type": "item"}, sort=[{"name": "asc"}], limit=limit)
+
+    assert docs == first_page + last_page
+    assert len(server.requests) == 2
+    assert json.loads(server.requests[1].content) == {
+        "selector": {"type": "item"},
+        "sort": [{"name": "asc"}],
+        "limit": 100 if limit is None else min(100, limit - 100),
+        "bookmark": "page-two",
+    }
+
+
+async def test_find_stops_at_explicit_limit(
+    server: FakeServer, database: Database
+) -> None:
+    server.enqueue(httpx.Response(200, json={"docs": [{"_id": "a"}]}))
+
+    assert await database.find({}, limit=1) == [{"_id": "a"}]
+    assert len(server.requests) == 1
+
+
+async def test_find_handles_empty_last_page(
+    server: FakeServer, database: Database
+) -> None:
+    docs = [{"_id": str(index)} for index in range(100)]
+    server.enqueue(httpx.Response(200, json={"docs": docs, "bookmark": "end"}))
+    server.enqueue(httpx.Response(200, json={"docs": [], "bookmark": "end"}))
+
+    assert await database.find({}) == docs
+    assert len(server.requests) == 2
+
+
+async def test_find_rejects_nonadvancing_bookmark(
+    server: FakeServer, database: Database
+) -> None:
+    for _ in range(2):
+        server.enqueue(
+            httpx.Response(
+                200,
+                json={"docs": [{"_id": "a"}] * 100, "bookmark": "stuck"},
+            )
+        )
+
+    with pytest.raises(RuntimeError, match="bookmark did not advance"):
+        await database.find({})
+
+
+async def test_find_zero_limit_does_not_send_request(
+    server: FakeServer, database: Database
+) -> None:
+    assert await database.find({}, limit=0) == []
+    assert server.requests == []
+
+
+async def test_find_rejects_negative_limit(
+    server: FakeServer, database: Database
+) -> None:
+    with pytest.raises(ValueError, match="Limit"):
+        await database.find({}, limit=-1)
+    assert server.requests == []
 
 
 def changes_feed(*rows: str) -> httpx.Response:
@@ -238,3 +376,29 @@ async def test_changes_raises_on_error(server: FakeServer, database: Database) -
 
     with pytest.raises(httpx.HTTPStatusError):
         [change async for change in database.changes()]
+
+
+async def test_changes_only_disables_its_own_read_timeout(server: FakeServer) -> None:
+    server.enqueue(changes_feed())
+    server.enqueue(httpx.Response(200, json={"_id": "a"}))
+    async with httpx.AsyncClient(
+        base_url="http://couch",
+        transport=httpx.MockTransport(server),
+        timeout=httpx.Timeout(connect=1.0, read=2.0, write=3.0, pool=4.0),
+    ) as client:
+        database = Database(client, "things")
+        [change async for change in database.changes()]
+        await database.get("a")
+
+    assert server.requests[0].extensions["timeout"] == {
+        "connect": 1.0,
+        "read": None,
+        "write": 3.0,
+        "pool": 4.0,
+    }
+    assert server.requests[1].extensions["timeout"] == {
+        "connect": 1.0,
+        "read": 2.0,
+        "write": 3.0,
+        "pool": 4.0,
+    }

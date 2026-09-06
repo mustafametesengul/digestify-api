@@ -45,8 +45,6 @@ class CouchDB:
         async with httpx.AsyncClient(
             base_url=settings.url,
             auth=(settings.user, settings.password.get_secret_value()),
-            # `read` stays unbounded so a continuous `_changes` feed can idle
-            # between heartbeats without timing out.
-            timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
+            timeout=httpx.Timeout(10.0),
         ) as client:
             yield cls(client)

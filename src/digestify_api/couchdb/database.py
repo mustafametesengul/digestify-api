@@ -1,7 +1,9 @@
 import json
+import re
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -39,16 +41,33 @@ class Database:
         client: httpx.AsyncClient,
         name: str,
     ) -> None:
+        if not re.fullmatch(
+            r"[a-z][a-z0-9_$()+/\-]*|_users|_replicator|_global_changes", name
+        ):
+            raise ValueError("Invalid CouchDB database name.")
         self._client = client
         self._name = name
+        self._path = f"/{quote(name, safe='')}"
 
     @property
     def name(self) -> str:
         return self._name
 
+    def _document_path(self, id: str) -> str:
+        path = self._path
+        if id.startswith(("_design/", "_local/")):
+            namespace, id = id.split("/", 1)
+            path = f"{path}/{namespace}"
+        if not id:
+            raise ValueError("Document ID must not be empty.")
+        encoded_id = quote(id, safe="")
+        if id in (".", ".."):
+            encoded_id = id.replace(".", "%2E")
+        return f"{path}/{encoded_id}"
+
     async def ensure_database(self) -> None:
         """Create the database if it does not already exist."""
-        response = await self._client.put(f"/{self._name}")
+        response = await self._client.put(self._path)
         # 412 Precondition Failed means it already exists — the desired state.
         if response.status_code == httpx.codes.PRECONDITION_FAILED:
             return
@@ -62,13 +81,13 @@ class Database:
     ) -> None:
         """Create a Mango index over `fields` if it does not already exist."""
         response = await self._client.post(
-            url=f"/{self._name}/_index",
+            url=f"{self._path}/_index",
             json={"index": {"fields": fields}, "name": name, "type": "json"},
         )
         response.raise_for_status()
 
     async def get(self, id: str) -> dict[str, Any] | None:
-        response = await self._client.get(f"/{self._name}/{id}")
+        response = await self._client.get(self._document_path(id))
         if response.status_code == httpx.codes.NOT_FOUND:
             return None
         response.raise_for_status()
@@ -81,7 +100,7 @@ class Database:
         `doc["_rev"]`; a stale or missing revision raises `DocumentConflict`.
         """
         response = await self._client.put(
-            f"/{self._name}/{id}",
+            self._document_path(id),
             json=doc,
         )
         if response.status_code == httpx.codes.CONFLICT:
@@ -95,7 +114,7 @@ class Database:
         A stale revision raises `DocumentConflict`.
         """
         response = await self._client.delete(
-            f"/{self._name}/{id}",
+            self._document_path(id),
             params={"rev": rev},
         )
         if response.status_code == httpx.codes.CONFLICT:
@@ -109,15 +128,29 @@ class Database:
         sort: list[dict[str, str]] | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Fetch matching documents across pages, up to `limit` if supplied."""
+        if limit is not None and limit < 0:
+            raise ValueError("Limit must not be negative.")
+        if limit == 0:
+            return []
         body: dict[str, Any] = {"selector": selector}
         if sort is not None:
             body["sort"] = sort
-        if limit is not None:
-            body["limit"] = limit
 
-        response = await self._client.post(f"/{self._name}/_find", json=body)
-        response.raise_for_status()
-        return response.json()["docs"]
+        docs: list[dict[str, Any]] = []
+        while True:
+            body["limit"] = 100 if limit is None else min(100, limit - len(docs))
+            response = await self._client.post(f"{self._path}/_find", json=body)
+            response.raise_for_status()
+            result = response.json()
+            page = result["docs"]
+            docs.extend(page)
+            if len(page) < body["limit"] or (limit is not None and len(docs) >= limit):
+                return docs
+            bookmark = result["bookmark"]
+            if bookmark == body.get("bookmark"):
+                raise RuntimeError("CouchDB query bookmark did not advance.")
+            body["bookmark"] = bookmark
 
     async def changes(
         self,
@@ -135,7 +168,8 @@ class Database:
         it as a flag on the document instead of deleting.
 
         The iterator ends only when the server closes the feed; consumers
-        typically run it in a long-lived task.
+        typically run it in a long-lived task. Read timeouts are disabled for
+        this request so an idle feed can wait for its next heartbeat.
         """
         params: dict[str, str] = {
             "feed": "continuous",
@@ -148,11 +182,14 @@ class Database:
             params["filter"] = "_selector"
             body["selector"] = selector
 
+        timeout = httpx.Timeout(self._client.timeout)
+        timeout.read = None
         async with self._client.stream(
             "POST",
-            f"/{self._name}/_changes",
+            f"{self._path}/_changes",
             params=params,
             json=body,
+            timeout=timeout,
         ) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():

@@ -144,7 +144,10 @@ async def test_find_without_selector_matches_whole_kind(
 
     await repository.find()
 
-    assert json.loads(server.request.content) == {"selector": {"type": "item"}}
+    assert json.loads(server.request.content) == {
+        "selector": {"type": "item"},
+        "limit": 100,
+    }
 
 
 async def test_find_ignores_caller_type_override(

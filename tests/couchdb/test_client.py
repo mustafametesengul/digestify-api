@@ -58,6 +58,7 @@ async def test_connect_configures_client_from_settings() -> None:
         client = couch._client
 
         assert str(client.base_url) == "http://db:5984"
-        # The read timeout must stay unbounded for continuous changes feeds.
-        assert client.timeout.read is None
+        assert client.timeout.read == 10.0
         assert client.timeout.connect == 10.0
+        assert client.timeout.write == 10.0
+        assert client.timeout.pool == 10.0

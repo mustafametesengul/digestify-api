@@ -119,6 +119,61 @@ async def test_find_with_index(database: Database) -> None:
     assert len(docs) == 1
 
 
+@pytest.mark.parametrize(
+    "id",
+    [
+        "a?b",
+        "a#b",
+        "a/b",
+        "a%2Fb",
+        "../other",
+        ".",
+        "..",
+        "_design/example",
+        "_local/example",
+        "_design/a?b",
+        "_local/a#b",
+    ],
+)
+async def test_encoded_document_lifecycle(database: Database, id: str) -> None:
+    await database.save("a", {"type": "item", "name": "untouched"})
+    rev = await database.save(id, {"_id": id, "type": "item", "name": "original"})
+
+    doc = await database.get(id)
+    assert doc is not None
+    assert doc["_id"] == id
+    assert doc["_rev"] == rev
+
+    doc["name"] = "updated"
+    rev = await database.save(id, doc)
+    updated = await database.get(id)
+    assert updated is not None
+    assert updated["name"] == "updated"
+
+    await database.delete(id, rev)
+    assert await database.get(id) is None
+    untouched = await database.get("a")
+    assert untouched is not None
+    assert untouched["name"] == "untouched"
+
+
+async def test_repository_find_across_pages(database: Database) -> None:
+    items = Repository(Item, database)
+    expected_ids = {f"item-{index:03d}" for index in range(105)}
+    for id in sorted(expected_ids):
+        await items.save(Item(id=id, name=id))
+    await database.save("other", {"type": "other"})
+
+    found = await items.find()
+    assert len(found) == len(expected_ids)
+    assert {item.id for item in found} == expected_ids
+
+    limited = await items.find(limit=102)
+    assert len(limited) == 102
+    assert len({item.id for item in limited}) == 102
+    assert {item.id for item in limited} <= expected_ids
+
+
 async def test_changes_streams_saves_and_deletions(database: Database) -> None:
     await database.save("a", {"type": "item", "name": "widget"})
     rev = await database.save("b", {"type": "item", "name": "doomed"})
