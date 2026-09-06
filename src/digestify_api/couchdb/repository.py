@@ -4,7 +4,7 @@ from typing import Any, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from digestify_api.couchdb.database import Database
+from digestify_api.couchdb.database import Database, UnresolvedDocumentConflict
 
 
 class Document(BaseModel):
@@ -49,8 +49,10 @@ class Repository[T: Document]:
         self._type = _document_type(model_type)
 
     async def get(self, id: str) -> T | None:
-        """The document at `id`, or ``None`` if absent or of another kind."""
-        doc = await self._database.get(id)
+        """Read a document, refusing visible unresolved revision conflicts."""
+        doc = await self._database.get(id, conflicts=True)
+        if doc is not None and doc.get("_conflicts"):
+            raise UnresolvedDocumentConflict(id)
         if doc is None or doc.get("type") != self._type:
             return None
         return self._model_type.model_validate(doc)

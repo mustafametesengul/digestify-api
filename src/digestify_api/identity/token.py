@@ -1,11 +1,14 @@
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+TOKEN_ISSUER = "digestify-api"
+TOKEN_AUDIENCE = "digestify-api"
 
 
 class TokenPurpose(StrEnum):
@@ -22,6 +25,11 @@ class UserRole(StrEnum):
 class UserClaims(BaseModel):
     id: UUID
     role: UserRole
+    token_generation: UUID | None = None
+
+
+class TokenClaims(UserClaims):
+    token_id: UUID
 
 
 class TokenPair(BaseModel):
@@ -45,11 +53,16 @@ class TokenVerifier:
     def __init__(self, settings: TokenVerifierSettings | None = None) -> None:
         self._settings = settings or TokenVerifierSettings()
 
-    def verify(self, token: str, purpose: TokenPurpose) -> UserClaims:
+    def verify(self, token: str, purpose: TokenPurpose) -> TokenClaims:
         payload = jwt.decode(
             token,
             self._settings.secret_key.get_secret_value(),
             algorithms=[self._settings.algorithm],
+            issuer=TOKEN_ISSUER,
+            audience=TOKEN_AUDIENCE,
+            options={
+                "require": ["exp", "iat", "sub", "role", "type", "jti", "iss", "aud"]
+            },
         )
         payload_token_type = payload.get("type")
         payload_sub = payload.get("sub")
@@ -65,33 +78,63 @@ class TokenVerifier:
             token_purpose = TokenPurpose(payload_token_type)
             user_id = UUID(payload_sub)
             user_role = UserRole(payload_role)
-        except ValueError:
+            token_id = UUID(payload["jti"])
+        except ValueError, TypeError, AttributeError:
             raise jwt.InvalidTokenError()
 
         if token_purpose is not purpose:
             raise jwt.InvalidTokenError()
 
-        return UserClaims(id=user_id, role=user_role)
+        generation = None
+        if user_role is not UserRole.ANONYMOUS:
+            if "gen" not in payload:
+                raise jwt.MissingRequiredClaimError("gen")
+            try:
+                generation = UUID(payload["gen"])
+            except ValueError, TypeError, AttributeError:
+                raise jwt.InvalidTokenError()
+        return TokenClaims(
+            id=user_id, role=user_role, token_id=token_id, token_generation=generation
+        )
 
 
 class TokenGeneratorSettings(TokenVerifierSettings):
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
+    access_token_expire_minutes: int = Field(default=5, gt=0)
+    refresh_token_expire_days: int = Field(default=45, gt=0)
 
 
 class TokenGenerator:
     def __init__(self, settings: TokenGeneratorSettings | None = None) -> None:
         self._settings = settings or TokenGeneratorSettings()
 
+    @property
+    def refresh_token_lifetime(self) -> timedelta:
+        return timedelta(days=self._settings.refresh_token_expire_days)
+
     def generate(self, user_claims: UserClaims) -> TokenPair:
-        access_token_expire = datetime.now(UTC) + timedelta(
+        """Issue reusable bearer tokens; each refresh starts a new expiry window."""
+        now = datetime.now(UTC)
+        access_token_expire = now + timedelta(
             minutes=self._settings.access_token_expire_minutes
         )
-        to_encode = {
+        common = {
             "sub": str(user_claims.id),
-            "exp": access_token_expire,
             "role": user_claims.role.value,
+            "iat": now,
+            "iss": TOKEN_ISSUER,
+            "aud": TOKEN_AUDIENCE,
+        }
+        if user_claims.role is not UserRole.ANONYMOUS:
+            if user_claims.token_generation is None:
+                raise ValueError(
+                    "Registered-user tokens require an account generation."
+                )
+            common["gen"] = str(user_claims.token_generation)
+        to_encode = {
+            **common,
+            "exp": access_token_expire,
             "type": TokenPurpose.ACCESS.value,
+            "jti": str(uuid4()),
         }
         access_token = jwt.encode(
             to_encode,
@@ -99,14 +142,11 @@ class TokenGenerator:
             algorithm=self._settings.algorithm,
         )
 
-        refresh_token_expire = datetime.now(UTC) + timedelta(
-            days=self._settings.refresh_token_expire_days
-        )
         to_encode = {
-            "sub": str(user_claims.id),
-            "exp": refresh_token_expire,
-            "role": user_claims.role.value,
+            **common,
+            "exp": now + self.refresh_token_lifetime,
             "type": TokenPurpose.REFRESH.value,
+            "jti": str(uuid4()),
         }
         refresh_token = jwt.encode(
             to_encode,

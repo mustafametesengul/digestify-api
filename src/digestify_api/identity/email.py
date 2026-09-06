@@ -43,7 +43,7 @@ class EmailClient:
             headers={
                 "Authorization": f"Bearer {settings.api_key.get_secret_value()}",
             },
-            timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
+            timeout=httpx.Timeout(10.0),
         ) as client:
             yield cls(client, settings)
 

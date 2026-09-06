@@ -3,7 +3,7 @@ import hmac
 import secrets
 from datetime import datetime, timedelta
 from typing import Literal, Self
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel
 
@@ -36,7 +36,9 @@ class SignInCode(Document):
     normalized email — so issuing a new code replaces any outstanding one.
     Mutating methods only change this document; the caller persists it, and
     must do so even when `verify` raises, since a wrong guess consumes an
-    attempt.
+    attempt. `user_id` may be reserved before its user document exists;
+    provisioning retries must reuse that reservation. The challenge remains
+    live until the user has been created and linked successfully.
     """
 
     type: Literal["sign_in_code"] = "sign_in_code"
@@ -96,6 +98,13 @@ class SignInCode(Document):
         """Record the signed-in user and consume the challenge."""
         self.user_id = user_id
         self.challenge = None
+
+    def reserve_user(self) -> UUID:
+        """Derive the same next account ID on replicas with the same mapping."""
+        self.user_id = uuid5(
+            NAMESPACE_URL, f"digestify:account:{self.id}:{self.user_id or 'initial'}"
+        )
+        return self.user_id
 
     def _hash_code(self, code: str) -> str:
         return hashlib.sha256(f"{self.email}:{code}".encode()).hexdigest()

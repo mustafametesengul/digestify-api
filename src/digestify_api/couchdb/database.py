@@ -12,6 +12,14 @@ class DocumentConflict(Exception):
     """Raised when a write loses against a newer revision of the document."""
 
 
+class UnresolvedDocumentConflict(Exception):
+    """The document has divergent revisions that require explicit resolution."""
+
+
+class WriteNotConfirmed(Exception):
+    """A write was accepted but not fully acknowledged; it may still commit."""
+
+
 @dataclass(slots=True, frozen=True)
 class Change:
     """A single row from the `_changes` feed.
@@ -86,8 +94,11 @@ class Database:
         )
         response.raise_for_status()
 
-    async def get(self, id: str) -> dict[str, Any] | None:
-        response = await self._client.get(self._document_path(id))
+    async def get(self, id: str, *, conflicts: bool = False) -> dict[str, Any] | None:
+        response = await self._client.get(
+            self._document_path(id),
+            params={"conflicts": "true"} if conflicts else None,
+        )
         if response.status_code == httpx.codes.NOT_FOUND:
             return None
         response.raise_for_status()
@@ -105,6 +116,8 @@ class Database:
         )
         if response.status_code == httpx.codes.CONFLICT:
             raise DocumentConflict(id)
+        if response.status_code == httpx.codes.ACCEPTED:
+            raise WriteNotConfirmed(id)
         response.raise_for_status()
         return response.json()["rev"]
 
@@ -119,6 +132,8 @@ class Database:
         )
         if response.status_code == httpx.codes.CONFLICT:
             raise DocumentConflict(id)
+        if response.status_code == httpx.codes.ACCEPTED:
+            raise WriteNotConfirmed(id)
         response.raise_for_status()
 
     async def find(

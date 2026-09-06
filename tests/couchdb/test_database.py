@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from digestify_api.couchdb import Database, DocumentConflict
+from digestify_api.couchdb import Database, DocumentConflict, WriteNotConfirmed
 from tests.couchdb.conftest import FakeServer
 
 
@@ -176,6 +176,22 @@ async def test_delete_raises_document_conflict(
     server.enqueue(httpx.Response(409, json={"error": "conflict"}))
 
     with pytest.raises(DocumentConflict):
+        await database.delete("a", "1-x")
+
+
+async def test_accepted_write_is_not_confirmed(
+    server: FakeServer, database: Database
+) -> None:
+    server.enqueue(httpx.Response(202, json={"ok": True, "rev": "2-y"}))
+    with pytest.raises(WriteNotConfirmed):
+        await database.save("a", {"_rev": "1-x"})
+
+
+async def test_accepted_delete_is_not_confirmed(
+    server: FakeServer, database: Database
+) -> None:
+    server.enqueue(httpx.Response(202, json={"ok": True, "rev": "2-y"}))
+    with pytest.raises(WriteNotConfirmed):
         await database.delete("a", "1-x")
 
 

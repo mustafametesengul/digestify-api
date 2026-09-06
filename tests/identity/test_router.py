@@ -1,13 +1,20 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Annotated
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from pydantic import SecretStr
 
-from digestify_api.couchdb import Database, Repository
-from digestify_api.identity.router import router
+from digestify_api.couchdb import (
+    Database,
+    Repository,
+    UnresolvedDocumentConflict,
+    WriteNotConfirmed,
+)
+from digestify_api.identity.email import EmailDeliveryError
+from digestify_api.identity.router import require_registered_user, router
 from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token import (
@@ -15,6 +22,7 @@ from digestify_api.identity.token import (
     TokenGeneratorSettings,
     TokenVerifier,
     TokenVerifierSettings,
+    UserClaims,
 )
 from digestify_api.identity.user import User
 from tests.identity.test_service import (
@@ -70,6 +78,13 @@ async def api() -> AsyncIterator[Api]:
 
         app = FastAPI()
         app.include_router(router)
+
+        @app.get("/registered")
+        async def registered(
+            claims: Annotated[UserClaims, Depends(require_registered_user)],
+        ) -> dict[str, str]:
+            return {"id": str(claims.id)}
+
         app.state.identity_service = Service(
             users=users,
             sign_in_codes=sign_in_codes,
@@ -204,3 +219,124 @@ async def test_delete_account_revokes_access(api: Api) -> None:
 
     response = await api.client.get("/identity/account", headers=bearer(tokens))
     assert response.status_code == 401
+
+
+async def test_deleted_user_rejected_by_shared_dependency(api: Api) -> None:
+    tokens = await api.sign_in()
+    before = await api.client.get("/registered", headers=bearer(tokens))
+    assert before.status_code == 200
+    deleted = await api.client.delete("/identity/account", headers=bearer(tokens))
+    assert deleted.status_code == 204
+    after = await api.client.get("/registered", headers=bearer(tokens))
+    assert after.status_code == 401
+    assert after.headers["WWW-Authenticate"] == "Bearer"
+
+
+async def test_refresh_reuse_preserves_access(api: Api) -> None:
+    tokens = await api.sign_in()
+    refreshed = await api.client.post(
+        "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert refreshed.status_code == 200
+    replay = await api.client.post(
+        "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert replay.status_code == 200
+    account = await api.client.get("/registered", headers=bearer(refreshed.json()))
+    assert account.status_code == 200
+    refresh = await api.client.post(
+        "/identity/refresh-token",
+        json={"refresh_token": refreshed.json()["refresh_token"]},
+    )
+    assert refresh.status_code == 200
+
+
+async def test_delivery_failure_returns_502(
+    api: Api, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fail_send(to: str, subject: str, text: str) -> None:
+        raise EmailDeliveryError("simulated delivery failure")
+
+    monkeypatch.setattr(api.email, "send", fail_send)
+    response = await api.client.post(
+        "/identity/sign-in-with-email", json={"email": EMAIL}
+    )
+    assert response.status_code == 502
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        UnresolvedDocumentConflict("test"),
+        WriteNotConfirmed("test"),
+        httpx.ConnectError("database unavailable"),
+    ],
+)
+@pytest.mark.parametrize("endpoint", ["verify-sign-in-code", "recover-account"])
+async def test_unsafe_identity_state_returns_503(
+    api: Api, monkeypatch: pytest.MonkeyPatch, error: Exception, endpoint: str
+) -> None:
+    async def fail_get(id: str) -> SignInCode | None:
+        raise error
+
+    monkeypatch.setattr(api.sign_in_codes, "get", fail_get)
+    response = await api.client.post(
+        f"/identity/{endpoint}", json={"email": EMAIL, "code": "123456"}
+    )
+    assert response.status_code == 503
+    assert response.headers["Retry-After"] == "5"
+    assert "access_token" not in response.json()
+
+
+async def test_email_recovery_revokes_all_devices_and_returns_new_tokens(
+    api: Api,
+) -> None:
+    first = await api.sign_in()
+    second = await api.sign_in()
+    await api.reset_cooldown()
+    issued = await api.client.post(
+        "/identity/sign-in-with-email", json={"email": EMAIL}
+    )
+    assert issued.status_code == 202
+    code = api.email.last_code
+    recovered = await api.client.post(
+        "/identity/recover-account", json={"email": EMAIL, "code": code}
+    )
+    assert recovered.status_code == 200
+    new_tokens = recovered.json()
+    for tokens in (first, second):
+        account = await api.client.get("/registered", headers=bearer(tokens))
+        assert account.status_code == 401
+        refreshed = await api.client.post(
+            "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+        )
+        assert refreshed.status_code == 401
+    account = await api.client.get("/identity/account", headers=bearer(new_tokens))
+    assert account.status_code == 200
+    assert account.json()["email"] == EMAIL
+    refreshed = await api.client.post(
+        "/identity/refresh-token", json={"refresh_token": new_tokens["refresh_token"]}
+    )
+    assert refreshed.status_code == 200
+    replay = await api.client.post(
+        "/identity/recover-account", json={"email": EMAIL, "code": code}
+    )
+    assert replay.status_code == 401
+
+
+async def test_bearer_token_alone_cannot_recover_account(api: Api) -> None:
+    tokens = await api.sign_in()
+    response = await api.client.post(
+        "/identity/recover-account", headers=bearer(tokens), json={"email": EMAIL}
+    )
+    assert response.status_code == 422
+    response = await api.client.post(
+        "/identity/recover-account",
+        headers=bearer(tokens),
+        json={"email": EMAIL, "code": api.email.last_code},
+    )
+    assert response.status_code == 401
+    refreshed = await api.client.post(
+        "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert refreshed.status_code == 200

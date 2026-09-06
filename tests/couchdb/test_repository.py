@@ -4,7 +4,14 @@ from typing import Literal
 import httpx
 import pytest
 
-from digestify_api.couchdb import Database, Document, DocumentConflict, Repository
+from digestify_api.couchdb import (
+    Database,
+    Document,
+    DocumentConflict,
+    Repository,
+    UnresolvedDocumentConflict,
+    WriteNotConfirmed,
+)
 from tests.couchdb.conftest import FakeServer
 
 
@@ -43,6 +50,36 @@ async def test_get_returns_none_when_missing(
     server.enqueue(httpx.Response(404, json={"error": "not_found"}))
 
     assert await repository.get("a") is None
+
+
+async def test_get_rejects_conflicting_revisions(
+    server: FakeServer, repository: Repository[Item]
+) -> None:
+    server.enqueue(
+        httpx.Response(
+            200,
+            json={
+                "_id": "a",
+                "_rev": "2-x",
+                "type": "item",
+                "name": "widget",
+                "_conflicts": ["2-y"],
+            },
+        )
+    )
+    with pytest.raises(UnresolvedDocumentConflict):
+        await repository.get("a")
+    assert server.request.url.params["conflicts"] == "true"
+
+
+async def test_unconfirmed_save_does_not_change_revision(
+    server: FakeServer, repository: Repository[Item]
+) -> None:
+    item = Item(id="a", rev="1-x", name="widget")
+    server.enqueue(httpx.Response(202, json={"ok": True, "rev": "2-y"}))
+    with pytest.raises(WriteNotConfirmed):
+        await repository.save(item)
+    assert item.rev == "1-x"
 
 
 async def test_get_returns_none_for_other_document_kind(

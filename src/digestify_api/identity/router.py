@@ -1,10 +1,17 @@
+from collections.abc import AsyncIterator
 from typing import Annotated
 
+import httpx
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, EmailStr, Field
 
+from digestify_api.couchdb import (
+    DocumentConflict,
+    UnresolvedDocumentConflict,
+    WriteNotConfirmed,
+)
 from digestify_api.identity.email import EmailDeliveryError
 from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import (
@@ -53,8 +60,20 @@ class AccountResponse(BaseModel):
     email: str
 
 
-def get_service(request: Request) -> Service:
-    return request.app.state.identity_service
+async def get_service(request: Request) -> AsyncIterator[Service]:
+    try:
+        yield request.app.state.identity_service
+    except (
+        DocumentConflict,
+        UnresolvedDocumentConflict,
+        WriteNotConfirmed,
+        httpx.HTTPError,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Identity state is temporarily unavailable",
+            headers={"Retry-After": "5"},
+        ) from error
 
 
 def get_token_verifier(request: Request) -> TokenVerifier:
@@ -74,7 +93,8 @@ def _unauthenticated() -> HTTPException:
 _http_bearer = HTTPBearer(auto_error=False)
 
 
-def require_user(
+async def require_user(
+    service: Annotated[Service, Depends(get_service)],
     token_verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
@@ -85,10 +105,12 @@ def require_user(
         raise _unauthenticated()
 
     try:
-        return token_verifier.verify(
+        claims = token_verifier.verify(
             credentials.credentials,
             purpose=TokenPurpose.ACCESS,
         )
+        await service.authorize(claims)
+        return claims
     except jwt.PyJWTError:
         raise _unauthenticated()
 
@@ -108,7 +130,7 @@ def require_registered_user(
 async def sign_in_anonymously(
     service: Annotated[Service, Depends(get_service)],
 ) -> TokenPair:
-    return service.sign_in_anonymously()
+    return await service.sign_in_anonymously()
 
 
 @router.post("/sign-in-with-email", status_code=status.HTTP_202_ACCEPTED)
@@ -139,6 +161,23 @@ async def verify_sign_in_code(
 ) -> TokenPair:
     try:
         return await service.verify_sign_in_code(payload.email, payload.code)
+    except InvalidCode:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired sign-in code",
+        )
+
+
+@router.post("/recover-account")
+async def recover_account(
+    service: Annotated[Service, Depends(get_service)],
+    payload: VerifySignInCodeRequest,
+) -> TokenPair:
+    """Verify email ownership, revoke all account tokens, and return a new pair."""
+    try:
+        return await service.verify_sign_in_code(
+            payload.email, payload.code, revoke_tokens=True
+        )
     except InvalidCode:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
