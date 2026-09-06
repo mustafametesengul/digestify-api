@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Self
 
 import httpx
 from pydantic import Field, SecretStr
@@ -30,6 +31,22 @@ class EmailClient:
         self._client = client
         self._settings = settings or EmailClientSettings()
 
+    @classmethod
+    @asynccontextmanager
+    async def create(
+        cls,
+        settings: EmailClientSettings | None = None,
+    ) -> AsyncIterator[Self]:
+        settings = settings or EmailClientSettings()
+        async with httpx.AsyncClient(
+            base_url="https://api.resend.com",
+            headers={
+                "Authorization": f"Bearer {settings.api_key.get_secret_value()}",
+            },
+            timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
+        ) as client:
+            yield cls(client, settings)
+
     async def send(self, to: str, subject: str, text: str) -> None:
         try:
             response = await self._client.post(
@@ -52,18 +69,3 @@ class EmailClient:
             raise EmailDeliveryError(
                 f"Resend returned {response.status_code}: {response.text}"
             )
-
-
-@asynccontextmanager
-async def create_email_client(
-    settings: EmailClientSettings | None = None,
-) -> AsyncIterator[EmailClient]:
-    settings = settings or EmailClientSettings()
-    async with httpx.AsyncClient(
-        base_url="https://api.resend.com",
-        headers={
-            "Authorization": f"Bearer {settings.api_key.get_secret_value()}",
-        },
-        timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
-    ) as client:
-        yield EmailClient(client, settings)
