@@ -1,4 +1,4 @@
-from digestify_api.couchdb.client import CouchDB, CouchDBSettings
+from digestify_api.couchdb.client import Client, Settings
 from digestify_api.couchdb.database import (
     Change,
     Database,
@@ -10,8 +10,8 @@ from digestify_api.couchdb.repository import Document, DocumentChange, Repositor
 
 __all__ = [
     "Change",
-    "CouchDB",
-    "CouchDBSettings",
+    "Client",
+    "Settings",
     "Database",
     "Document",
     "DocumentChange",

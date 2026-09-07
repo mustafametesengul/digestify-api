@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr
 
-from digestify_api.couchdb import CouchDB, CouchDBSettings, Database
+from digestify_api.couchdb import Client, Database, Settings
 
 
 @pytest.fixture(autouse=True)
@@ -15,7 +15,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 def test_settings_defaults() -> None:
-    settings = CouchDBSettings()
+    settings = Settings()
 
     assert settings.url == "http://localhost:5984"
     assert settings.user == "admin"
@@ -27,7 +27,7 @@ def test_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COUCHDB_USER", "service")
     monkeypatch.setenv("COUCHDB_PASSWORD", "hunter2")
 
-    settings = CouchDBSettings()
+    settings = Settings()
 
     assert settings.url == "http://db:5984"
     assert settings.user == "service"
@@ -35,16 +35,16 @@ def test_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_settings_do_not_leak_password_in_repr() -> None:
-    settings = CouchDBSettings(password=SecretStr("hunter2"))
+    settings = Settings(password=SecretStr("hunter2"))
 
     assert "hunter2" not in repr(settings)
     assert "hunter2" not in str(settings)
 
 
 async def test_connect_hands_out_databases() -> None:
-    settings = CouchDBSettings(url="http://db:5984")
+    settings = Settings(url="http://db:5984")
 
-    async with CouchDB.connect(settings) as couch:
+    async with Client.connect(settings) as couch:
         database = couch.get_database("things")
 
         assert isinstance(database, Database)
@@ -52,10 +52,10 @@ async def test_connect_hands_out_databases() -> None:
 
 
 async def test_connect_configures_client_from_settings() -> None:
-    settings = CouchDBSettings(url="http://db:5984")
+    settings = Settings(url="http://db:5984")
 
-    async with CouchDB.connect(settings) as couch:
-        client = couch._client
+    async with Client.connect(settings) as couch:
+        client = couch._http_client
 
         assert str(client.base_url) == "http://db:5984"
         assert client.timeout.read == 10.0

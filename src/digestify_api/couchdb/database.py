@@ -46,14 +46,14 @@ class Database:
 
     def __init__(
         self,
-        client: httpx.AsyncClient,
+        http_client: httpx.AsyncClient,
         name: str,
     ) -> None:
         if not re.fullmatch(
             r"[a-z][a-z0-9_$()+/\-]*|_users|_replicator|_global_changes", name
         ):
             raise ValueError("Invalid CouchDB database name.")
-        self._client = client
+        self._http_client = http_client
         self._name = name
         self._path = f"/{quote(name, safe='')}"
 
@@ -75,7 +75,7 @@ class Database:
 
     async def ensure_database(self) -> None:
         """Create the database if it does not already exist."""
-        response = await self._client.put(self._path)
+        response = await self._http_client.put(self._path)
         # 412 Precondition Failed means it already exists — the desired state.
         if response.status_code == httpx.codes.PRECONDITION_FAILED:
             return
@@ -88,14 +88,14 @@ class Database:
         fields: list[str],
     ) -> None:
         """Create a Mango index over `fields` if it does not already exist."""
-        response = await self._client.post(
+        response = await self._http_client.post(
             url=f"{self._path}/_index",
             json={"index": {"fields": fields}, "name": name, "type": "json"},
         )
         response.raise_for_status()
 
     async def get(self, id: str, *, conflicts: bool = False) -> dict[str, Any] | None:
-        response = await self._client.get(
+        response = await self._http_client.get(
             self._document_path(id),
             params={"conflicts": "true"} if conflicts else None,
         )
@@ -110,7 +110,7 @@ class Database:
         Updating an existing document requires its current revision in
         `doc["_rev"]`; a stale or missing revision raises `DocumentConflict`.
         """
-        response = await self._client.put(
+        response = await self._http_client.put(
             self._document_path(id),
             json=doc,
         )
@@ -126,7 +126,7 @@ class Database:
 
         A stale revision raises `DocumentConflict`.
         """
-        response = await self._client.delete(
+        response = await self._http_client.delete(
             self._document_path(id),
             params={"rev": rev},
         )
@@ -155,7 +155,7 @@ class Database:
         docs: list[dict[str, Any]] = []
         while True:
             body["limit"] = 100 if limit is None else min(100, limit - len(docs))
-            response = await self._client.post(f"{self._path}/_find", json=body)
+            response = await self._http_client.post(f"{self._path}/_find", json=body)
             response.raise_for_status()
             result = response.json()
             page = result["docs"]
@@ -197,9 +197,9 @@ class Database:
             params["filter"] = "_selector"
             body["selector"] = selector
 
-        timeout = httpx.Timeout(self._client.timeout)
+        timeout = httpx.Timeout(self._http_client.timeout)
         timeout.read = None
-        async with self._client.stream(
+        async with self._http_client.stream(
             "POST",
             f"{self._path}/_changes",
             params=params,

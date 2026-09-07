@@ -1,7 +1,6 @@
 from typing import Literal
 from uuid import UUID
 
-
 from digestify_api.couchdb import Document
 
 

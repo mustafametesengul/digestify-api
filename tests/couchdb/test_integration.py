@@ -13,14 +13,14 @@ import httpx
 import pytest
 
 from digestify_api.couchdb import (
-    CouchDBSettings,
     Database,
     Document,
     DocumentConflict,
     Repository,
+    Settings,
 )
 
-settings = CouchDBSettings()
+settings = Settings()
 
 
 def couchdb_is_running() -> bool:
