@@ -8,39 +8,49 @@ from typing import Any
 import httpx
 import pytest
 
-from digestify_api.couchdb import Database
+from digestify_api.couchdb import Client
 from digestify_api.tasks import Service
 
 
 class InMemoryCouch:
     def __init__(self) -> None:
-        self.docs: dict[str, dict[str, Any]] = {}
+        self.databases: dict[str, dict[str, dict[str, Any]]] = {"tasks": {}}
+        self.requests: list[tuple[str, str]] = []
         self.revision = 0
         self.next_write_status = 201
         self.read_barrier: asyncio.Barrier | None = None
         self.barrier_reads = 0
 
+    @property
+    def docs(self) -> dict[str, dict[str, Any]]:
+        return self.databases["tasks"]
+
     async def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
+        self.requests.append((request.method, path))
+        parts = path.strip("/").split("/", 1)
+        docs = self.databases.setdefault(parts[0], {})
+        if len(parts) == 1:
+            return httpx.Response(201, json={"ok": True})
+        identity = parts[1]
         if path.endswith("/_find"):
             body = json.loads(request.content)
-            docs = [
+            matches = [
                 doc
-                for doc in self.docs.values()
+                for doc in docs.values()
                 if self.matches(doc, body["selector"])
             ]
             offset = int(body.get("bookmark", "0"))
             end = offset + body["limit"]
             return httpx.Response(
-                200, json={"docs": docs[offset:end], "bookmark": str(end)}
+                200, json={"docs": matches[offset:end], "bookmark": str(end)}
             )
         if path.endswith("/_changes"):
             return httpx.Response(200, content='{"last_seq":"0"}\n')
-        if path.endswith("/_index") or path == "/tasks":
+        if path.endswith("/_index"):
             return httpx.Response(201, json={"ok": True})
-        identity = path.removeprefix("/tasks/")
         if request.method == "GET":
-            doc = self.docs.get(identity)
+            doc = docs.get(identity)
             response = (
                 httpx.Response(200, json=doc) if doc else httpx.Response(404)
             )
@@ -50,14 +60,14 @@ class InMemoryCouch:
             return response
         if request.method == "PUT":
             body = json.loads(request.content)
-            existing = self.docs.get(identity)
+            existing = docs.get(identity)
             if body.get("_rev") != (existing["_rev"] if existing else None):
                 return httpx.Response(409)
             status, self.next_write_status = self.next_write_status, 201
             if status in (201, 202):
                 self.revision += 1
                 revision = f"{self.revision}-test"
-                self.docs[identity] = {
+                docs[identity] = {
                     **body,
                     "_id": identity,
                     "_rev": revision,
@@ -109,4 +119,4 @@ async def service(
     async with httpx.AsyncClient(
         base_url="http://couch", transport=httpx.MockTransport(couch)
     ) as client:
-        yield Service(Database(client, "tasks"), clock=clock)
+        yield Service(Client(client), clock=clock)

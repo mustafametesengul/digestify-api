@@ -7,6 +7,7 @@ import pytest
 
 from digestify_api.app import Settings, create_app
 from digestify_api.couchdb import (
+    Client,
     Database,
     Repository,
     UnresolvedDocumentConflict,
@@ -17,11 +18,16 @@ from digestify_api.news.service import TASK_KIND, Service, TopicLimitReached
 from digestify_api.tasks import Partition, Worker
 from digestify_api.tasks import Service as TaskService
 from tests.couchdb.test_integration import client as client
-from tests.couchdb.test_integration import database as database
 from tests.couchdb.test_integration import pytestmark as pytestmark
+from tests.couchdb.test_integration import service_client as service_client
 from tests.identity.test_service import RecordingEmailClient
 from tests.news.conftest import RecordingSummarizer
 from tests.tasks.conftest import Clock
+
+
+@pytest.fixture
+def database(service_client: Client) -> Database:
+    return service_client.get_database("news")
 
 
 @pytest.fixture
@@ -35,17 +41,16 @@ def summarizer() -> RecordingSummarizer:
 
 
 @pytest.fixture
-async def tasks(database: Database, clock: Clock) -> TaskService:
-    tasks = TaskService(database, clock=clock)
+async def tasks(service_client: Client, clock: Clock) -> TaskService:
+    tasks = TaskService(service_client, clock=clock)
     await tasks.init()
     return tasks
 
 
 @pytest.fixture
-async def service(database, clock, summarizer, tasks) -> Service:
+async def service(service_client, clock, summarizer, tasks) -> Service:
     service = Service(
-        database,
-        Repository(User, database),
+        service_client,
         tasks,
         clock=clock,
         summarizer=summarizer,
@@ -55,9 +60,9 @@ async def service(database, clock, summarizer, tasks) -> Service:
 
 
 @pytest.fixture
-async def claims(database: Database) -> UserClaims:
+async def claims(service_client: Client) -> UserClaims:
     user = User.create(uuid4(), "live@example.com")
-    await Repository(User, database).save(user)
+    await Repository(User, service_client.get_database("identity")).save(user)
     return UserClaims(
         id=UUID(user.id),
         role=UserRole.PERMANENT,
@@ -101,7 +106,7 @@ async def test_live_concurrent_limit_and_reservations(
 
 
 async def test_live_partitioned_workers(
-    service, tasks, database, details, clock, summarizer
+    service, tasks, service_client, details, clock, summarizer
 ):
     owners = []
     for index in range(2):
@@ -109,7 +114,9 @@ async def test_live_partitioned_workers(
         user = User.create(uuid4(), f"worker{index}@example.com")
         while not partition.owns(user.id):
             user = User.create(uuid4(), f"worker{index}@example.com")
-        await Repository(User, database).save(user)
+        await Repository(User, service_client.get_database("identity")).save(
+            user
+        )
         owner = UserClaims(
             id=UUID(user.id),
             role=UserRole.PERMANENT,
@@ -187,15 +194,14 @@ async def test_live_app_startup_email_signin_and_shutdown(
     database, monkeypatch, details
 ):
     monkeypatch.setenv(
+        "COUCHDB_DATABASE_PREFIX", database.name.removesuffix("-news")
+    )
+    monkeypatch.setenv(
         "DIGESTIFY_API_SECRET_KEY", "live-test-secret-at-least-32-characters"
     )
     email = RecordingEmailClient()
     monkeypatch.setattr("digestify_api.app.ConsoleEmailClient", lambda: email)
-    app = create_app(
-        Settings(
-            database=database.name, email_backend="console", run_worker=True
-        )
-    )
+    app = create_app(Settings(email_backend="console", run_worker=True))
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(
             base_url="http://api", transport=httpx.ASGITransport(app=app)
@@ -218,3 +224,33 @@ async def test_live_app_startup_email_signin_and_shutdown(
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             assert response.status_code == 201
+
+
+async def test_live_documents_stay_in_their_boundary(
+    service, tasks, service_client, claims, details, clock
+):
+    topic = await service.create_topic(claims, details)
+    clock.now = topic.next_run_at
+    await execute(service, tasks, claims)
+    expected = {
+        "identity": {"user"},
+        "news": {"topic_account", "story_batch"},
+        "tasks": {"task"},
+    }
+    for name, types in expected.items():
+        documents = await service_client.get_database(name).find(
+            {"type": {"$exists": True}}
+        )
+        assert {document["type"] for document in documents} == types
+
+    users = Repository(User, service_client.get_database("identity"))
+    user = await users.get(str(claims.id))
+    assert user is not None
+    user.delete()
+    await users.save(user)
+    clock.now += timedelta(days=1)
+    await execute(service, tasks, claims)
+    batches = await service_client.get_database("news").find(
+        {"type": "story_batch"}
+    )
+    assert len(batches) == 1

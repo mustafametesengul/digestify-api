@@ -13,6 +13,7 @@ import httpx
 import pytest
 
 from digestify_api.couchdb import (
+    Client,
     ClientSettings,
     Database,
     Document,
@@ -65,6 +66,18 @@ async def database(client: httpx.AsyncClient) -> AsyncIterator[Database]:
     await database.ensure_database()
     yield database
     await client.delete(f"/{database.name}")
+
+
+@pytest.fixture
+async def service_client(client: httpx.AsyncClient) -> AsyncIterator[Client]:
+    couch = Client(client, database_prefix=f"test-{uuid4().hex}")
+    names = ("identity", "news", "tasks")
+    try:
+        await couch.ensure_databases(names)
+        yield couch
+    finally:
+        for name in names:
+            await client.delete(f"/{couch.get_database(name).name}")
 
 
 async def collect[T](feed: AsyncGenerator[T], count: int) -> list[T]:

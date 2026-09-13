@@ -2,11 +2,9 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-import jwt
-
-from digestify_api.couchdb import Database, DocumentConflict, Repository
+from digestify_api.couchdb import Client, DocumentConflict, Repository
+from digestify_api.identity.accounts import Accounts
 from digestify_api.identity.token import UserClaims, UserRole
-from digestify_api.identity.user import User
 from digestify_api.news.story import Story, StoryBatch
 from digestify_api.news.summarizer import Summarizer, summarize
 from digestify_api.news.topic import Topic, TopicAccount, TopicDetails
@@ -14,6 +12,7 @@ from digestify_api.tasks import IntervalSchedule, LostLease, Task
 from digestify_api.tasks import Service as TaskService
 from digestify_api.tasks.task import utc
 
+DATABASE_NAME = "news"
 TASK_KIND = "topics.summarize"
 
 
@@ -36,23 +35,21 @@ def _now() -> datetime:
 class Service:
     def __init__(
         self,
-        database: Database,
-        users: Repository[User],
+        client: Client,
         tasks: TaskService,
         *,
         summarizer: Summarizer = summarize,
         clock: Callable[[], datetime] = _now,
     ) -> None:
-        self._database = database
-        self._accounts = Repository(TopicAccount, database)
-        self._batches = Repository(StoryBatch, database)
-        self._users = users
+        self._database = client.get_database(DATABASE_NAME)
+        self._accounts = Repository(TopicAccount, self._database)
+        self._batches = Repository(StoryBatch, self._database)
+        self._identity = Accounts(client)
         self._tasks = tasks
         self._summarizer = summarizer
         self._clock = clock
 
     async def init(self) -> None:
-        await self._database.ensure_database()
         await self._database.ensure_index(
             name="stories_by_owner_topic_day",
             fields=["type", "user_id", "topic_id", "day"],
@@ -69,13 +66,7 @@ class Service:
     async def _authorize(self, claims: UserClaims) -> None:
         if claims.role not in (UserRole.PERMANENT, UserRole.ADMIN):
             raise RegisteredUserRequired()
-        user = await self._users.get(str(claims.id))
-        if (
-            user is None
-            or user.is_deleted
-            or user.token_generation != claims.token_generation
-        ):
-            raise jwt.InvalidTokenError()
+        await self._identity.validate_user(claims)
 
     async def _account(self, user_id: UUID) -> TopicAccount:
         account = await self._accounts.get(self.account_id(user_id))
@@ -274,8 +265,7 @@ class Service:
         account = await self._account(user_id)
         for candidate in account.due(utc(self._clock())):
             await self._require_claim(task)
-            user = await self._users.get(str(user_id))
-            if user is None or user.is_deleted:
+            if not await self._identity.is_active(user_id):
                 return
             now = utc(self._clock())
             day = now.date()
@@ -284,11 +274,8 @@ class Service:
                 continue
             await self._require_claim(task)
             current = await self._account(user_id)
-            user = await self._users.get(str(user_id))
-            if (
-                user is None
-                or user.is_deleted
-                or not any(item.id == topic.id for item in current.topics())
+            if not await self._identity.is_active(user_id) or not any(
+                item.id == topic.id for item in current.topics()
             ):
                 continue
             batch_id = f"stories:{topic.id}:{day}"

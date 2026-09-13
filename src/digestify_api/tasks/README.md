@@ -7,18 +7,21 @@ is not used or migrated.
 
 ## Enqueue and Track
 
-Construct `Service(database)` with the existing CouchDB `Database` and call
-`await service.init()` before starting producers and workers. This creates the
-database and indexes and is safe to repeat. Keep the database's HTTP client open
-for the lifetime of the workers, with finite request timeouts. The changes feed
-disables its own read timeout.
+Construct `Service(client)` with a CouchDB `Client`. The service selects the
+logical `tasks` database (`digestify-tasks` by default) but never creates it.
+Provision it through `await client.ensure_databases(("tasks",))` at startup,
+then call `await service.init()` to create indexes before producers and workers
+start. Both initialization steps are safe to repeat. Keep the client's
+connection open for the workers' lifetime, with finite request timeouts. The
+changes feed disables its own read timeout.
 
 ```python
 from datetime import UTC, datetime, time, timedelta
 
 from digestify_api.tasks import DailySchedule, IntervalSchedule, Service
 
-service = Service(database)
+await client.ensure_databases(("tasks",))
+service = Service(client)
 await service.init()
 
 immediate = await service.create(

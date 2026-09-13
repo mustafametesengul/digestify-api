@@ -75,9 +75,16 @@ counts during deployment; see the tasks documentation for membership rules.
 Outside local development, configure a strong shared `DIGESTIFY_API_SECRET_KEY`,
 `DIGESTIFY_API_EMAIL_BACKEND=resend`, `RESEND_API_KEY`, and `RESEND_FROM_ADDRESS`.
 Connection settings are `COUCHDB_URL`, `COUCHDB_USER`, `COUCHDB_PASSWORD`, and
-`DIGESTIFY_API_DATABASE` (default `digestify`, shared by API and workers).
+`COUCHDB_DATABASE_PREFIX` (default `digestify`, identical for API and workers).
+The separate databases are `digestify-identity`, `digestify-news`, and
+`digestify-tasks`. Application startup provisions them through the CouchDB
+client before initializing service indexes; services never create databases.
 Restrict database access to backend service accounts. Workers do not need JWT
 or email secrets. The existing Compose MCP services are unrelated to this mock.
+
+This is a new project: obsolete development data can be discarded. Database
+migrations and backward compatibility with earlier storage layouts are not
+required.
 
 Live tests use isolated temporary databases and run automatically when CouchDB
 is reachable:

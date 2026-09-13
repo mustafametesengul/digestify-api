@@ -4,17 +4,22 @@ from datetime import timedelta
 import httpx
 import pytest
 
-from digestify_api.couchdb import Database, UnresolvedDocumentConflict
+from digestify_api.couchdb import Client, Database, UnresolvedDocumentConflict
 from digestify_api.tasks import Partition, Service, Task, Worker
 from tests.couchdb.test_integration import client as client
-from tests.couchdb.test_integration import database as database
 from tests.couchdb.test_integration import pytestmark as pytestmark
+from tests.couchdb.test_integration import service_client as service_client
 from tests.tasks.conftest import Clock
 
 
 @pytest.fixture
-async def service(database: Database, clock: Clock) -> Service:
-    service = Service(database, clock=clock)
+def database(service_client: Client) -> Database:
+    return service_client.get_database("tasks")
+
+
+@pytest.fixture
+async def service(service_client: Client, clock: Clock) -> Service:
+    service = Service(service_client, clock=clock)
     await service.init()
     return service
 

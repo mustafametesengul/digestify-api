@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 
-from digestify_api.couchdb import Database, Repository
+from digestify_api.couchdb import Client, Repository
 from digestify_api.identity.token import UserClaims, UserRole
 from digestify_api.identity.user import User
 from digestify_api.news.service import Service
@@ -33,6 +33,7 @@ class RecordingSummarizer:
 
 @dataclass
 class Context:
+    client: Client
     service: Service
     tasks: TaskService
     users: Repository[User]
@@ -72,8 +73,9 @@ async def context() -> AsyncIterator[Context]:
     async with httpx.AsyncClient(
         base_url="http://couch", transport=httpx.MockTransport(couch)
     ) as client:
-        database = Database(client, "tasks")
-        users = Repository(User, database)
+        couch_client = Client(client)
+        await couch_client.ensure_databases(("identity", "news", "tasks"))
+        users = Repository(User, couch_client.get_database("identity"))
         user = User.create(uuid4(), "alice@example.com")
         await users.save(user)
         claims = UserClaims(
@@ -81,11 +83,20 @@ async def context() -> AsyncIterator[Context]:
             role=UserRole.PERMANENT,
             token_generation=user.token_generation,
         )
-        tasks = TaskService(database, clock=clock)
+        tasks = TaskService(couch_client, clock=clock)
         summarizer = RecordingSummarizer()
         service = Service(
-            database, users, tasks, summarizer=summarizer, clock=clock
+            couch_client, tasks, summarizer=summarizer, clock=clock
         )
         await tasks.init()
         await service.init()
-        yield Context(service, tasks, users, claims, clock, couch, summarizer)
+        yield Context(
+            couch_client,
+            service,
+            tasks,
+            users,
+            claims,
+            clock,
+            couch,
+            summarizer,
+        )

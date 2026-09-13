@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from pydantic import JsonValue
 
-from digestify_api.couchdb import Database, DocumentConflict, Repository
+from digestify_api.couchdb import Client, DocumentConflict, Repository
 from digestify_api.tasks.task import (
     DailySchedule,
     LostLease,
@@ -16,6 +16,8 @@ from digestify_api.tasks.task import (
     utc,
 )
 
+DATABASE_NAME = "tasks"
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -23,14 +25,13 @@ def _now() -> datetime:
 
 class Service:
     def __init__(
-        self, database: Database, *, clock: Callable[[], datetime] = _now
+        self, client: Client, *, clock: Callable[[], datetime] = _now
     ) -> None:
-        self._database = database
-        self._tasks = Repository(Task, database)
+        self._database = client.get_database(DATABASE_NAME)
+        self._tasks = Repository(Task, self._database)
         self._clock = clock
 
     async def init(self) -> None:
-        await self._database.ensure_database()
         for deadline in ("available_at", "lease_until"):
             await self._database.ensure_index(
                 name=f"task_{deadline}",

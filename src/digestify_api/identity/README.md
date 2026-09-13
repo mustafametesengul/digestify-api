@@ -2,25 +2,27 @@
 
 ## Construction
 
-`Service` requires repositories for `User` and `SignInCode`, plus the email
-client, token generator, and token verifier. The repositories can share a
-CouchDB database. Create the database before serving requests. There is no
-session repository, refresh-token table, or rotation worker.
+`Service` takes a CouchDB `Client`, email client, token generator, and token
+verifier. It selects the identity database and constructs its own repositories;
+it never creates the database. Startup provisions databases through the client.
+The caller owns the client connection and email-client lifetime.
 
 ```python
-from digestify_api.couchdb import Repository
 from digestify_api.identity.service import Service
-from digestify_api.identity.sign_in_code import SignInCode
-from digestify_api.identity.user import User
 
 identity = Service(
-    users=Repository(User, database),
-    sign_in_codes=Repository(SignInCode, database),
-    email_sender=email_client,
+    client=client,
+    email_client=email_client,
     token_generator=token_generator,
     token_verifier=token_verifier,
 )
 ```
+
+Identity owns the logical `identity` database (`digestify-identity` with the
+default connection settings). The read-only `Accounts(client)` API supplies
+account validation and active-account checks to other modules without giving
+them access to user repositories or requiring JWT/email secrets. The full
+identity service reuses these checks.
 
 Configure `app.state.identity_service` and `app.state.identity_token_verifier`
 before including the router. Generator and verifier must use matching signing

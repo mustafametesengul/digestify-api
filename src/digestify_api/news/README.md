@@ -5,6 +5,31 @@ to five active topics; admins do not get extra quota or cross-account access.
 Registered account state and token generation are checked on API calls. Workers
 check that the account still exists and is not deleted before calling AI.
 
+## Construction
+
+The news service takes a CouchDB `Client` and task service, with optional
+summarizer and clock overrides for testing. It selects the logical `news`
+database (`digestify-news` by default), constructs only its own repositories,
+and never creates databases. Startup provisions databases through the client:
+
+```python
+from digestify_api.news.service import Service as NewsService
+from digestify_api.tasks import Service as TaskService
+
+await client.ensure_databases(("identity", "news", "tasks"))
+tasks = TaskService(client)
+news = NewsService(client, tasks)
+await tasks.init()
+await news.init()
+```
+
+User records belong exclusively to identity's database. News calls identity's
+read-only `Accounts` API to check permissions, token generations, and account
+deletion; it does not read user documents directly. Task records similarly
+belong to the tasks database and are accessed through the task service.
+The caller owns the shared client connection. Workers need no email or JWT
+secrets. There are no transactions across these separate databases.
+
 ## API
 
 The `digestify_api.news` module exposes named use cases, like identity's
@@ -95,10 +120,10 @@ write is not recovered by calling the AI again.
 
 ## Distributed Operation
 
-The Python/API rename does not change stored data. Existing task kinds
-(`topics.summarize`), task IDs (`task:topics:{user_id}`), topic accounts, and
-story batches retain their identifiers so existing schedules and quotas
-continue working without a migration.
+Summarization uses task kind `topics.summarize` and deterministic task IDs
+`task:topics:{user_id}`. Tasks belong to the tasks database; topic accounts and
+story batches belong to the news database. No migration or compatibility layer
+for earlier storage layouts is maintained.
 
 The recurring task has a deterministic per-user ID and is confirmed **before**
 the first topic is written. If creation stops between these writes, only an

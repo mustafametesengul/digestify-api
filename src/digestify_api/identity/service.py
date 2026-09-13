@@ -1,9 +1,8 @@
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-import jwt
-
-from digestify_api.couchdb import DocumentConflict, Repository
+from digestify_api.couchdb import Client, DocumentConflict, Repository
+from digestify_api.identity.accounts import DATABASE_NAME, Accounts
 from digestify_api.identity.email import EmailClient
 from digestify_api.identity.sign_in_code import (
     CodeRequestedTooSoon,
@@ -11,7 +10,6 @@ from digestify_api.identity.sign_in_code import (
     SignInCode,
 )
 from digestify_api.identity.token import (
-    TokenClaims,
     TokenGenerator,
     TokenPair,
     TokenPurpose,
@@ -22,17 +20,18 @@ from digestify_api.identity.token import (
 from digestify_api.identity.user import User
 
 
-class Service:
+class Service(Accounts):
     def __init__(
         self,
-        users: Repository[User],
-        sign_in_codes: Repository[SignInCode],
+        client: Client,
         email_client: EmailClient,
         token_generator: TokenGenerator,
         token_verifier: TokenVerifier,
     ) -> None:
-        self._users = users
-        self._sign_in_codes = sign_in_codes
+        super().__init__(client)
+        self._sign_in_codes = Repository(
+            SignInCode, client.get_database(DATABASE_NAME)
+        )
         self._email_client = email_client
         self._token_generator = token_generator
         self._token_verifier = token_verifier
@@ -46,24 +45,6 @@ class Service:
 
         await self.validate_user(user_claims)
         return self._token_generator.generate(user_claims)
-
-    async def validate_user(self, user_claims: UserClaims) -> None:
-        if user_claims.role is not UserRole.ANONYMOUS:
-            await self._get_authorized_user(user_claims)
-
-    async def _get_authorized_user(self, claims: UserClaims) -> User:
-        user = await self._get_user(claims.id)
-        if (
-            user is None
-            or claims.role is UserRole.ANONYMOUS
-            or claims.token_generation != user.token_generation
-        ):
-            raise jwt.InvalidTokenError()
-        return user
-
-    async def authorize(self, claims: TokenClaims) -> None:
-        """Check account state; revocation propagates with replication."""
-        await self.validate_user(claims)
 
     async def get_email(self, user_claims: UserClaims) -> str:
         user = await self._get_authorized_user(user_claims)
@@ -156,9 +137,3 @@ class Service:
             token_generation=user.token_generation,
         )
         return self._token_generator.generate(user_claims)
-
-    async def _get_user(self, user_id: UUID) -> User | None:
-        user = await self._users.get(str(user_id))
-        if user is None or user.is_deleted:
-            return None
-        return user

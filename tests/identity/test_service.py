@@ -12,7 +12,7 @@ import pytest
 from pydantic import SecretStr
 
 from digestify_api.couchdb import (
-    Database,
+    Client,
     Repository,
     UnresolvedDocumentConflict,
 )
@@ -119,25 +119,22 @@ async def identity() -> AsyncIterator[IdentityHarness]:
         base_url="http://couch",
         transport=httpx.MockTransport(couch),
     ) as client:
-        database = Database(client, "identity")
-        users = Repository(User, database)
-        sign_in_codes = Repository(SignInCode, database)
         email = RecordingEmailClient()
         verifier = TokenVerifier(
             TokenVerifierSettings(secret_key=SecretStr(SECRET)),
         )
-        yield IdentityHarness(
-            service=Service(
-                users=users,
-                sign_in_codes=sign_in_codes,
-                email_client=email,
-                token_generator=TokenGenerator(
-                    TokenGeneratorSettings(secret_key=SecretStr(SECRET)),
-                ),
-                token_verifier=verifier,
+        service = Service(
+            client=Client(client),
+            email_client=email,
+            token_generator=TokenGenerator(
+                TokenGeneratorSettings(secret_key=SecretStr(SECRET)),
             ),
-            users=users,
-            sign_in_codes=sign_in_codes,
+            token_verifier=verifier,
+        )
+        yield IdentityHarness(
+            service=service,
+            users=service._users,
+            sign_in_codes=service._sign_in_codes,
             email=email,
             verifier=verifier,
             couch=couch,

@@ -12,18 +12,19 @@ from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from digestify_api.couchdb import Client, Repository
+from digestify_api.couchdb import Client
+from digestify_api.identity.accounts import DATABASE_NAME as IDENTITY_DATABASE
 from digestify_api.identity.email import EmailClient
 from digestify_api.identity.router import router as identity_router
 from digestify_api.identity.service import Service as IdentityService
-from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token import TokenGenerator, TokenVerifier
-from digestify_api.identity.user import User
 from digestify_api.news.router import router as news_router
+from digestify_api.news.service import DATABASE_NAME as NEWS_DATABASE
 from digestify_api.news.service import TASK_KIND
 from digestify_api.news.service import Service as NewsService
 from digestify_api.tasks import Partition, Worker
 from digestify_api.tasks import Service as TaskService
+from digestify_api.tasks.service import DATABASE_NAME as TASKS_DATABASE
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,6 @@ class Settings(BaseSettings):
         env_file=".env", extra="ignore", env_prefix="DIGESTIFY_API_"
     )
 
-    database: str = "digestify"
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     email_backend: Literal["resend", "console"] = "resend"
@@ -55,21 +55,21 @@ class ConsoleEmailClient(EmailClient):
 
 @dataclass
 class Services:
-    users: Repository[User]
-    sign_in_codes: Repository[SignInCode]
+    client: Client
     tasks: TaskService
     news: NewsService
 
 
 @asynccontextmanager
-async def connect_services(settings: Settings) -> AsyncIterator[Services]:
+async def connect_services() -> AsyncIterator[Services]:
     async with Client.connect() as client:
-        database = client.get_database(settings.database)
-        users = Repository(User, database)
-        tasks = TaskService(database)
-        news = NewsService(database, users, tasks)
+        tasks = TaskService(client)
+        news = NewsService(client, tasks)
         for attempt in range(5):
             try:
+                await client.ensure_databases(
+                    (IDENTITY_DATABASE, NEWS_DATABASE, TASKS_DATABASE)
+                )
                 await tasks.init()
                 await news.init()
                 break
@@ -82,7 +82,7 @@ async def connect_services(settings: Settings) -> AsyncIterator[Services]:
                     raise
                 logger.warning("Database initialization failed; retrying")
                 await asyncio.sleep(2**attempt)
-        yield Services(users, Repository(SignInCode, database), tasks, news)
+        yield Services(client, tasks, news)
 
 
 def create_worker(services: Services, settings: Settings) -> Worker:
@@ -100,9 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         options = settings or Settings()
         generator, verifier = TokenGenerator(), TokenVerifier()
         async with AsyncExitStack() as stack:
-            services = await stack.enter_async_context(
-                connect_services(options)
-            )
+            services = await stack.enter_async_context(connect_services())
             email = (
                 ConsoleEmailClient()
                 if options.email_backend == "console"
@@ -110,8 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             app.state.identity_token_verifier = verifier
             app.state.identity_service = IdentityService(
-                services.users,
-                services.sign_in_codes,
+                services.client,
                 email,
                 generator,
                 verifier,
@@ -136,7 +133,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 async def run_worker(settings: Settings) -> None:
-    async with connect_services(settings) as services:
+    async with connect_services() as services:
         await create_worker(services, settings).run()
 
 

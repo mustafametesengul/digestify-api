@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import httpx
 import pytest
 from pydantic import SecretStr
 
@@ -10,7 +11,12 @@ from digestify_api.couchdb import Client, ClientSettings, Database
 def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Shield the tests from the repo's `.env` file and ambient variables."""
     monkeypatch.chdir(tmp_path)
-    for variable in ("COUCHDB_URL", "COUCHDB_USER", "COUCHDB_PASSWORD"):
+    for variable in (
+        "COUCHDB_URL",
+        "COUCHDB_USER",
+        "COUCHDB_PASSWORD",
+        "COUCHDB_DATABASE_PREFIX",
+    ):
         monkeypatch.delenv(variable, raising=False)
 
 
@@ -20,18 +26,21 @@ def test_settings_defaults() -> None:
     assert settings.url == "http://localhost:5984"
     assert settings.user == "admin"
     assert settings.password.get_secret_value() == "password"
+    assert settings.database_prefix == "digestify"
 
 
 def test_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COUCHDB_URL", "http://db:5984")
     monkeypatch.setenv("COUCHDB_USER", "service")
     monkeypatch.setenv("COUCHDB_PASSWORD", "hunter2")
+    monkeypatch.setenv("COUCHDB_DATABASE_PREFIX", "staging")
 
     settings = ClientSettings()
 
     assert settings.url == "http://db:5984"
     assert settings.user == "service"
     assert settings.password.get_secret_value() == "hunter2"
+    assert settings.database_prefix == "staging"
 
 
 def test_settings_do_not_leak_password_in_repr() -> None:
@@ -48,7 +57,28 @@ async def test_connect_hands_out_databases() -> None:
         database = couch.get_database("things")
 
         assert isinstance(database, Database)
-        assert database.name == "things"
+        assert database.name == "digestify-things"
+
+
+async def test_handles_do_not_create_databases_and_provisioning_is_explicit():
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(201, json={"ok": True})
+
+    async with httpx.AsyncClient(
+        base_url="http://couch", transport=httpx.MockTransport(respond)
+    ) as http_client:
+        client = Client(http_client, database_prefix="test")
+        assert client.get_database("identity").name == "test-identity"
+        assert requests == []
+        await client.ensure_databases(("identity", "news", "tasks"))
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("PUT", "/test-identity"),
+        ("PUT", "/test-news"),
+        ("PUT", "/test-tasks"),
+    ]
 
 
 async def test_connect_configures_client_from_settings() -> None:

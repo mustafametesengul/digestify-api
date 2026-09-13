@@ -7,10 +7,8 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
-from digestify_api.app import Settings, connect_services, create_app
-from digestify_api.couchdb import Client, Repository
+from digestify_api.app import connect_services, create_app
 from digestify_api.identity.service import Service as IdentityService
-from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token import (
     TokenGenerator,
     TokenGeneratorSettings,
@@ -20,6 +18,8 @@ from digestify_api.identity.token import (
     UserRole,
 )
 from digestify_api.identity.user import User
+from digestify_api.news.service import Service as NewsService
+from digestify_api.tasks import Service as TaskService
 from tests.identity.test_service import RecordingEmailClient
 from tests.news.conftest import Context
 
@@ -39,8 +39,7 @@ async def api(context: Context) -> AsyncIterator[httpx.AsyncClient]:
     verifier = TokenVerifier(TokenVerifierSettings(secret_key=SECRET))
     app.state.identity_token_verifier = verifier
     app.state.identity_service = IdentityService(
-        context.users,
-        Repository(SignInCode, context.service._database),
+        context.client,
         RecordingEmailClient(),
         TokenGenerator(TokenGeneratorSettings(secret_key=SECRET)),
         verifier,
@@ -88,13 +87,33 @@ async def test_swagger_contains_both_routers(api):
     assert (await api.get("/docs")).status_code == 200
 
 
+async def test_service_construction_and_init_do_not_create_databases(context):
+    context.couch.requests.clear()
+    tasks = TaskService(context.client)
+    news = NewsService(context.client, tasks)
+    IdentityService(
+        context.client,
+        RecordingEmailClient(),
+        TokenGenerator(TokenGeneratorSettings(secret_key=SECRET)),
+        TokenVerifier(TokenVerifierSettings(secret_key=SECRET)),
+    )
+    assert context.couch.requests == []
+    await tasks.init()
+    await news.init()
+    assert context.couch.requests == [
+        ("POST", "/tasks/_index"),
+        ("POST", "/tasks/_index"),
+        ("POST", "/news/_index"),
+    ]
+
+
 @pytest.mark.parametrize("status", [401, 409, 500, 503])
 async def test_startup_retries_only_transient_errors(
     context, monkeypatch, status
 ):
     @asynccontextmanager
     async def connect():
-        yield Client(context.service._database._http_client)
+        yield context.client
 
     monkeypatch.setattr("digestify_api.app.Client.connect", connect)
     response = httpx.Response(
@@ -109,12 +128,12 @@ async def test_startup_retries_only_transient_errors(
     monkeypatch.setattr("digestify_api.app.asyncio.sleep", sleep)
     if status == 401:
         with pytest.raises(httpx.HTTPStatusError):
-            async with connect_services(Settings(database="tasks")):
+            async with connect_services():
                 pytest.fail("Unauthorized initialization must not succeed")
         sleep.assert_not_awaited()
         assert initialize.await_count == 1
     else:
-        async with connect_services(Settings(database="tasks")):
+        async with connect_services():
             assert initialize.await_count == 2
         sleep.assert_awaited_once_with(1)
 
@@ -230,7 +249,7 @@ async def test_limit_validation_and_conflict_errors(api, context, details):
         await api.post("/news/create-topic", json=payload, headers=auth)
     ).status_code == 409
     identity = context.service.account_id(context.claims.id)
-    context.couch.docs[identity]["_conflicts"] = ["2-divergent"]
+    context.couch.databases["news"][identity]["_conflicts"] = ["2-divergent"]
     response = await api.post("/news/list-topics", headers=auth)
     assert response.status_code == 503
     assert response.headers["Retry-After"] == "5"

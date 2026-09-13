@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI
 from pydantic import SecretStr
 
 from digestify_api.couchdb import (
-    Database,
+    Client,
     Repository,
     UnresolvedDocumentConflict,
     WriteNotConfirmed,
@@ -24,7 +24,6 @@ from digestify_api.identity.token import (
     TokenVerifierSettings,
     UserClaims,
 )
-from digestify_api.identity.user import User
 from tests.identity.test_service import (
     EMAIL,
     SECRET,
@@ -71,9 +70,6 @@ async def api() -> AsyncIterator[Api]:
         base_url="http://couch",
         transport=httpx.MockTransport(InMemoryCouch()),
     ) as couch_client:
-        database = Database(couch_client, "identity")
-        users = Repository(User, database)
-        sign_in_codes = Repository(SignInCode, database)
         email = RecordingEmailClient()
 
         app = FastAPI()
@@ -85,9 +81,8 @@ async def api() -> AsyncIterator[Api]:
         ) -> dict[str, str]:
             return {"id": str(claims.id)}
 
-        app.state.identity_service = Service(
-            users=users,
-            sign_in_codes=sign_in_codes,
+        service = Service(
+            client=Client(couch_client),
             email_client=email,
             token_generator=TokenGenerator(
                 TokenGeneratorSettings(secret_key=SecretStr(SECRET)),
@@ -96,6 +91,7 @@ async def api() -> AsyncIterator[Api]:
                 TokenVerifierSettings(secret_key=SecretStr(SECRET)),
             ),
         )
+        app.state.identity_service = service
         app.state.identity_token_verifier = TokenVerifier(
             TokenVerifierSettings(secret_key=SecretStr(SECRET)),
         )
@@ -104,7 +100,11 @@ async def api() -> AsyncIterator[Api]:
             base_url="http://api",
             transport=httpx.ASGITransport(app=app),
         ) as client:
-            yield Api(client=client, email=email, sign_in_codes=sign_in_codes)
+            yield Api(
+                client=client,
+                email=email,
+                sign_in_codes=service._sign_in_codes,
+            )
 
 
 async def test_sign_in_anonymously_returns_token_pair(api: Api) -> None:

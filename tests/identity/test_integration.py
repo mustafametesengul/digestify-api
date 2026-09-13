@@ -6,6 +6,7 @@ import pytest
 from pydantic import SecretStr
 
 from digestify_api.couchdb import (
+    Client,
     Database,
     Document,
     Repository,
@@ -20,10 +21,9 @@ from digestify_api.identity.token import (
     TokenVerifier,
     TokenVerifierSettings,
 )
-from digestify_api.identity.user import User
 from tests.couchdb.test_integration import client as client
-from tests.couchdb.test_integration import database as database
 from tests.couchdb.test_integration import pytestmark as pytestmark
+from tests.couchdb.test_integration import service_client as service_client
 from tests.identity.test_service import (
     EMAIL,
     SECRET,
@@ -33,25 +33,28 @@ from tests.identity.test_service import (
 
 
 @pytest.fixture
-def identity(database: Database) -> IdentityHarness:
-    users = Repository(User, database)
-    codes = Repository(SignInCode, database)
+def database(service_client: Client) -> Database:
+    return service_client.get_database("identity")
+
+
+@pytest.fixture
+def identity(service_client: Client) -> IdentityHarness:
     email = RecordingEmailClient()
     verifier = TokenVerifier(
         TokenVerifierSettings(secret_key=SecretStr(SECRET))
     )
-    return IdentityHarness(
-        service=Service(
-            users=users,
-            sign_in_codes=codes,
-            email_client=email,
-            token_generator=TokenGenerator(
-                TokenGeneratorSettings(secret_key=SecretStr(SECRET))
-            ),
-            token_verifier=verifier,
+    service = Service(
+        client=service_client,
+        email_client=email,
+        token_generator=TokenGenerator(
+            TokenGeneratorSettings(secret_key=SecretStr(SECRET))
         ),
-        users=users,
-        sign_in_codes=codes,
+        token_verifier=verifier,
+    )
+    return IdentityHarness(
+        service=service,
+        users=service._users,
+        sign_in_codes=service._sign_in_codes,
         email=email,
         verifier=verifier,
     )

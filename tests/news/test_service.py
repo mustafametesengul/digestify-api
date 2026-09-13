@@ -6,10 +6,12 @@ import jwt
 import pytest
 
 from digestify_api.couchdb import (
+    Repository,
     UnresolvedDocumentConflict,
     WriteNotConfirmed,
 )
 from digestify_api.identity.token import UserRole
+from digestify_api.identity.user import User
 from digestify_api.news.service import (
     RegisteredUserRequired,
     TopicLimitReached,
@@ -158,7 +160,7 @@ async def test_visible_conflicts_block_ai(context, details):
     topic = await context.service.create_topic(context.claims, details)
     context.clock.now = topic.next_run_at
     identity = context.service.account_id(context.claims.id)
-    context.couch.docs[identity]["_conflicts"] = ["2-divergent"]
+    context.couch.databases["news"][identity]["_conflicts"] = ["2-divergent"]
     with pytest.raises(UnresolvedDocumentConflict):
         await context.run()
     assert context.summarizer.calls == []
@@ -178,4 +180,27 @@ async def test_unconfirmed_reservation_never_calls_ai(context, details):
     assert context.summarizer.calls == []
     assert await context.service.get_usage(context.claims) == 1
     await context.service.run(task)
+    assert context.summarizer.calls == []
+
+
+async def test_news_documents_cannot_override_identity_state(context, details):
+    user = await context.users.get(str(context.claims.id))
+    assert user is not None
+    shadow = user.model_copy(update={"rev": None})
+    await Repository(User, context.client.get_database("news")).save(shadow)
+    user.delete()
+    await context.users.save(user)
+    with pytest.raises(jwt.InvalidTokenError):
+        await context.service.create_topic(context.claims, details)
+    assert context.summarizer.calls == []
+
+
+async def test_identity_conflict_blocks_summarization(context, details):
+    topic = await context.service.create_topic(context.claims, details)
+    context.clock.now = topic.next_run_at
+    context.couch.databases["identity"][str(context.claims.id)][
+        "_conflicts"
+    ] = ["2-divergent"]
+    with pytest.raises(UnresolvedDocumentConflict):
+        await context.run()
     assert context.summarizer.calls == []
