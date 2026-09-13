@@ -5,7 +5,7 @@ services:
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD=password
     ports:
-      - "5984:5984" # Fauxton Web UI: http://localhost:5984/_utils/
+      - "127.0.0.1:5984:5984" # Fauxton: http://localhost:5984/_utils/
     volumes:
       - couchdb_data:/opt/couchdb/data
     healthcheck:
@@ -21,17 +21,17 @@ services:
       - COUCHDB_URL=http://db:5984
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD=password
-      - OPENAI_API_KEY
       - DIGESTIFY_API_HOST=0.0.0.0
-      - DIGESTIFY_API_JWKS_URL
-      - DIGESTIFY_API_DEBUG
-      - WEBQUEST_MCP_ACCESS_TOKEN
-      - WEBQUEST_MCP_URL
+      - DIGESTIFY_API_DATABASE=${DIGESTIFY_API_DATABASE:-digestify}
+      - DIGESTIFY_API_SECRET_KEY=${DIGESTIFY_API_SECRET_KEY:-local-development-only-change-this-secret}
+      - DIGESTIFY_API_EMAIL_BACKEND=${DIGESTIFY_API_EMAIL_BACKEND:-console}
+      - RESEND_API_KEY
+      - RESEND_FROM_ADDRESS
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     command: serve
     profiles:
       - api
@@ -43,6 +43,24 @@ services:
           initial_sync: true
         - action: rebuild
           path: ./uv.lock
+
+  worker:
+    build:
+      context: .
+    environment:
+      - COUCHDB_URL=http://db:5984
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+      - DIGESTIFY_API_DATABASE=${DIGESTIFY_API_DATABASE:-digestify}
+      - DIGESTIFY_API_WORKER_INDEX=${DIGESTIFY_API_WORKER_INDEX:-0}
+      - DIGESTIFY_API_WORKER_COUNT=${DIGESTIFY_API_WORKER_COUNT:-1}
+      - DIGESTIFY_API_WORKER_CONCURRENCY=${DIGESTIFY_API_WORKER_CONCURRENCY:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: worker
+    profiles:
+      - api
 
   mcp:
     image: mustafametesengul/webquest-mcp:latest
