@@ -12,15 +12,15 @@ from digestify_api.tasks import (
     DailySchedule,
     LostLease,
     Partition,
-    TaskService,
+    Service,
 )
-from tests.task.conftest import Clock, InMemoryCouch
+from tests.tasks.conftest import Clock, InMemoryCouch
 
 LEASE = timedelta(minutes=1)
 
 
 async def test_create_get_find_and_cancel(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     await service.init()
     task = await service.create(
@@ -40,7 +40,7 @@ async def test_create_get_find_and_cancel(
 
 
 async def test_explicit_id_prevents_duplicate_creation(
-    service: TaskService,
+    service: Service,
 ) -> None:
     await service.create("email", task_id="delivery:1")
     with pytest.raises(DocumentConflict):
@@ -48,7 +48,7 @@ async def test_explicit_id_prevents_duplicate_creation(
 
 
 async def test_daily_first_run_is_next_local_occurrence(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     task = await service.create(
         "email", schedule=DailySchedule(time=time(12), timezone="UTC")
@@ -57,7 +57,7 @@ async def test_daily_first_run_is_next_local_occurrence(
 
 
 async def test_competing_claims_run_only_one_worker(
-    service: TaskService, couch: InMemoryCouch
+    service: Service, couch: InMemoryCouch
 ) -> None:
     task = await service.create("email")
     couch.read_barrier = asyncio.Barrier(2)
@@ -72,7 +72,7 @@ async def test_competing_claims_run_only_one_worker(
 
 
 async def test_stale_completion_cannot_overwrite_reclaim(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     task = await service.create("email")
     first = await service.claim(task.id, "first", LEASE)
@@ -86,7 +86,7 @@ async def test_stale_completion_cannot_overwrite_reclaim(
 
 
 async def test_renew_and_complete_persist_result(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     task = await service.create("email")
     claimed = await service.claim(task.id, "worker", LEASE)
@@ -103,7 +103,7 @@ async def test_renew_and_complete_persist_result(
 
 
 async def test_visible_conflicts_block_claims(
-    service: TaskService, couch: InMemoryCouch
+    service: Service, couch: InMemoryCouch
 ) -> None:
     task = await service.create("email")
     couch.docs[task.id]["_conflicts"] = ["2-diverged"]
@@ -113,7 +113,7 @@ async def test_visible_conflicts_block_claims(
 
 
 async def test_unconfirmed_claim_may_commit_but_is_not_returned(
-    service: TaskService, couch: InMemoryCouch
+    service: Service, couch: InMemoryCouch
 ) -> None:
     task = await service.create("email")
     couch.next_write_status = 202
@@ -124,7 +124,7 @@ async def test_unconfirmed_claim_may_commit_but_is_not_returned(
 
 
 async def test_candidates_select_only_due_owned_registered_tasks(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     keys = [str(number) for number in range(30)]
     partition = Partition(0, 2)
@@ -145,7 +145,7 @@ async def test_candidates_select_only_due_owned_registered_tasks(
 
 
 async def test_deadline_strings_sort_with_subsecond_precision(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     due = await service.create("email")
     await service.create(
@@ -156,7 +156,7 @@ async def test_deadline_strings_sort_with_subsecond_precision(
 
 
 async def test_expired_final_attempt_persists_failure(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     task = await service.create("email", max_attempts=1)
     await service.claim(task.id, "worker", LEASE)
@@ -167,7 +167,7 @@ async def test_expired_final_attempt_persists_failure(
 
 
 async def test_unconfirmed_create_can_be_checked_by_stable_id(
-    service: TaskService, couch: InMemoryCouch
+    service: Service, couch: InMemoryCouch
 ) -> None:
     couch.next_write_status = 202
     with pytest.raises(WriteNotConfirmed):

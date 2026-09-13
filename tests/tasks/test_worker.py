@@ -6,8 +6,8 @@ import httpx
 import pytest
 
 from digestify_api.couchdb import WriteNotConfirmed
-from digestify_api.tasks import Partition, Task, TaskService, Worker
-from tests.task.conftest import InMemoryCouch
+from digestify_api.tasks import Partition, Service, Task, Worker
+from tests.tasks.conftest import InMemoryCouch
 
 
 async def drain(worker: Worker) -> None:
@@ -15,7 +15,7 @@ async def drain(worker: Worker) -> None:
         await asyncio.gather(*list(worker._running.values()))
 
 
-async def test_worker_executes_and_tracks_result(service: TaskService) -> None:
+async def test_worker_executes_and_tracks_result(service: Service) -> None:
     task = await service.create("email")
     handler = AsyncMock(return_value={"sent": True})
     worker = Worker(service, {"email": handler})
@@ -30,7 +30,7 @@ async def test_worker_executes_and_tracks_result(service: TaskService) -> None:
 
 
 async def test_handler_failure_is_persisted_for_retry(
-    service: TaskService,
+    service: Service,
 ) -> None:
     task = await service.create("email")
     worker = Worker(
@@ -45,7 +45,7 @@ async def test_handler_failure_is_persisted_for_retry(
 
 
 async def test_uncertain_or_conflicted_claim_never_runs_handler(
-    service: TaskService, couch: InMemoryCouch
+    service: Service, couch: InMemoryCouch
 ) -> None:
     uncertain = await service.create("email")
     conflicted = await service.create("email")
@@ -60,7 +60,7 @@ async def test_uncertain_or_conflicted_claim_never_runs_handler(
 
 
 async def test_two_partitions_cover_each_task_once(
-    service: TaskService,
+    service: Service,
 ) -> None:
     for number in range(20):
         await service.create("email", partition_key=f"user:{number}")
@@ -98,7 +98,7 @@ async def test_two_partitions_cover_each_task_once(
 
 
 async def test_cancellation_stops_running_handler_on_heartbeat(
-    service: TaskService,
+    service: Service,
 ) -> None:
     task = await service.create("email")
     started, stopped = asyncio.Event(), asyncio.Event()
@@ -122,7 +122,7 @@ async def test_cancellation_stops_running_handler_on_heartbeat(
 
 
 async def test_uncertain_renewal_stops_handler(
-    service: TaskService, monkeypatch: pytest.MonkeyPatch
+    service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await service.create("email")
     stopped = asyncio.Event()
@@ -143,7 +143,7 @@ async def test_uncertain_renewal_stops_handler(
 
 
 async def test_heartbeat_renews_until_handler_finishes(
-    service: TaskService, monkeypatch: pytest.MonkeyPatch
+    service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     task = await service.create("email")
     renewed = asyncio.Event()
@@ -167,7 +167,7 @@ async def test_heartbeat_renews_until_handler_finishes(
 
 
 async def test_shutdown_cancels_and_awaits_handlers(
-    service: TaskService,
+    service: Service,
 ) -> None:
     task = await service.create("email")
     started, stopped = asyncio.Event(), asyncio.Event()
@@ -194,7 +194,7 @@ async def test_shutdown_cancels_and_awaits_handlers(
 
 
 async def test_concurrency_limit_does_not_preclaim_waiting_tasks(
-    service: TaskService,
+    service: Service,
 ) -> None:
     for _ in range(3):
         await service.create("email")
@@ -215,7 +215,7 @@ async def test_concurrency_limit_does_not_preclaim_waiting_tasks(
 
 
 async def test_polling_finds_work_without_feed_notifications(
-    service: TaskService, monkeypatch: pytest.MonkeyPatch
+    service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     scanned, finished = asyncio.Event(), asyncio.Event()
     original_candidates, original_finish = service.candidates, service.finish
@@ -248,7 +248,7 @@ async def test_polling_finds_work_without_feed_notifications(
 
 
 async def test_feed_reconnects_and_resumes_last_sequence(
-    service: TaskService, monkeypatch: pytest.MonkeyPatch
+    service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     positions: list[str] = []
     reconnected = asyncio.Event()
@@ -290,6 +290,6 @@ def test_invalid_partition_rejected(index: int, count: int) -> None:
         {"heartbeat_interval": 600},
     ],
 )
-def test_invalid_worker_configuration(service: TaskService, options) -> None:
+def test_invalid_worker_configuration(service: Service, options) -> None:
     with pytest.raises(ValueError):
         Worker(service, {"email": AsyncMock()}, **options)

@@ -2,12 +2,12 @@
 
 CouchDB-backed generic tasks with one-time scheduling, fixed-interval or daily
 recurrence, bounded retries, and explicitly partitioned asyncio workers. The
-public API is exported from `digestify_api.task`. The experiment in `old.py`
+public API is exported from `digestify_api.tasks`. The experiment in `old.py`
 is not used or migrated.
 
 ## Enqueue and Track
 
-Construct `TaskService(database)` with the existing CouchDB `Database` and call
+Construct `Service(database)` with the existing CouchDB `Database` and call
 `await service.init()` before starting producers and workers. This creates the
 database and indexes and is safe to repeat. Keep the database's HTTP client open
 for the lifetime of the workers, with finite request timeouts. The changes feed
@@ -16,9 +16,9 @@ disables its own read timeout.
 ```python
 from datetime import UTC, datetime, time, timedelta
 
-from digestify_api.task import DailySchedule, IntervalSchedule, TaskService
+from digestify_api.tasks import DailySchedule, IntervalSchedule, Service
 
-service = TaskService(database)
+service = Service(database)
 await service.init()
 
 immediate = await service.create(
@@ -71,7 +71,7 @@ import logging
 
 from pydantic import JsonValue
 
-from digestify_api.task import Partition, Task, Worker
+from digestify_api.tasks import Partition, Task, Worker
 
 async def handle_digest(task: Task) -> JsonValue:
     logging.info("Processing %s for %s", task.idempotency_key, task.partition_key)
@@ -163,7 +163,7 @@ The caller of producer/status APIs receives these persistence exceptions.
 
 ## Tests
 
-Run `uv run pytest tests/task -q`. Live tests reuse the CouchDB test settings and
+Run `uv run pytest tests/tasks -q`. Live tests reuse the CouchDB test settings and
 temporary databases; they skip when no server is available. Start the development
 database with `docker compose up -d db`. Tests cover visible conflicts and local
 revision races, but do not simulate a partitioned multi-node CouchDB cluster.

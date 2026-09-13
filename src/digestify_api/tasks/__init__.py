@@ -1,4 +1,4 @@
-from digestify_api.tasks.service import TaskService
+from digestify_api.tasks.service import Service
 from digestify_api.tasks.task import (
     DailySchedule,
     IntervalSchedule,
@@ -16,8 +16,8 @@ __all__ = [
     "LostLease",
     "Partition",
     "Schedule",
+    "Service",
     "Task",
-    "TaskService",
     "TaskStatus",
     "Worker",
 ]

@@ -21,7 +21,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class TaskService:
+class Service:
     def __init__(
         self, database: Database, *, clock: Callable[[], datetime] = _now
     ) -> None:

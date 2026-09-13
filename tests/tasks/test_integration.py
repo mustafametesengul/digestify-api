@@ -5,21 +5,21 @@ import httpx
 import pytest
 
 from digestify_api.couchdb import Database, UnresolvedDocumentConflict
-from digestify_api.tasks import Partition, Task, TaskService, Worker
+from digestify_api.tasks import Partition, Service, Task, Worker
 from tests.couchdb.test_integration import client as client
 from tests.couchdb.test_integration import database as database
 from tests.couchdb.test_integration import pytestmark as pytestmark
-from tests.task.conftest import Clock
+from tests.tasks.conftest import Clock
 
 
 @pytest.fixture
-async def service(database: Database, clock: Clock) -> TaskService:
-    service = TaskService(database, clock=clock)
+async def service(database: Database, clock: Clock) -> Service:
+    service = Service(database, clock=clock)
     await service.init()
     return service
 
 
-async def test_live_competing_claims(service: TaskService) -> None:
+async def test_live_competing_claims(service: Service) -> None:
     task = await service.create("example")
     claims = await asyncio.gather(
         service.claim(task.id, "first", timedelta(minutes=1)),
@@ -36,7 +36,7 @@ async def test_live_competing_claims(service: TaskService) -> None:
 
 
 async def test_live_indexed_query_and_partitioned_execution(
-    service: TaskService, clock: Clock
+    service: Service, clock: Clock
 ) -> None:
     created = [
         await service.create("example", partition_key=f"user:{number}")
@@ -68,7 +68,7 @@ async def test_live_indexed_query_and_partitioned_execution(
     assert len(await service.find(status="succeeded")) == 8
 
 
-async def test_live_changes_feed(service: TaskService) -> None:
+async def test_live_changes_feed(service: Service) -> None:
     await service.create("example")
     feed = service.changes("0")
     try:
@@ -80,7 +80,7 @@ async def test_live_changes_feed(service: TaskService) -> None:
 
 
 async def test_live_divergent_revisions_block_execution(
-    service: TaskService, database: Database, client: httpx.AsyncClient
+    service: Service, database: Database, client: httpx.AsyncClient
 ) -> None:
     task = await service.create("example")
     document = await database.get(task.id)
@@ -103,7 +103,7 @@ async def test_live_divergent_revisions_block_execution(
         await service.claim(task.id, "worker", timedelta(minutes=1))
 
 
-async def test_live_cancellation_stops_handler(service: TaskService) -> None:
+async def test_live_cancellation_stops_handler(service: Service) -> None:
     task = await service.create("example")
     started, stopped = asyncio.Event(), asyncio.Event()
 

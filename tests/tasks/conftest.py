@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from digestify_api.couchdb import Database
-from digestify_api.tasks import TaskService
+from digestify_api.tasks import Service
 
 
 class InMemoryCouch:
@@ -105,8 +105,8 @@ def couch() -> InMemoryCouch:
 @pytest.fixture
 async def service(
     couch: InMemoryCouch, clock: Clock
-) -> AsyncIterator[TaskService]:
+) -> AsyncIterator[Service]:
     async with httpx.AsyncClient(
         base_url="http://couch", transport=httpx.MockTransport(couch)
     ) as client:
-        yield TaskService(Database(client, "tasks"), clock=clock)
+        yield Service(Database(client, "tasks"), clock=clock)

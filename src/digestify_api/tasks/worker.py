@@ -14,7 +14,7 @@ from digestify_api.couchdb import (
     UnresolvedDocumentConflict,
     WriteNotConfirmed,
 )
-from digestify_api.tasks.service import TaskService
+from digestify_api.tasks.service import Service
 from digestify_api.tasks.task import BUCKET_COUNT, LostLease, Task, bucket_for
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class Partition:
 class Worker:
     def __init__(
         self,
-        service: TaskService,
+        service: Service,
         handlers: Mapping[str, Handler],
         *,
         worker_id: str | None = None,
