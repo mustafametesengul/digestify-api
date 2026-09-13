@@ -33,7 +33,10 @@ class Partition:
     count: int = 1
 
     def __post_init__(self) -> None:
-        if not 1 <= self.count <= BUCKET_COUNT or not 0 <= self.index < self.count:
+        if (
+            not 1 <= self.count <= BUCKET_COUNT
+            or not 0 <= self.index < self.count
+        ):
             raise ValueError("Require 0 <= index < count <= 256.")
 
     @property
@@ -66,8 +69,13 @@ class Worker:
             raise ValueError("Concurrency and lease must be positive.")
         if not isfinite(poll_interval) or poll_interval <= 0:
             raise ValueError("Poll interval must be finite and positive.")
-        if not isfinite(heartbeat) or not 0 < heartbeat < lease.total_seconds() / 2:
-            raise ValueError("Heartbeat must be positive and less than half the lease.")
+        if (
+            not isfinite(heartbeat)
+            or not 0 < heartbeat < lease.total_seconds() / 2
+        ):
+            raise ValueError(
+                "Heartbeat must be positive and less than half the lease."
+            )
         if not handlers:
             raise ValueError("At least one handler is required.")
         self._service = service
@@ -106,10 +114,13 @@ class Worker:
                 await self._tick()
             except PERSISTENCE_ERRORS:
                 logger.warning(
-                    "Task scan failed; retrying on the next poll", exc_info=True
+                    "Task scan failed; retrying on the next poll",
+                    exc_info=True,
                 )
             try:
-                await asyncio.wait_for(self._wakeup.wait(), self._poll_interval)
+                await asyncio.wait_for(
+                    self._wakeup.wait(), self._poll_interval
+                )
             except TimeoutError:
                 pass
 
@@ -155,7 +166,9 @@ class Worker:
         self._running.pop(task_id, None)
         if not execution.cancelled() and execution.exception() is not None:
             logger.error(
-                "Task execution failed: %s", task_id, exc_info=execution.exception()
+                "Task execution failed: %s",
+                task_id,
+                exc_info=execution.exception(),
             )
         self._wakeup.set()
 

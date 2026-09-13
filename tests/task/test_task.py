@@ -3,7 +3,12 @@ from datetime import UTC, datetime, time, timedelta
 import pytest
 from pydantic import ValidationError
 
-from digestify_api.tasks.task import DailySchedule, IntervalSchedule, LostLease, Task
+from digestify_api.tasks.task import (
+    DailySchedule,
+    IntervalSchedule,
+    LostLease,
+    Task,
+)
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 LEASE = timedelta(minutes=1)
@@ -111,7 +116,9 @@ def test_future_task_and_retry_are_not_claimable() -> None:
     assert not task.claim("worker", NOW, LEASE)
 
 
-@pytest.mark.parametrize("field", ["scheduled_at", "available_at", "created_at"])
+@pytest.mark.parametrize(
+    "field", ["scheduled_at", "available_at", "created_at"]
+)
 def test_naive_timestamps_rejected(field: str) -> None:
     with pytest.raises(ValidationError):
         make_task(**{field: datetime(2026, 1, 1)})
@@ -126,13 +133,17 @@ def test_invalid_interval_rejected(every: timedelta) -> None:
 def test_daily_dst_gap_moves_forward() -> None:
     schedule = DailySchedule(time=time(2, 30), timezone="America/New_York")
     now = datetime(2026, 3, 8, 5, tzinfo=UTC)
-    assert schedule.next_after(now, now) == datetime(2026, 3, 8, 7, 30, tzinfo=UTC)
+    assert schedule.next_after(now, now) == datetime(
+        2026, 3, 8, 7, 30, tzinfo=UTC
+    )
 
 
 def test_daily_dst_fold_runs_only_first_occurrence() -> None:
     schedule = DailySchedule(time=time(1, 30), timezone="America/New_York")
     now = datetime(2026, 11, 1, 5, 30, tzinfo=UTC)
-    assert schedule.next_after(now, now) == datetime(2026, 11, 2, 6, 30, tzinfo=UTC)
+    assert schedule.next_after(now, now) == datetime(
+        2026, 11, 2, 6, 30, tzinfo=UTC
+    )
 
 
 def test_daily_schedule_uses_local_date() -> None:

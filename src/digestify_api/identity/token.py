@@ -61,7 +61,16 @@ class TokenVerifier:
             issuer=TOKEN_ISSUER,
             audience=TOKEN_AUDIENCE,
             options={
-                "require": ["exp", "iat", "sub", "role", "type", "jti", "iss", "aud"]
+                "require": [
+                    "exp",
+                    "iat",
+                    "sub",
+                    "role",
+                    "type",
+                    "jti",
+                    "iss",
+                    "aud",
+                ]
             },
         )
         payload_token_type = payload.get("type")
@@ -79,8 +88,8 @@ class TokenVerifier:
             user_id = UUID(payload_sub)
             user_role = UserRole(payload_role)
             token_id = UUID(payload["jti"])
-        except ValueError, TypeError, AttributeError:
-            raise jwt.InvalidTokenError()
+        except (ValueError, TypeError, AttributeError) as error:
+            raise jwt.InvalidTokenError() from error
 
         if token_purpose is not purpose:
             raise jwt.InvalidTokenError()
@@ -91,10 +100,13 @@ class TokenVerifier:
                 raise jwt.MissingRequiredClaimError("gen")
             try:
                 generation = UUID(payload["gen"])
-            except ValueError, TypeError, AttributeError:
-                raise jwt.InvalidTokenError()
+            except (ValueError, TypeError, AttributeError) as error:
+                raise jwt.InvalidTokenError() from error
         return TokenClaims(
-            id=user_id, role=user_role, token_id=token_id, token_generation=generation
+            id=user_id,
+            role=user_role,
+            token_id=token_id,
+            token_generation=generation,
         )
 
 
@@ -112,7 +124,7 @@ class TokenGenerator:
         return timedelta(days=self._settings.refresh_token_expire_days)
 
     def generate(self, user_claims: UserClaims) -> TokenPair:
-        """Issue reusable bearer tokens; each refresh starts a new expiry window."""
+        """Issue bearer tokens with a new expiry window."""
         now = datetime.now(UTC)
         access_token_expire = now + timedelta(
             minutes=self._settings.access_token_expire_minutes

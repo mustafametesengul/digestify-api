@@ -14,8 +14,8 @@ from digestify_api.couchdb import (
     WriteNotConfirmed,
 )
 from digestify_api.identity.email import EmailDeliveryError
-from digestify_api.identity.identity import Identity
 from digestify_api.identity.router import require_registered_user, router
+from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import SignInCode
 from digestify_api.identity.token import (
     TokenGenerator,
@@ -40,7 +40,7 @@ class Api:
     sign_in_codes: Repository[SignInCode]
 
     async def sign_in(self, email: str = EMAIL) -> dict[str, str]:
-        """Complete a full email sign-in over HTTP and return the token pair."""
+        """Complete an email sign-in over HTTP and return the token pair."""
         await self.reset_cooldown(email)
         response = await self.client.post(
             "/identity/sign-in-with-email",
@@ -85,10 +85,10 @@ async def api() -> AsyncIterator[Api]:
         ) -> dict[str, str]:
             return {"id": str(claims.id)}
 
-        app.state.identity_service = Identity(
+        app.state.identity_service = Service(
             users=users,
             sign_in_codes=sign_in_codes,
-            email_sender=email,
+            email_client=email,
             token_generator=TokenGenerator(
                 TokenGeneratorSettings(secret_key=SecretStr(SECRET)),
             ),
@@ -120,7 +120,9 @@ async def test_sign_in_anonymously_returns_token_pair(api: Api) -> None:
 async def test_email_sign_in_flow_returns_account(api: Api) -> None:
     tokens = await api.sign_in("Alice@Example.COM")
 
-    response = await api.client.get("/identity/account", headers=bearer(tokens))
+    response = await api.client.get(
+        "/identity/account", headers=bearer(tokens)
+    )
 
     assert response.status_code == 200
     assert response.json() == {"email": EMAIL}
@@ -143,7 +145,9 @@ async def test_sign_in_with_email_cooldown_returns_429(api: Api) -> None:
 
 
 async def test_verify_sign_in_code_rejects_wrong_code(api: Api) -> None:
-    await api.client.post("/identity/sign-in-with-email", json={"email": EMAIL})
+    await api.client.post(
+        "/identity/sign-in-with-email", json={"email": EMAIL}
+    )
     wrong = "000000" if api.email.last_code != "000000" else "999999"
 
     response = await api.client.post(
@@ -206,7 +210,9 @@ async def test_account_forbidden_for_anonymous_user(api: Api) -> None:
     response = await api.client.post("/identity/sign-in-anonymously")
     tokens = response.json()
 
-    response = await api.client.get("/identity/account", headers=bearer(tokens))
+    response = await api.client.get(
+        "/identity/account", headers=bearer(tokens)
+    )
 
     assert response.status_code == 403
 
@@ -214,10 +220,14 @@ async def test_account_forbidden_for_anonymous_user(api: Api) -> None:
 async def test_delete_account_revokes_access(api: Api) -> None:
     tokens = await api.sign_in()
 
-    response = await api.client.delete("/identity/account", headers=bearer(tokens))
+    response = await api.client.delete(
+        "/identity/account", headers=bearer(tokens)
+    )
     assert response.status_code == 204
 
-    response = await api.client.get("/identity/account", headers=bearer(tokens))
+    response = await api.client.get(
+        "/identity/account", headers=bearer(tokens)
+    )
     assert response.status_code == 401
 
 
@@ -225,7 +235,9 @@ async def test_deleted_user_rejected_by_shared_dependency(api: Api) -> None:
     tokens = await api.sign_in()
     before = await api.client.get("/registered", headers=bearer(tokens))
     assert before.status_code == 200
-    deleted = await api.client.delete("/identity/account", headers=bearer(tokens))
+    deleted = await api.client.delete(
+        "/identity/account", headers=bearer(tokens)
+    )
     assert deleted.status_code == 204
     after = await api.client.get("/registered", headers=bearer(tokens))
     assert after.status_code == 401
@@ -235,14 +247,18 @@ async def test_deleted_user_rejected_by_shared_dependency(api: Api) -> None:
 async def test_refresh_reuse_preserves_access(api: Api) -> None:
     tokens = await api.sign_in()
     refreshed = await api.client.post(
-        "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+        "/identity/refresh-token",
+        json={"refresh_token": tokens["refresh_token"]},
     )
     assert refreshed.status_code == 200
     replay = await api.client.post(
-        "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+        "/identity/refresh-token",
+        json={"refresh_token": tokens["refresh_token"]},
     )
     assert replay.status_code == 200
-    account = await api.client.get("/registered", headers=bearer(refreshed.json()))
+    account = await api.client.get(
+        "/registered", headers=bearer(refreshed.json())
+    )
     assert account.status_code == 200
     refresh = await api.client.post(
         "/identity/refresh-token",
@@ -272,7 +288,9 @@ async def test_delivery_failure_returns_502(
         httpx.ConnectError("database unavailable"),
     ],
 )
-@pytest.mark.parametrize("endpoint", ["verify-sign-in-code", "recover-account"])
+@pytest.mark.parametrize(
+    "endpoint", ["verify-sign-in-code", "recover-account"]
+)
 async def test_unsafe_identity_state_returns_503(
     api: Api, monkeypatch: pytest.MonkeyPatch, error: Exception, endpoint: str
 ) -> None:
@@ -308,14 +326,18 @@ async def test_email_recovery_revokes_all_devices_and_returns_new_tokens(
         account = await api.client.get("/registered", headers=bearer(tokens))
         assert account.status_code == 401
         refreshed = await api.client.post(
-            "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+            "/identity/refresh-token",
+            json={"refresh_token": tokens["refresh_token"]},
         )
         assert refreshed.status_code == 401
-    account = await api.client.get("/identity/account", headers=bearer(new_tokens))
+    account = await api.client.get(
+        "/identity/account", headers=bearer(new_tokens)
+    )
     assert account.status_code == 200
     assert account.json()["email"] == EMAIL
     refreshed = await api.client.post(
-        "/identity/refresh-token", json={"refresh_token": new_tokens["refresh_token"]}
+        "/identity/refresh-token",
+        json={"refresh_token": new_tokens["refresh_token"]},
     )
     assert refreshed.status_code == 200
     replay = await api.client.post(
@@ -327,7 +349,9 @@ async def test_email_recovery_revokes_all_devices_and_returns_new_tokens(
 async def test_bearer_token_alone_cannot_recover_account(api: Api) -> None:
     tokens = await api.sign_in()
     response = await api.client.post(
-        "/identity/recover-account", headers=bearer(tokens), json={"email": EMAIL}
+        "/identity/recover-account",
+        headers=bearer(tokens),
+        json={"email": EMAIL},
     )
     assert response.status_code == 422
     response = await api.client.post(
@@ -337,6 +361,7 @@ async def test_bearer_token_alone_cannot_recover_account(api: Api) -> None:
     )
     assert response.status_code == 401
     refreshed = await api.client.post(
-        "/identity/refresh-token", json={"refresh_token": tokens["refresh_token"]}
+        "/identity/refresh-token",
+        json={"refresh_token": tokens["refresh_token"]},
     )
     assert refreshed.status_code == 200

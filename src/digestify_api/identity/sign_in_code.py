@@ -100,9 +100,10 @@ class SignInCode(Document):
         self.challenge = None
 
     def reserve_user(self) -> UUID:
-        """Derive the same next account ID on replicas with the same mapping."""
+        """Derive the same account ID on replicas with the same mapping."""
         self.user_id = uuid5(
-            NAMESPACE_URL, f"digestify:account:{self.id}:{self.user_id or 'initial'}"
+            NAMESPACE_URL,
+            f"digestify:account:{self.id}:{self.user_id or 'initial'}",
         )
         return self.user_id
 

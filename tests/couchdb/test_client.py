@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr
 
-from digestify_api.couchdb import Client, Database, Settings
+from digestify_api.couchdb import Client, ClientSettings, Database
 
 
 @pytest.fixture(autouse=True)
@@ -15,7 +15,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 def test_settings_defaults() -> None:
-    settings = Settings()
+    settings = ClientSettings()
 
     assert settings.url == "http://localhost:5984"
     assert settings.user == "admin"
@@ -27,7 +27,7 @@ def test_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COUCHDB_USER", "service")
     monkeypatch.setenv("COUCHDB_PASSWORD", "hunter2")
 
-    settings = Settings()
+    settings = ClientSettings()
 
     assert settings.url == "http://db:5984"
     assert settings.user == "service"
@@ -35,14 +35,14 @@ def test_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_settings_do_not_leak_password_in_repr() -> None:
-    settings = Settings(password=SecretStr("hunter2"))
+    settings = ClientSettings(password=SecretStr("hunter2"))
 
     assert "hunter2" not in repr(settings)
     assert "hunter2" not in str(settings)
 
 
 async def test_connect_hands_out_databases() -> None:
-    settings = Settings(url="http://db:5984")
+    settings = ClientSettings(url="http://db:5984")
 
     async with Client.connect(settings) as couch:
         database = couch.get_database("things")
@@ -52,7 +52,7 @@ async def test_connect_hands_out_databases() -> None:
 
 
 async def test_connect_configures_client_from_settings() -> None:
-    settings = Settings(url="http://db:5984")
+    settings = ClientSettings(url="http://db:5984")
 
     async with Client.connect(settings) as couch:
         client = couch._http_client

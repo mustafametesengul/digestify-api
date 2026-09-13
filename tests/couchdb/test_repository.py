@@ -35,7 +35,8 @@ async def test_get_validates_document(
 ) -> None:
     server.enqueue(
         httpx.Response(
-            200, json={"_id": "a", "_rev": "1-x", "type": "item", "name": "widget"}
+            200,
+            json={"_id": "a", "_rev": "1-x", "type": "item", "name": "widget"},
         )
     )
 
@@ -95,7 +96,9 @@ async def test_get_returns_none_for_other_document_kind(
 async def test_save_new_document_omits_rev(
     server: FakeServer, repository: Repository[Item]
 ) -> None:
-    server.enqueue(httpx.Response(201, json={"ok": True, "id": "a", "rev": "1-x"}))
+    server.enqueue(
+        httpx.Response(201, json={"ok": True, "id": "a", "rev": "1-x"})
+    )
     item = Item(id="a", name="widget")
 
     await repository.save(item)
@@ -111,7 +114,9 @@ async def test_save_new_document_omits_rev(
 async def test_save_existing_document_sends_rev_and_updates_it(
     server: FakeServer, repository: Repository[Item]
 ) -> None:
-    server.enqueue(httpx.Response(201, json={"ok": True, "id": "a", "rev": "2-y"}))
+    server.enqueue(
+        httpx.Response(201, json={"ok": True, "id": "a", "rev": "2-y"})
+    )
     item = Item(id="a", rev="1-x", name="widget")
 
     await repository.save(item)
@@ -160,7 +165,14 @@ async def test_find_scopes_selector_to_document_kind(
         httpx.Response(
             200,
             json={
-                "docs": [{"_id": "a", "_rev": "1-x", "type": "item", "name": "widget"}]
+                "docs": [
+                    {
+                        "_id": "a",
+                        "_rev": "1-x",
+                        "type": "item",
+                        "name": "widget",
+                    }
+                ]
             },
         )
     )
@@ -204,10 +216,11 @@ async def test_changes_filters_server_side_and_validates(
         httpx.Response(
             200,
             content=(
-                '{"seq": "1-a", "id": "a", "changes": [{"rev": "1-x"}],'
-                ' "doc": {"_id": "a", "_rev": "1-x", "type": "item", "name": "widget"}}\n'
-                '{"last_seq": "1-a", "pending": 0}\n'
-            ).encode(),
+                b'{"seq": "1-a", "id": "a", "changes": [{"rev": "1-x"}],'
+                b' "doc": {"_id": "a", "_rev": "1-x", "type": "item",'
+                b' "name": "widget"}}\n'
+                b'{"last_seq": "1-a", "pending": 0}\n'
+            ),
         )
     )
 
@@ -230,8 +243,9 @@ async def test_changes_skips_rows_without_documents(
         httpx.Response(
             200,
             content=(
-                '{"seq": "2-b", "id": "b", "changes": [{"rev": "2-y"}], "deleted": true}\n'
-            ).encode(),
+                b'{"seq": "2-b", "id": "b", "changes": [{"rev": "2-y"}],'
+                b' "deleted": true}\n'
+            ),
         )
     )
 
@@ -247,9 +261,9 @@ async def test_changes_skips_rows_with_mismatched_document_kind(
         httpx.Response(
             200,
             content=(
-                '{"seq": "1-a", "id": "a", "changes": [{"rev": "1-x"}],'
-                ' "doc": {"_id": "a", "_rev": "1-x", "type": "user"}}\n'
-            ).encode(),
+                b'{"seq": "1-a", "id": "a", "changes": [{"rev": "1-x"}],'
+                b' "doc": {"_id": "a", "_rev": "1-x", "type": "user"}}\n'
+            ),
         )
     )
 
@@ -262,11 +276,15 @@ def test_document_kind_from_literal_default(database: Database) -> None:
     assert Repository(Item, database)._type == "item"
 
 
-def test_document_kind_from_literal_without_default(database: Database) -> None:
+def test_document_kind_from_literal_without_default(
+    database: Database,
+) -> None:
     assert Repository(ItemWithoutDefault, database)._type == "item"
 
 
-def test_document_kind_requires_single_pinned_value(database: Database) -> None:
+def test_document_kind_requires_single_pinned_value(
+    database: Database,
+) -> None:
     class Unpinned(Document):
         pass
 

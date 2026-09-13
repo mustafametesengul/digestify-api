@@ -41,7 +41,9 @@ class EmailClient:
         async with httpx.AsyncClient(
             base_url="https://api.resend.com",
             headers={
-                "Authorization": f"Bearer {settings.api_key.get_secret_value()}",
+                "Authorization": (
+                    f"Bearer {settings.api_key.get_secret_value()}"
+                ),
             },
             timeout=httpx.Timeout(10.0),
         ) as client:

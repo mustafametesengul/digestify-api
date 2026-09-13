@@ -7,7 +7,9 @@ from digestify_api.couchdb import Database, DocumentConflict, WriteNotConfirmed
 from tests.couchdb.conftest import FakeServer
 
 
-async def test_ensure_database_creates(server: FakeServer, database: Database) -> None:
+async def test_ensure_database_creates(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(httpx.Response(201, json={"ok": True}))
 
     await database.ensure_database()
@@ -36,7 +38,9 @@ async def test_ensure_database_raises_on_error(
 async def test_ensure_index(server: FakeServer, database: Database) -> None:
     server.enqueue(httpx.Response(200, json={"result": "created"}))
 
-    await database.ensure_index(name="things_by_email", fields=["type", "email"])
+    await database.ensure_index(
+        name="things_by_email", fields=["type", "email"]
+    )
 
     assert server.request.method == "POST"
     assert server.request.url.path == "/things/_index"
@@ -47,7 +51,9 @@ async def test_ensure_index(server: FakeServer, database: Database) -> None:
     }
 
 
-async def test_get_returns_document(server: FakeServer, database: Database) -> None:
+async def test_get_returns_document(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(httpx.Response(200, json={"_id": "a", "_rev": "1-x"}))
 
     doc = await database.get("a")
@@ -65,7 +71,9 @@ async def test_get_returns_none_when_missing(
     assert await database.get("a") is None
 
 
-async def test_get_raises_on_error(server: FakeServer, database: Database) -> None:
+async def test_get_raises_on_error(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(httpx.Response(500))
 
     with pytest.raises(httpx.HTTPStatusError):
@@ -118,7 +126,9 @@ async def test_document_operations_reject_empty_ids(
     assert server.requests == []
 
 
-@pytest.mark.parametrize("name", ["", ".", "..", "../other", "things?x", "things#x"])
+@pytest.mark.parametrize(
+    "name", ["", ".", "..", "../other", "things?x", "things#x"]
+)
 async def test_invalid_database_names(name: str) -> None:
     async with httpx.AsyncClient() as client:
         with pytest.raises(ValueError, match="database name"):
@@ -137,7 +147,9 @@ async def test_database_name_with_slash_is_encoded(server: FakeServer) -> None:
 async def test_save_returns_new_revision(
     server: FakeServer, database: Database
 ) -> None:
-    server.enqueue(httpx.Response(201, json={"ok": True, "id": "a", "rev": "2-y"}))
+    server.enqueue(
+        httpx.Response(201, json={"ok": True, "id": "a", "rev": "2-y"})
+    )
 
     rev = await database.save("a", {"_id": "a", "_rev": "1-x", "type": "item"})
 
@@ -160,7 +172,9 @@ async def test_save_raises_document_conflict(
         await database.save("a", {"_id": "a"})
 
 
-async def test_delete_sends_revision(server: FakeServer, database: Database) -> None:
+async def test_delete_sends_revision(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(httpx.Response(200, json={"ok": True}))
 
     await database.delete("a", "2-y")
@@ -195,7 +209,9 @@ async def test_accepted_delete_is_not_confirmed(
         await database.delete("a", "1-x")
 
 
-async def test_find_sends_minimal_body(server: FakeServer, database: Database) -> None:
+async def test_find_sends_minimal_body(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(httpx.Response(200, json={"docs": []}))
 
     docs = await database.find({"type": "item"})
@@ -236,9 +252,13 @@ async def test_find_follows_bookmarks(
     server.enqueue(
         httpx.Response(200, json={"docs": first_page, "bookmark": "page-two"})
     )
-    server.enqueue(httpx.Response(200, json={"docs": last_page, "bookmark": "end"}))
+    server.enqueue(
+        httpx.Response(200, json={"docs": last_page, "bookmark": "end"})
+    )
 
-    docs = await database.find({"type": "item"}, sort=[{"name": "asc"}], limit=limit)
+    docs = await database.find(
+        {"type": "item"}, sort=[{"name": "asc"}], limit=limit
+    )
 
     assert docs == first_page + last_page
     assert len(server.requests) == 2
@@ -304,13 +324,16 @@ def changes_feed(*rows: str) -> httpx.Response:
     return httpx.Response(200, content="\n".join(rows).encode())
 
 
-async def test_changes_parses_rows(server: FakeServer, database: Database) -> None:
+async def test_changes_parses_rows(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(
         changes_feed(
             '{"seq": "1-a", "id": "a", "changes": [{"rev": "1-x"}],'
             ' "doc": {"_id": "a", "_rev": "1-x", "type": "item"}}',
             "",  # heartbeat keep-alive
-            '{"seq": "2-b", "id": "b", "changes": [{"rev": "2-y"}], "deleted": true,'
+            '{"seq": "2-b", "id": "b", "changes": [{"rev": "2-y"}],'
+            ' "deleted": true,'
             ' "doc": {"_id": "b", "_rev": "2-y", "_deleted": true}}',
             '{"last_seq": "2-b", "pending": 0}',
         )
@@ -387,14 +410,18 @@ async def test_changes_request_with_selector(
     assert json.loads(server.request.content) == {"selector": {"type": "item"}}
 
 
-async def test_changes_raises_on_error(server: FakeServer, database: Database) -> None:
+async def test_changes_raises_on_error(
+    server: FakeServer, database: Database
+) -> None:
     server.enqueue(httpx.Response(400, json={"error": "bad_request"}))
 
     with pytest.raises(httpx.HTTPStatusError):
         [change async for change in database.changes()]
 
 
-async def test_changes_only_disables_its_own_read_timeout(server: FakeServer) -> None:
+async def test_changes_only_disables_its_own_read_timeout(
+    server: FakeServer,
+) -> None:
     server.enqueue(changes_feed())
     server.enqueue(httpx.Response(200, json={"_id": "a"}))
     async with httpx.AsyncClient(

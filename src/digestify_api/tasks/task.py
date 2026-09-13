@@ -26,7 +26,9 @@ def utc(value: datetime) -> datetime:
 
 
 def bucket_for(key: str) -> int:
-    return int.from_bytes(sha256(key.encode("utf-8")).digest()[:8]) % BUCKET_COUNT
+    return (
+        int.from_bytes(sha256(key.encode("utf-8")).digest()[:8]) % BUCKET_COUNT
+    )
 
 
 def timestamp(value: datetime) -> str:
@@ -52,7 +54,9 @@ class DailySchedule(BaseModel):
     @classmethod
     def naive_time(cls, value: time) -> time:
         if value.tzinfo is not None:
-            raise ValueError("Use a local time without an offset and a timezone name.")
+            raise ValueError(
+                "Use a local time without an offset and a timezone name."
+            )
         return value.replace(fold=0)
 
     @field_validator("timezone")
@@ -65,7 +69,7 @@ class DailySchedule(BaseModel):
         return value
 
     def next_after(self, previous: datetime, now: datetime) -> datetime:
-        """Use the first fold; shift nonexistent times forward by the DST gap."""
+        """Use the first fold and shift nonexistent times past the DST gap."""
         now = max(utc(previous), utc(now))
         zone = ZoneInfo(self.timezone)
         local_date = now.astimezone(zone).date()
@@ -78,7 +82,9 @@ class DailySchedule(BaseModel):
         raise ValueError("Cannot find the next daily occurrence.")
 
 
-Schedule = Annotated[IntervalSchedule | DailySchedule, Field(discriminator="kind")]
+Schedule = Annotated[
+    IntervalSchedule | DailySchedule, Field(discriminator="kind")
+]
 
 
 class LostLease(Exception):
@@ -100,7 +106,9 @@ class Task(Document):
     occurrence: int = Field(default=1, ge=1)
     attempts: int = Field(default=0, ge=0)
     max_attempts: int = Field(default=3, ge=1)
-    retry_delay: timedelta = Field(default=timedelta(seconds=30), ge=timedelta(0))
+    retry_delay: timedelta = Field(
+        default=timedelta(seconds=30), ge=timedelta(0)
+    )
     claim_token: UUID | None = None
     worker_id: str | None = None
     lease_until: AwareDatetime | None = None
@@ -152,7 +160,9 @@ class Task(Document):
         else:
             return False
         if self.attempts >= self.max_attempts:
-            self._end_occurrence(now, error="Lease expired after the final attempt.")
+            self._end_occurrence(
+                now, error="Lease expired after the final attempt."
+            )
             return False
         self.status = "running"
         self.attempts += 1
@@ -211,7 +221,11 @@ class Task(Document):
         self.updated_at = now
 
     def _end_occurrence(
-        self, now: datetime, *, result: JsonValue = None, error: str | None = None
+        self,
+        now: datetime,
+        *,
+        result: JsonValue = None,
+        error: str | None = None,
     ) -> None:
         self.last_finished_at = now
         self.last_result = result
@@ -223,7 +237,9 @@ class Task(Document):
             self.status = "succeeded" if error is None else "failed"
         else:
             self.status = "pending"
-            self.scheduled_at = self.schedule.next_after(self.scheduled_at, now)
+            self.scheduled_at = self.schedule.next_after(
+                self.scheduled_at, now
+            )
             self.available_at = self.scheduled_at
             self.occurrence += 1
             self.attempts = 0

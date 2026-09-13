@@ -85,7 +85,9 @@ def test_verify_wrong_code_consumes_an_attempt() -> None:
         sign_in.verify(wrong_code(code), NOW + timedelta(minutes=1))
 
     assert sign_in.challenge is not None
-    assert sign_in.challenge.attempts_remaining == MAX_VERIFICATION_ATTEMPTS - 1
+    assert (
+        sign_in.challenge.attempts_remaining == MAX_VERIFICATION_ATTEMPTS - 1
+    )
 
 
 def test_verify_without_challenge_fails() -> None:

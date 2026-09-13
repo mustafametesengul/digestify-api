@@ -13,7 +13,7 @@ from digestify_api.couchdb import (
     WriteNotConfirmed,
 )
 from digestify_api.identity.email import EmailDeliveryError
-from digestify_api.identity.identity import Identity
+from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import (
     CODE_LENGTH,
     ISSUE_COOLDOWN,
@@ -60,7 +60,7 @@ class AccountResponse(BaseModel):
     email: str
 
 
-async def get_service(request: Request) -> AsyncIterator[Identity]:
+async def get_service(request: Request) -> AsyncIterator[Service]:
     try:
         yield request.app.state.identity_service
     except (
@@ -94,7 +94,7 @@ _http_bearer = HTTPBearer(auto_error=False)
 
 
 async def require_user(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     token_verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
@@ -112,7 +112,7 @@ async def require_user(
         await service.authorize(claims)
         return claims
     except jwt.PyJWTError:
-        raise _unauthenticated()
+        raise _unauthenticated() from None
 
 
 def require_registered_user(
@@ -128,14 +128,14 @@ def require_registered_user(
 
 @router.post("/sign-in-anonymously")
 async def sign_in_anonymously(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
 ) -> TokenPair:
     return await service.sign_in_anonymously()
 
 
 @router.post("/sign-in-with-email", status_code=status.HTTP_202_ACCEPTED)
 async def sign_in_with_email(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     payload: SignInWithEmailRequest,
 ) -> SignInWithEmailResponse:
     try:
@@ -143,20 +143,22 @@ async def sign_in_with_email(
     except CodeRequestedTooSoon:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="A sign-in code was requested recently; wait before retrying",
+            detail=(
+                "A sign-in code was requested recently; wait before retrying"
+            ),
             headers={"Retry-After": str(int(ISSUE_COOLDOWN.total_seconds()))},
-        )
+        ) from None
     except EmailDeliveryError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to send the sign-in email",
-        )
+        ) from None
     return SignInWithEmailResponse()
 
 
 @router.post("/verify-sign-in-code")
 async def verify_sign_in_code(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     payload: VerifySignInCodeRequest,
 ) -> TokenPair:
     try:
@@ -165,15 +167,15 @@ async def verify_sign_in_code(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired sign-in code",
-        )
+        ) from None
 
 
 @router.post("/recover-account")
 async def recover_account(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     payload: VerifySignInCodeRequest,
 ) -> TokenPair:
-    """Verify email ownership, revoke all account tokens, and return a new pair."""
+    """Verify ownership, revoke account tokens, and return a new pair."""
     try:
         return await service.verify_sign_in_code(
             payload.email, payload.code, revoke_tokens=True
@@ -182,38 +184,38 @@ async def recover_account(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired sign-in code",
-        )
+        ) from None
 
 
 @router.post("/refresh-token")
 async def refresh_token(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     payload: RefreshTokenRequest,
 ) -> TokenPair:
     try:
         return await service.refresh_token_pair(payload.refresh_token)
     except jwt.PyJWTError:
-        raise _unauthenticated()
+        raise _unauthenticated() from None
 
 
 @router.get("/account")
 async def get_account(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> AccountResponse:
     try:
         email = await service.get_email(user_claims)
     except jwt.InvalidTokenError:
-        raise _unauthenticated()
+        raise _unauthenticated() from None
     return AccountResponse(email=email)
 
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
-    service: Annotated[Identity, Depends(get_service)],
+    service: Annotated[Service, Depends(get_service)],
     user_claims: Annotated[UserClaims, Depends(require_registered_user)],
 ) -> None:
     try:
         await service.delete_account(user_claims)
     except jwt.InvalidTokenError:
-        raise _unauthenticated()
+        raise _unauthenticated() from None

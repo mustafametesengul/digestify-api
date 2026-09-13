@@ -98,7 +98,9 @@ class Repository[T: Document]:
         )
         return [self._model_type.model_validate(doc) for doc in docs]
 
-    async def changes(self, since: str = "0") -> AsyncGenerator[DocumentChange[T]]:
+    async def changes(
+        self, since: str = "0"
+    ) -> AsyncGenerator[DocumentChange[T]]:
         """Stream changes to documents of this kind from `since` onwards.
 
         Filtering happens server-side on the `type` discriminator. Deletions

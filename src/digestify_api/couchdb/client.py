@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from digestify_api.couchdb.database import Database
 
 
-class Settings(BaseSettings):
+class ClientSettings(BaseSettings):
     """Connection settings, read from `COUCHDB_*` environment variables."""
 
     model_config = SettingsConfigDict(
@@ -39,9 +39,9 @@ class Client:
     @asynccontextmanager
     async def connect(
         cls,
-        settings: Settings | None = None,
+        settings: ClientSettings | None = None,
     ) -> AsyncIterator[Self]:
-        settings = settings or Settings()
+        settings = settings or ClientSettings()
         async with httpx.AsyncClient(
             base_url=settings.url,
             auth=(settings.user, settings.password.get_secret_value()),

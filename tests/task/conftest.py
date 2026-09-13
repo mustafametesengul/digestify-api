@@ -25,7 +25,9 @@ class InMemoryCouch:
         if path.endswith("/_find"):
             body = json.loads(request.content)
             docs = [
-                doc for doc in self.docs.values() if self.matches(doc, body["selector"])
+                doc
+                for doc in self.docs.values()
+                if self.matches(doc, body["selector"])
             ]
             offset = int(body.get("bookmark", "0"))
             end = offset + body["limit"]
@@ -39,7 +41,9 @@ class InMemoryCouch:
         identity = path.removeprefix("/tasks/")
         if request.method == "GET":
             doc = self.docs.get(identity)
-            response = httpx.Response(200, json=doc) if doc else httpx.Response(404)
+            response = (
+                httpx.Response(200, json=doc) if doc else httpx.Response(404)
+            )
             if self.read_barrier is not None and self.barrier_reads < 2:
                 self.barrier_reads += 1
                 await self.read_barrier.wait()
@@ -53,10 +57,16 @@ class InMemoryCouch:
             if status in (201, 202):
                 self.revision += 1
                 revision = f"{self.revision}-test"
-                self.docs[identity] = {**body, "_id": identity, "_rev": revision}
+                self.docs[identity] = {
+                    **body,
+                    "_id": identity,
+                    "_rev": revision,
+                }
                 return httpx.Response(status, json={"rev": revision})
             return httpx.Response(status)
-        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+        raise AssertionError(
+            f"Unexpected request: {request.method} {request.url}"
+        )
 
     @staticmethod
     def matches(document: dict[str, Any], selector: dict[str, Any]) -> bool:
@@ -65,7 +75,9 @@ class InMemoryCouch:
             if isinstance(expected, dict):
                 if "$in" in expected and actual not in expected["$in"]:
                     return False
-                if "$lte" in expected and (actual is None or actual > expected["$lte"]):
+                if "$lte" in expected and (
+                    actual is None or actual > expected["$lte"]
+                ):
                     return False
             elif actual != expected:
                 return False
@@ -91,7 +103,9 @@ def couch() -> InMemoryCouch:
 
 
 @pytest.fixture
-async def service(couch: InMemoryCouch, clock: Clock) -> AsyncIterator[TaskService]:
+async def service(
+    couch: InMemoryCouch, clock: Clock
+) -> AsyncIterator[TaskService]:
     async with httpx.AsyncClient(
         base_url="http://couch", transport=httpx.MockTransport(couch)
     ) as client:

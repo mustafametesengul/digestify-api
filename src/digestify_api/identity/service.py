@@ -22,23 +22,23 @@ from digestify_api.identity.token import (
 from digestify_api.identity.user import User
 
 
-class Identity:
+class Service:
     def __init__(
         self,
         users: Repository[User],
         sign_in_codes: Repository[SignInCode],
-        email_sender: EmailClient,
+        email_client: EmailClient,
         token_generator: TokenGenerator,
         token_verifier: TokenVerifier,
     ) -> None:
         self._users = users
         self._sign_in_codes = sign_in_codes
-        self._email_sender = email_sender
+        self._email_client = email_client
         self._token_generator = token_generator
         self._token_verifier = token_verifier
 
     async def refresh_token_pair(self, refresh_token: str) -> TokenPair:
-        """Renew a reusable refresh token without writing authentication state."""
+        """Renew a refresh token without writing authentication state."""
         user_claims = self._token_verifier.verify(
             refresh_token,
             purpose=TokenPurpose.REFRESH,
@@ -62,7 +62,7 @@ class Identity:
         return user
 
     async def authorize(self, claims: TokenClaims) -> None:
-        """Check observed account state; revocation propagates with replication."""
+        """Check account state; revocation propagates with replication."""
         await self.validate_user(claims)
 
     async def get_email(self, user_claims: UserClaims) -> str:
@@ -89,7 +89,7 @@ class Identity:
         except DocumentConflict as error:
             raise CodeRequestedTooSoon() from error
 
-        await self._email_sender.send(
+        await self._email_client.send(
             to=sign_in.email,
             subject="Your Digestify sign-in code",
             text=(
@@ -102,7 +102,7 @@ class Identity:
     async def verify_sign_in_code(
         self, email: str, code: str, *, revoke_tokens: bool = False
     ) -> TokenPair:
-        """Provision a reserved account and consume the challenge before issuing tokens."""
+        """Provision an account before issuing tokens."""
         for _ in range(5):
             try:
                 return await self._verify_sign_in_code(
@@ -151,7 +151,9 @@ class Identity:
             await self._users.save(user)
 
         user_claims = UserClaims(
-            id=user_id, role=UserRole.PERMANENT, token_generation=user.token_generation
+            id=user_id,
+            role=UserRole.PERMANENT,
+            token_generation=user.token_generation,
         )
         return self._token_generator.generate(user_claims)
 

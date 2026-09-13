@@ -11,7 +11,7 @@ from digestify_api.couchdb import (
     Repository,
     UnresolvedDocumentConflict,
 )
-from digestify_api.identity import identity as identity_module
+from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import InvalidCode, SignInCode
 from digestify_api.identity.token import (
     TokenGenerator,
@@ -24,20 +24,27 @@ from digestify_api.identity.user import User
 from tests.couchdb.test_integration import client as client
 from tests.couchdb.test_integration import database as database
 from tests.couchdb.test_integration import pytestmark as pytestmark
-from tests.identity.test_service import EMAIL, SECRET, Identity, RecordingEmailClient
+from tests.identity.test_service import (
+    EMAIL,
+    SECRET,
+    IdentityHarness,
+    RecordingEmailClient,
+)
 
 
 @pytest.fixture
-def identity(database: Database) -> Identity:
+def identity(database: Database) -> IdentityHarness:
     users = Repository(User, database)
     codes = Repository(SignInCode, database)
     email = RecordingEmailClient()
-    verifier = TokenVerifier(TokenVerifierSettings(secret_key=SecretStr(SECRET)))
-    return Identity(
-        service=identity_module.Identity(
+    verifier = TokenVerifier(
+        TokenVerifierSettings(secret_key=SecretStr(SECRET))
+    )
+    return IdentityHarness(
+        service=Service(
             users=users,
             sign_in_codes=codes,
-            email_sender=email,
+            email_client=email,
             token_generator=TokenGenerator(
                 TokenGeneratorSettings(secret_key=SecretStr(SECRET))
             ),
@@ -71,18 +78,24 @@ def synchronize_first_reads[Model: Document](
 
 
 async def test_concurrent_sign_in_creates_one_account(
-    identity: Identity, monkeypatch: pytest.MonkeyPatch
+    identity: IdentityHarness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     synchronize_first_reads(identity.sign_in_codes, monkeypatch)
     async with asyncio.timeout(15):
         results = await asyncio.gather(
-            identity.service.verify_sign_in_code(EMAIL, identity.email.last_code),
-            identity.service.verify_sign_in_code(EMAIL, identity.email.last_code),
+            identity.service.verify_sign_in_code(
+                EMAIL, identity.email.last_code
+            ),
+            identity.service.verify_sign_in_code(
+                EMAIL, identity.email.last_code
+            ),
             return_exceptions=True,
         )
     assert sum(isinstance(result, InvalidCode) for result in results) == 1
-    assert sum(not isinstance(result, BaseException) for result in results) == 1
+    assert (
+        sum(not isinstance(result, BaseException) for result in results) == 1
+    )
     [user] = await identity.users.find()
     sign_in = await identity.sign_in_codes.get(SignInCode.id_for(EMAIL))
     assert sign_in is not None
@@ -90,9 +103,13 @@ async def test_concurrent_sign_in_creates_one_account(
     assert sign_in.challenge is None
 
 
-async def test_concurrent_refresh_requires_no_writes(identity: Identity) -> None:
+async def test_concurrent_refresh_requires_no_writes(
+    identity: IdentityHarness,
+) -> None:
     await identity.service.sign_in_with_email(EMAIL)
-    pair = await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+    pair = await identity.service.verify_sign_in_code(
+        EMAIL, identity.email.last_code
+    )
     before = await identity.users.find()
     async with asyncio.timeout(15):
         results = await asyncio.gather(
@@ -101,24 +118,30 @@ async def test_concurrent_refresh_requires_no_writes(identity: Identity) -> None
         )
     assert await identity.users.find() == before
     for result in results:
-        claims = identity.verifier.verify(result.access_token, TokenPurpose.ACCESS)
+        claims = identity.verifier.verify(
+            result.access_token, TokenPurpose.ACCESS
+        )
         await identity.service.authorize(claims)
 
 
 async def test_recovery_persists_generation_and_rejects_old_tokens(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     old_pair = await identity.service.verify_sign_in_code(
         EMAIL, identity.email.last_code
     )
-    old_claims = identity.verifier.verify(old_pair.access_token, TokenPurpose.ACCESS)
+    old_claims = identity.verifier.verify(
+        old_pair.access_token, TokenPurpose.ACCESS
+    )
     await identity.reset_cooldown()
     await identity.service.sign_in_with_email(EMAIL)
     new_pair = await identity.service.verify_sign_in_code(
         EMAIL, identity.email.last_code, revoke_tokens=True
     )
-    new_claims = identity.verifier.verify(new_pair.access_token, TokenPurpose.ACCESS)
+    new_claims = identity.verifier.verify(
+        new_pair.access_token, TokenPurpose.ACCESS
+    )
     user = await identity.users.get(str(old_claims.id))
     assert user is not None
     assert user.token_generation == new_claims.token_generation
@@ -134,10 +157,15 @@ async def test_recovery_persists_generation_and_rejects_old_tokens(
 
 @pytest.mark.parametrize("kind", ["user", "sign_in_code", "token_generation"])
 async def test_replicated_conflicts_block_identity(
-    identity: Identity, database: Database, client: httpx.AsyncClient, kind: str
+    identity: IdentityHarness,
+    database: Database,
+    client: httpx.AsyncClient,
+    kind: str,
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
-    pair = await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+    pair = await identity.service.verify_sign_in_code(
+        EMAIL, identity.email.last_code
+    )
     claims = identity.verifier.verify(pair.access_token, TokenPurpose.ACCESS)
     id = str(claims.id) if kind != "sign_in_code" else SignInCode.id_for(EMAIL)
     original = await database.get(id)
@@ -148,7 +176,10 @@ async def test_replicated_conflicts_block_identity(
     conflicting = {
         **original,
         "_rev": f"{next_generation}-{'f' * 32}",
-        "_revisions": {"start": next_generation, "ids": ["f" * 32, parent_hash]},
+        "_revisions": {
+            "start": next_generation,
+            "ids": ["f" * 32, parent_hash],
+        },
         "test_branch": "second",
     }
     if kind == "user":
@@ -174,4 +205,6 @@ async def test_replicated_conflicts_block_identity(
         with pytest.raises(UnresolvedDocumentConflict):
             await identity.service.sign_in_with_email(EMAIL)
         with pytest.raises(UnresolvedDocumentConflict):
-            await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+            await identity.service.verify_sign_in_code(
+                EMAIL, identity.email.last_code
+            )

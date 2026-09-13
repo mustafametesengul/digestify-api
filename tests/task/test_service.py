@@ -8,17 +8,28 @@ from digestify_api.couchdb import (
     UnresolvedDocumentConflict,
     WriteNotConfirmed,
 )
-from digestify_api.tasks import DailySchedule, LostLease, Partition, TaskService
+from digestify_api.tasks import (
+    DailySchedule,
+    LostLease,
+    Partition,
+    TaskService,
+)
 from tests.task.conftest import Clock, InMemoryCouch
 
 LEASE = timedelta(minutes=1)
 
 
-async def test_create_get_find_and_cancel(service: TaskService, clock: Clock) -> None:
+async def test_create_get_find_and_cancel(
+    service: TaskService, clock: Clock
+) -> None:
     await service.init()
-    task = await service.create("email", {"subject": "hello"}, partition_key="user:1")
+    task = await service.create(
+        "email", {"subject": "hello"}, partition_key="user:1"
+    )
     assert await service.get(task.id) == task
-    assert await service.find(partition_key="user:1", status="pending") == [task]
+    assert await service.find(partition_key="user:1", status="pending") == [
+        task
+    ]
     assert await service.find(partition_key="user:other") == []
     cancelled = await service.cancel(task.id)
     assert cancelled is not None and cancelled.status == "cancelled"
@@ -28,7 +39,9 @@ async def test_create_get_find_and_cancel(service: TaskService, clock: Clock) ->
     assert await service.cancel("missing") is None
 
 
-async def test_explicit_id_prevents_duplicate_creation(service: TaskService) -> None:
+async def test_explicit_id_prevents_duplicate_creation(
+    service: TaskService,
+) -> None:
     await service.create("email", task_id="delivery:1")
     with pytest.raises(DocumentConflict):
         await service.create("email", task_id="delivery:1")
@@ -81,7 +94,9 @@ async def test_renew_and_complete_persist_result(
     clock.now += timedelta(seconds=30)
     renewed = await service.renew(task.id, claimed.claim_token, LEASE)
     assert renewed.lease_until == clock.now + LEASE
-    finished = await service.finish(task.id, claimed.claim_token, result={"sent": True})
+    finished = await service.finish(
+        task.id, claimed.claim_token, result={"sent": True}
+    )
     assert finished.status == "succeeded"
     assert finished.last_result == {"sent": True}
     assert await service.get(task.id) == finished
@@ -133,7 +148,9 @@ async def test_deadline_strings_sort_with_subsecond_precision(
     service: TaskService, clock: Clock
 ) -> None:
     due = await service.create("email")
-    await service.create("email", scheduled_at=clock.now + timedelta(microseconds=2))
+    await service.create(
+        "email", scheduled_at=clock.now + timedelta(microseconds=2)
+    )
     clock.now += timedelta(microseconds=1)
     assert await service.candidates(Partition().buckets, ["email"]) == [due]
 

@@ -49,7 +49,7 @@ class TaskService:
         max_attempts: int = 3,
         retry_delay: timedelta = timedelta(seconds=30),
     ) -> Task:
-        """Create a task; reusing a caller-supplied ID raises DocumentConflict."""
+        """Create a task, rejecting a duplicate caller-supplied ID."""
         if task_id == "":
             raise ValueError("Task ID must not be empty.")
         now = utc(self._clock())
@@ -147,7 +147,9 @@ class TaskService:
     ) -> Task:
         task = await self._update(
             task_id,
-            lambda task, now: task.finish(token, now, result=result, error=error),
+            lambda task, now: task.finish(
+                token, now, result=result, error=error
+            ),
         )
         if task is None:
             raise LostLease(task_id)

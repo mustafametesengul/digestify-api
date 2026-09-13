@@ -18,12 +18,16 @@ class FakeServer:
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
-        assert self._responses, f"unexpected request: {request.method} {request.url}"
+        assert self._responses, (
+            f"unexpected request: {request.method} {request.url}"
+        )
         return self._responses.pop(0)
 
     @property
     def request(self) -> httpx.Request:
-        assert len(self.requests) == 1, f"expected one request, saw {self.requests}"
+        assert len(self.requests) == 1, (
+            f"expected one request, saw {self.requests}"
+        )
         return self.requests[0]
 
 

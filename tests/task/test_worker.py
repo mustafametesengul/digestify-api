@@ -29,9 +29,13 @@ async def test_worker_executes_and_tracks_result(service: TaskService) -> None:
     handler.assert_awaited_once()
 
 
-async def test_handler_failure_is_persisted_for_retry(service: TaskService) -> None:
+async def test_handler_failure_is_persisted_for_retry(
+    service: TaskService,
+) -> None:
     task = await service.create("email")
-    worker = Worker(service, {"email": AsyncMock(side_effect=ValueError("bad input"))})
+    worker = Worker(
+        service, {"email": AsyncMock(side_effect=ValueError("bad input"))}
+    )
     await worker._tick()
     await drain(worker)
     stored = await service.get(task.id)
@@ -55,7 +59,9 @@ async def test_uncertain_or_conflicted_claim_never_runs_handler(
     assert couch.docs[uncertain.id]["status"] == "running"
 
 
-async def test_two_partitions_cover_each_task_once(service: TaskService) -> None:
+async def test_two_partitions_cover_each_task_once(
+    service: TaskService,
+) -> None:
     for number in range(20):
         await service.create("email", partition_key=f"user:{number}")
     calls: list[tuple[int, Task]] = []
@@ -67,8 +73,18 @@ async def test_two_partitions_cover_each_task_once(service: TaskService) -> None
         calls.append((1, task))
 
     workers = [
-        Worker(service, {"email": first}, partition=Partition(0, 2), concurrency=30),
-        Worker(service, {"email": second}, partition=Partition(1, 2), concurrency=30),
+        Worker(
+            service,
+            {"email": first},
+            partition=Partition(0, 2),
+            concurrency=30,
+        ),
+        Worker(
+            service,
+            {"email": second},
+            partition=Partition(1, 2),
+            concurrency=30,
+        ),
     ]
     for worker in workers:
         await worker._tick()
@@ -76,7 +92,9 @@ async def test_two_partitions_cover_each_task_once(service: TaskService) -> None
         await drain(worker)
     assert len(calls) == len({task.id for _, task in calls}) == 20
     assert {index for index, _ in calls} == {0, 1}
-    assert all(Partition(index, 2).owns(task.partition_key) for index, task in calls)
+    assert all(
+        Partition(index, 2).owns(task.partition_key) for index, task in calls
+    )
 
 
 async def test_cancellation_stops_running_handler_on_heartbeat(
@@ -148,7 +166,9 @@ async def test_heartbeat_renews_until_handler_finishes(
     assert stored is not None and stored.status == "succeeded"
 
 
-async def test_shutdown_cancels_and_awaits_handlers(service: TaskService) -> None:
+async def test_shutdown_cancels_and_awaits_handlers(
+    service: TaskService,
+) -> None:
     task = await service.create("email")
     started, stopped = asyncio.Event(), asyncio.Event()
 

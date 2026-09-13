@@ -28,7 +28,9 @@ async def test_live_competing_claims(service: TaskService) -> None:
     assert sum(claim is not None for claim in claims) == 1
     winner = next(claim for claim in claims if claim is not None)
     assert winner.claim_token is not None
-    finished = await service.finish(task.id, winner.claim_token, result={"done": True})
+    finished = await service.finish(
+        task.id, winner.claim_token, result={"done": True}
+    )
     assert finished.status == "succeeded"
     assert await service.get(task.id) == finished
 
@@ -40,7 +42,9 @@ async def test_live_indexed_query_and_partitioned_execution(
         await service.create("example", partition_key=f"user:{number}")
         for number in range(8)
     ]
-    await service.create("example", scheduled_at=clock.now + timedelta(hours=1))
+    await service.create(
+        "example", scheduled_at=clock.now + timedelta(hours=1)
+    )
     seen: list[tuple[int, Task]] = []
 
     async def first(task: Task) -> None:
@@ -50,13 +54,17 @@ async def test_live_indexed_query_and_partitioned_execution(
         seen.append((1, task))
 
     for index, handler in enumerate((first, second)):
-        worker = Worker(service, {"example": handler}, partition=Partition(index, 2))
+        worker = Worker(
+            service, {"example": handler}, partition=Partition(index, 2)
+        )
         await worker._tick()
         async with asyncio.timeout(15):
             await asyncio.gather(*list(worker._running.values()))
     assert {task.id for _, task in seen} == {task.id for task in created}
     assert len(seen) == len(created)
-    assert all(Partition(index, 2).owns(task.partition_key) for index, task in seen)
+    assert all(
+        Partition(index, 2).owns(task.partition_key) for index, task in seen
+    )
     assert len(await service.find(status="succeeded")) == 8
 
 
@@ -87,7 +95,8 @@ async def test_live_divergent_revisions_block_execution(
         for revision in ("a" * 32, "b" * 32)
     ]
     response = await client.post(
-        f"/{database.name}/_bulk_docs", json={"new_edits": False, "docs": branches}
+        f"/{database.name}/_bulk_docs",
+        json={"new_edits": False, "docs": branches},
     )
     response.raise_for_status()
     with pytest.raises(UnresolvedDocumentConflict):

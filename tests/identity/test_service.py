@@ -11,9 +11,13 @@ import jwt
 import pytest
 from pydantic import SecretStr
 
-from digestify_api.couchdb import Database, Repository, UnresolvedDocumentConflict
-from digestify_api.identity import identity as identity_module
+from digestify_api.couchdb import (
+    Database,
+    Repository,
+    UnresolvedDocumentConflict,
+)
 from digestify_api.identity.email import EmailClient
+from digestify_api.identity.service import Service
 from digestify_api.identity.sign_in_code import (
     CodeRequestedTooSoon,
     InvalidCode,
@@ -59,8 +63,12 @@ class InMemoryCouch:
             self._revision += 1
             rev = f"{self._revision}-abc"
             self.docs[doc_id] = {**doc, "_id": doc_id, "_rev": rev}
-            return httpx.Response(201, json={"ok": True, "id": doc_id, "rev": rev})
-        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+            return httpx.Response(
+                201, json={"ok": True, "id": doc_id, "rev": rev}
+            )
+        raise AssertionError(
+            f"unexpected request: {request.method} {request.url}"
+        )
 
 
 class RecordingEmailClient(EmailClient):
@@ -78,8 +86,8 @@ class RecordingEmailClient(EmailClient):
 
 
 @dataclass
-class Identity:
-    service: identity_module.Identity
+class IdentityHarness:
+    service: Service
     users: Repository[User]
     sign_in_codes: Repository[SignInCode]
     email: RecordingEmailClient
@@ -90,8 +98,12 @@ class Identity:
         """Complete a full email sign-in and return the access-token claims."""
         await self.reset_cooldown(email)
         await self.service.sign_in_with_email(email)
-        pair = await self.service.verify_sign_in_code(email, self.email.last_code)
-        return self.verifier.verify(pair.access_token, purpose=TokenPurpose.ACCESS)
+        pair = await self.service.verify_sign_in_code(
+            email, self.email.last_code
+        )
+        return self.verifier.verify(
+            pair.access_token, purpose=TokenPurpose.ACCESS
+        )
 
     async def reset_cooldown(self, email: str = EMAIL) -> None:
         sign_in = await self.sign_in_codes.get(SignInCode.id_for(email))
@@ -101,7 +113,7 @@ class Identity:
 
 
 @pytest.fixture
-async def identity() -> AsyncIterator[Identity]:
+async def identity() -> AsyncIterator[IdentityHarness]:
     couch = InMemoryCouch()
     async with httpx.AsyncClient(
         base_url="http://couch",
@@ -114,11 +126,11 @@ async def identity() -> AsyncIterator[Identity]:
         verifier = TokenVerifier(
             TokenVerifierSettings(secret_key=SecretStr(SECRET)),
         )
-        yield Identity(
-            service=identity_module.Identity(
+        yield IdentityHarness(
+            service=Service(
                 users=users,
                 sign_in_codes=sign_in_codes,
-                email_sender=email,
+                email_client=email,
                 token_generator=TokenGenerator(
                     TokenGeneratorSettings(secret_key=SecretStr(SECRET)),
                 ),
@@ -133,16 +145,18 @@ async def identity() -> AsyncIterator[Identity]:
 
 
 async def test_sign_in_anonymously_issues_anonymous_tokens(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     pair = await identity.service.sign_in_anonymously()
 
-    claims = identity.verifier.verify(pair.access_token, purpose=TokenPurpose.ACCESS)
+    claims = identity.verifier.verify(
+        pair.access_token, purpose=TokenPurpose.ACCESS
+    )
     assert claims.role is UserRole.ANONYMOUS
 
 
 async def test_sign_in_with_email_sends_code_to_normalized_address(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     await identity.service.sign_in_with_email("  Alice@Example.COM ")
 
@@ -150,7 +164,9 @@ async def test_sign_in_with_email_sends_code_to_normalized_address(
     assert identity.email.last_code.isdigit()
 
 
-async def test_sign_in_with_email_enforces_cooldown(identity: Identity) -> None:
+async def test_sign_in_with_email_enforces_cooldown(
+    identity: IdentityHarness,
+) -> None:
     await identity.service.sign_in_with_email(EMAIL)
 
     with pytest.raises(CodeRequestedTooSoon):
@@ -158,7 +174,7 @@ async def test_sign_in_with_email_enforces_cooldown(identity: Identity) -> None:
 
 
 async def test_verify_sign_in_code_creates_permanent_user(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     claims = await identity.sign_in()
 
@@ -170,13 +186,15 @@ async def test_verify_sign_in_code_creates_permanent_user(
     assert user.email == EMAIL
 
 
-async def test_verify_sign_in_code_rejects_unknown_email(identity: Identity) -> None:
+async def test_verify_sign_in_code_rejects_unknown_email(
+    identity: IdentityHarness,
+) -> None:
     with pytest.raises(InvalidCode):
         await identity.service.verify_sign_in_code(EMAIL, "123456")
 
 
 async def test_verify_sign_in_code_persists_consumed_attempts(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     code = identity.email.last_code
@@ -192,21 +210,29 @@ async def test_verify_sign_in_code_persists_consumed_attempts(
 
     # The right code still signs in after a failed guess.
     pair = await identity.service.verify_sign_in_code(EMAIL, code)
-    claims = identity.verifier.verify(pair.access_token, purpose=TokenPurpose.ACCESS)
+    claims = identity.verifier.verify(
+        pair.access_token, purpose=TokenPurpose.ACCESS
+    )
     assert claims.role is UserRole.PERMANENT
 
 
-async def test_returning_user_keeps_their_id(identity: Identity) -> None:
+async def test_returning_user_keeps_their_id(
+    identity: IdentityHarness,
+) -> None:
     first = await identity.sign_in()
     second = await identity.sign_in()
 
     assert second.id == first.id
 
 
-async def test_refresh_token_pair_renews_tokens(identity: Identity) -> None:
+async def test_refresh_token_pair_renews_tokens(
+    identity: IdentityHarness,
+) -> None:
     await identity.reset_cooldown()
     await identity.service.sign_in_with_email(EMAIL)
-    pair = await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+    pair = await identity.service.verify_sign_in_code(
+        EMAIL, identity.email.last_code
+    )
 
     refreshed = await identity.service.refresh_token_pair(pair.refresh_token)
 
@@ -216,14 +242,16 @@ async def test_refresh_token_pair_renews_tokens(identity: Identity) -> None:
     assert claims.role is UserRole.PERMANENT
 
 
-async def test_refresh_rejects_access_token(identity: Identity) -> None:
+async def test_refresh_rejects_access_token(identity: IdentityHarness) -> None:
     pair = await identity.service.sign_in_anonymously()
 
     with pytest.raises(jwt.InvalidTokenError):
         await identity.service.refresh_token_pair(pair.access_token)
 
 
-async def test_delete_account_revokes_access(identity: Identity) -> None:
+async def test_delete_account_revokes_access(
+    identity: IdentityHarness,
+) -> None:
     claims = await identity.sign_in()
 
     await identity.service.delete_account(claims)
@@ -234,11 +262,15 @@ async def test_delete_account_revokes_access(identity: Identity) -> None:
         await identity.service.delete_account(claims)
 
 
-async def test_deleted_user_cannot_refresh(identity: Identity) -> None:
+async def test_deleted_user_cannot_refresh(identity: IdentityHarness) -> None:
     await identity.reset_cooldown()
     await identity.service.sign_in_with_email(EMAIL)
-    pair = await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
-    claims = identity.verifier.verify(pair.access_token, purpose=TokenPurpose.ACCESS)
+    pair = await identity.service.verify_sign_in_code(
+        EMAIL, identity.email.last_code
+    )
+    claims = identity.verifier.verify(
+        pair.access_token, purpose=TokenPurpose.ACCESS
+    )
 
     await identity.service.delete_account(claims)
 
@@ -247,7 +279,7 @@ async def test_deleted_user_cannot_refresh(identity: Identity) -> None:
 
 
 async def test_sign_in_after_deletion_creates_fresh_user(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     first = await identity.sign_in()
     await identity.service.delete_account(first)
@@ -259,7 +291,7 @@ async def test_sign_in_after_deletion_creates_fresh_user(
 
 
 async def test_concurrent_verification_reserves_one_user(
-    identity: Identity, monkeypatch: pytest.MonkeyPatch
+    identity: IdentityHarness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     original_get = identity.sign_in_codes.get
@@ -286,14 +318,20 @@ async def test_concurrent_verification_reserves_one_user(
     monkeypatch.setattr(identity.users, "save", record_save)
     async with asyncio.timeout(5):
         results = await asyncio.gather(
-            identity.service.verify_sign_in_code(EMAIL, identity.email.last_code),
-            identity.service.verify_sign_in_code(EMAIL, identity.email.last_code),
+            identity.service.verify_sign_in_code(
+                EMAIL, identity.email.last_code
+            ),
+            identity.service.verify_sign_in_code(
+                EMAIL, identity.email.last_code
+            ),
             return_exceptions=True,
         )
 
     assert len(saved_ids) == 1
     assert sum(isinstance(result, InvalidCode) for result in results) == 1
-    assert sum(not isinstance(result, BaseException) for result in results) == 1
+    assert (
+        sum(not isinstance(result, BaseException) for result in results) == 1
+    )
     sign_in = await original_get(SignInCode.id_for(EMAIL))
     assert sign_in is not None
     assert saved_ids == {str(sign_in.user_id)}
@@ -302,7 +340,9 @@ async def test_concurrent_verification_reserves_one_user(
 
 @pytest.mark.parametrize("failure_stage", ["create_user", "consume_challenge"])
 async def test_verification_resumes_reserved_user_after_write_failure(
-    identity: Identity, monkeypatch: pytest.MonkeyPatch, failure_stage: str
+    identity: IdentityHarness,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_stage: str,
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     original_user_save = identity.users.save
@@ -321,7 +361,9 @@ async def test_verification_resumes_reserved_user_after_write_failure(
     else:
         monkeypatch.setattr(identity.sign_in_codes, "save", fail_consumption)
     with pytest.raises(httpx.ConnectError):
-        await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+        await identity.service.verify_sign_in_code(
+            EMAIL, identity.email.last_code
+        )
 
     reserved = await identity.sign_in_codes.get(SignInCode.id_for(EMAIL))
     assert reserved is not None
@@ -329,14 +371,16 @@ async def test_verification_resumes_reserved_user_after_write_failure(
     assert reserved.challenge is not None
     monkeypatch.setattr(identity.users, "save", original_user_save)
     monkeypatch.setattr(identity.sign_in_codes, "save", original_code_save)
-    pair = await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+    pair = await identity.service.verify_sign_in_code(
+        EMAIL, identity.email.last_code
+    )
     claims = identity.verifier.verify(pair.access_token, TokenPurpose.ACCESS)
     assert claims.id == reserved.user_id
 
 
 @pytest.mark.parametrize("anonymous", [False, True])
 async def test_refresh_reuse_and_concurrency_are_supported(
-    identity: Identity, anonymous: bool
+    identity: IdentityHarness, anonymous: bool
 ) -> None:
     if anonymous:
         pair = await identity.service.sign_in_anonymously()
@@ -346,7 +390,10 @@ async def test_refresh_reuse_and_concurrency_are_supported(
             EMAIL, identity.email.last_code
         )
     results = await asyncio.gather(
-        *(identity.service.refresh_token_pair(pair.refresh_token) for _ in range(5))
+        *(
+            identity.service.refresh_token_pair(pair.refresh_token)
+            for _ in range(5)
+        )
     )
     assert len({result.refresh_token for result in results}) == 5
     for result in results:
@@ -357,7 +404,7 @@ async def test_refresh_reuse_and_concurrency_are_supported(
 
 
 async def test_monthly_refresh_extends_expiry(
-    identity: Identity, monkeypatch: pytest.MonkeyPatch
+    identity: IdentityHarness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     pair = await identity.service.sign_in_anonymously()
     start = datetime.now(UTC)
@@ -374,16 +421,21 @@ async def test_monthly_refresh_extends_expiry(
         current = start + timedelta(days=30 * month)
         pair = await identity.service.refresh_token_pair(pair.refresh_token)
         payload = jwt.decode(
-            pair.refresh_token, SECRET, algorithms=["HS256"], audience=TOKEN_AUDIENCE
+            pair.refresh_token,
+            SECRET,
+            algorithms=["HS256"],
+            audience=TOKEN_AUDIENCE,
         )
-        assert payload["exp"] == int((current + timedelta(days=45)).timestamp())
+        assert payload["exp"] == int(
+            (current + timedelta(days=45)).timestamp()
+        )
     current += timedelta(days=46)
     with pytest.raises(jwt.ExpiredSignatureError):
         await identity.service.refresh_token_pair(pair.refresh_token)
 
 
 async def test_concurrent_wrong_codes_preserve_attempt_budget(
-    identity: Identity, monkeypatch: pytest.MonkeyPatch
+    identity: IdentityHarness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     wrong = "000000" if identity.email.last_code != "000000" else "999999"
@@ -404,7 +456,10 @@ async def test_concurrent_wrong_codes_preserve_attempt_budget(
     monkeypatch.setattr(identity.sign_in_codes, "get", synchronized_get)
     async with asyncio.timeout(5):
         results = await asyncio.gather(
-            *(identity.service.verify_sign_in_code(EMAIL, wrong) for _ in range(5)),
+            *(
+                identity.service.verify_sign_in_code(EMAIL, wrong)
+                for _ in range(5)
+            ),
             return_exceptions=True,
         )
     assert all(isinstance(result, InvalidCode) for result in results)
@@ -412,7 +467,9 @@ async def test_concurrent_wrong_codes_preserve_attempt_budget(
     assert sign_in is not None and sign_in.challenge is not None
     assert sign_in.challenge.attempts_remaining == 0
     with pytest.raises(InvalidCode):
-        await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+        await identity.service.verify_sign_in_code(
+            EMAIL, identity.email.last_code
+        )
 
 
 def test_replica_reservations_agree_across_account_generations() -> None:
@@ -427,10 +484,12 @@ def test_replica_reservations_agree_across_account_generations() -> None:
 
 
 async def test_visible_account_conflict_blocks_authorization_and_refresh(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
-    pair = await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+    pair = await identity.service.verify_sign_in_code(
+        EMAIL, identity.email.last_code
+    )
     claims = identity.verifier.verify(pair.access_token, TokenPurpose.ACCESS)
     assert identity.couch is not None
     identity.couch.docs[str(claims.id)]["_conflicts"] = ["2-deleted-branch"]
@@ -441,14 +500,18 @@ async def test_visible_account_conflict_blocks_authorization_and_refresh(
 
 
 async def test_visible_challenge_conflict_blocks_issue_and_verification(
-    identity: Identity,
+    identity: IdentityHarness,
 ) -> None:
     await identity.service.sign_in_with_email(EMAIL)
     assert identity.couch is not None
     identity.couch.docs[SignInCode.id_for(EMAIL)]["_conflicts"] = ["2-other"]
     with pytest.raises(UnresolvedDocumentConflict):
-        await identity.service.verify_sign_in_code(EMAIL, identity.email.last_code)
+        await identity.service.verify_sign_in_code(
+            EMAIL, identity.email.last_code
+        )
     with pytest.raises(UnresolvedDocumentConflict):
         await identity.service.sign_in_with_email(EMAIL)
     assert len(identity.email.sent) == 1
-    assert not any(doc["type"] == "user" for doc in identity.couch.docs.values())
+    assert not any(
+        doc["type"] == "user" for doc in identity.couch.docs.values()
+    )

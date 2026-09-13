@@ -1,4 +1,4 @@
-from digestify_api.couchdb.client import Client, Settings
+from digestify_api.couchdb.client import Client, ClientSettings
 from digestify_api.couchdb.database import (
     Change,
     Database,
@@ -6,12 +6,16 @@ from digestify_api.couchdb.database import (
     UnresolvedDocumentConflict,
     WriteNotConfirmed,
 )
-from digestify_api.couchdb.repository import Document, DocumentChange, Repository
+from digestify_api.couchdb.repository import (
+    Document,
+    DocumentChange,
+    Repository,
+)
 
 __all__ = [
     "Change",
     "Client",
-    "Settings",
+    "ClientSettings",
     "Database",
     "Document",
     "DocumentChange",

@@ -13,14 +13,14 @@ import httpx
 import pytest
 
 from digestify_api.couchdb import (
+    ClientSettings,
     Database,
     Document,
     DocumentConflict,
     Repository,
-    Settings,
 )
 
-settings = Settings()
+settings = ClientSettings()
 
 
 def couchdb_is_running() -> bool:
@@ -33,7 +33,10 @@ def couchdb_is_running() -> bool:
 
 pytestmark = pytest.mark.skipif(
     not couchdb_is_running(),
-    reason=f"no CouchDB at {settings.url}; start one with `docker compose up -d db`",
+    reason=(
+        f"no CouchDB at {settings.url}; start one with "
+        "`docker compose up -d db`"
+    ),
 )
 
 
@@ -90,11 +93,15 @@ async def test_document_lifecycle(database: Database) -> None:
     assert doc["_rev"] == rev1
     assert doc["name"] == "widget"
 
-    rev2 = await database.save("a", {"_rev": rev1, "type": "item", "name": "gadget"})
+    rev2 = await database.save(
+        "a", {"_rev": rev1, "type": "item", "name": "gadget"}
+    )
     assert rev2 != rev1
 
     with pytest.raises(DocumentConflict):
-        await database.save("a", {"_rev": rev1, "type": "item", "name": "stale"})
+        await database.save(
+            "a", {"_rev": rev1, "type": "item", "name": "stale"}
+        )
 
     await database.delete("a", rev2)
     assert await database.get("a") is None
@@ -137,7 +144,9 @@ async def test_find_with_index(database: Database) -> None:
 )
 async def test_encoded_document_lifecycle(database: Database, id: str) -> None:
     await database.save("a", {"type": "item", "name": "untouched"})
-    rev = await database.save(id, {"_id": id, "type": "item", "name": "original"})
+    rev = await database.save(
+        id, {"_id": id, "type": "item", "name": "original"}
+    )
 
     doc = await database.get(id)
     assert doc is not None
@@ -179,7 +188,9 @@ async def test_changes_streams_saves_and_deletions(database: Database) -> None:
     rev = await database.save("b", {"type": "item", "name": "doomed"})
     await database.delete("b", rev)
 
-    changes = {change.id: change for change in await collect(database.changes(), 2)}
+    changes = {
+        change.id: change for change in await collect(database.changes(), 2)
+    }
 
     assert changes["a"].deleted is False
     assert changes["a"].doc is not None
@@ -245,7 +256,9 @@ async def test_repository_scopes_queries_to_kind(database: Database) -> None:
     assert await items.get("b") is None
 
 
-async def test_repository_changes_only_sees_own_kind(database: Database) -> None:
+async def test_repository_changes_only_sees_own_kind(
+    database: Database,
+) -> None:
     items = Repository(Item, database)
     others = Repository(Other, database)
 

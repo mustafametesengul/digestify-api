@@ -13,7 +13,7 @@ class DocumentConflict(Exception):
 
 
 class UnresolvedDocumentConflict(Exception):
-    """The document has divergent revisions that require explicit resolution."""
+    """Raised when divergent revisions require explicit resolution."""
 
 
 class WriteNotConfirmed(Exception):
@@ -94,7 +94,9 @@ class Database:
         )
         response.raise_for_status()
 
-    async def get(self, id: str, *, conflicts: bool = False) -> dict[str, Any] | None:
+    async def get(
+        self, id: str, *, conflicts: bool = False
+    ) -> dict[str, Any] | None:
         response = await self._http_client.get(
             self._document_path(id),
             params={"conflicts": "true"} if conflicts else None,
@@ -154,13 +156,19 @@ class Database:
 
         docs: list[dict[str, Any]] = []
         while True:
-            body["limit"] = 100 if limit is None else min(100, limit - len(docs))
-            response = await self._http_client.post(f"{self._path}/_find", json=body)
+            body["limit"] = (
+                100 if limit is None else min(100, limit - len(docs))
+            )
+            response = await self._http_client.post(
+                f"{self._path}/_find", json=body
+            )
             response.raise_for_status()
             result = response.json()
             page = result["docs"]
             docs.extend(page)
-            if len(page) < body["limit"] or (limit is not None and len(docs) >= limit):
+            if len(page) < body["limit"] or (
+                limit is not None and len(docs) >= limit
+            ):
                 return docs
             bookmark = result["bookmark"]
             if bookmark == body.get("bookmark"):
@@ -211,7 +219,7 @@ class Database:
                 if not line.strip():
                     continue  # heartbeat keep-alive
                 row: dict[str, Any] = json.loads(line)
-                # The final row of a closing feed is {"last_seq": ...}, no "id".
+                # The final row of a closing feed has "last_seq" but no "id".
                 if "id" not in row or "seq" not in row:
                     continue
 
